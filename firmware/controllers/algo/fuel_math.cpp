@@ -163,12 +163,24 @@ floatms_t getInjectionDuration(int rpm DECLARE_ENGINE_PARAMETER_SUFFIX) {
 		fuelPerCycle *= engineConfiguration->specs.cylindersCount;
 	}
 	floatms_t theoreticalInjectionLength = fuelPerCycle / numberOfInjections;
+	
+	// Get injector lag
 	floatms_t injectorLag = ENGINE(engineState.injectorLag);
+	
 	if (cisnan(injectorLag)) {
 		warning(CUSTOM_ERR_INJECTOR_LAG, "injectorLag not ready");
 		return 0; // we can end up here during configuration reset
 	}
-	return theoreticalInjectionLength * engineConfiguration->globalFuelCorrection + injectorLag;
+
+	float timeWithoutLag = theoreticalInjectionLength * engineConfiguration->globalFuelCorrection;
+
+	if(timeWithoutLag < 3.708f)	{
+		float x = timeWithoutLag;
+
+		timeWithoutLag = -0.0236f * x * x + 0.1841f * x * x + 0.5049f * x + 0.5001f;
+	}
+
+	return timeWithoutLag + injectorLag;
 }
 
 floatms_t getRunningFuel(floatms_t baseFuel DECLARE_ENGINE_PARAMETER_SUFFIX) {
