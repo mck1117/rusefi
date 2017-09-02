@@ -177,7 +177,7 @@ floatms_t getInjectionDuration(int rpm DECLARE_ENGINE_PARAMETER_SUFFIX) {
 	if(timeWithoutLag < 3.708f)	{
 		float x = timeWithoutLag;
 
-		timeWithoutLag = -0.0236f * x * x + 0.1841f * x * x + 0.5049f * x + 0.5001f;
+		timeWithoutLag = -0.0236f * x * x * x + 0.1841f * x * x + 0.5049f * x + 0.5001f;
 	}
 
 	return timeWithoutLag + injectorLag;
