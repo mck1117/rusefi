@@ -337,20 +337,46 @@ static ALWAYS_INLINE void handleFuelInjectionEvent(int injEventIndex, InjectionE
 
 static void fuelClosedLoopCorrection(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 #if ! EFI_UNIT_TEST
-	if (GET_RPM() < CONFIG(fuelClosedLoopRpmThreshold) ||
-			ENGINE(sensors.clt) < CONFIG(fuelClosedLoopCltThreshold) ||
-			getTPS(PASS_ENGINE_PARAMETER_SIGNATURE) > CONFIG(fuelClosedLoopTpsThreshold) ||
-			ENGINE(sensors.currentAfr) < boardConfiguration->fuelClosedLoopAfrLowThreshold ||
-			ENGINE(sensors.currentAfr) > engineConfiguration->fuelClosedLoopAfrHighThreshold) {
+	int fail = 0;
+	int failReason = 0;
+
+	if(GET_RPM() < CONFIG(fuelClosedLoopRpmThreshold)) {
+		fail = 1;
+		failReason = 1;
+	}
+
+	if (ENGINE(sensors.clt) < CONFIG(fuelClosedLoopCltThreshold)) {
+		fail = 1;
+		failReason = 2;
+	}
+
+	if (getTPS(PASS_ENGINE_PARAMETER_SIGNATURE) > CONFIG(fuelClosedLoopTpsThreshold)) {
+		fail = 1;
+		failReason = 3;
+	}
+
+	if (ENGINE(sensors.currentAfr) < boardConfiguration->fuelClosedLoopAfrLowThreshold) {
+		fail = 1;
+		failReason = 4;
+	}
+
+	if (ENGINE(sensors.currentAfr) > engineConfiguration->fuelClosedLoopAfrHighThreshold) {
+		fail = 1;
+		failReason = 5;
+	}
+
+	if(!fail) engine->engineState.fuelPidCorrection = fuelPid.getValue(ENGINE(engineState.targetAFR), ENGINE(sensors.currentAfr), 1);
+
+	if (engineConfiguration->debugMode == DBG_FUEL_PID_CORRECTION) {
+		fuelPid.postState(&tsOutputChannels);
+		tsOutputChannels.debugFloatField1 = engine->engineState.fuelPidCorrection;
+		tsOutputChannels.debugIntField1 = failReason;
+	}
+
+	if(fail) {
 		engine->engineState.fuelPidCorrection = 0;
 		fuelPid.reset();
 		return;
-	}
-
-	engine->engineState.fuelPidCorrection = fuelPid.getValue(ENGINE(engineState.targetAFR), ENGINE(sensors.currentAfr), 1);
-	if (engineConfiguration->debugMode == DBG_FUEL_PID_CORRECTION) {
-		tsOutputChannels.debugFloatField1 = engine->engineState.fuelPidCorrection;
-		fuelPid.postState(&tsOutputChannels);
 	}
 
 #endif
