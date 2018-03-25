@@ -1635,6 +1635,8 @@ cmd_stop_engine              = "w\x00\x99\x00\x00"
 		field = "P factor",								fuelClosedLoopPid_pFactor, {fuelClosedLoopCorrectionEnabled == 1}
 		field = "I factor",								fuelClosedLoopPid_iFactor, {fuelClosedLoopCorrectionEnabled == 1}
 		field = "D factor",								fuelClosedLoopPid_dFactor, {fuelClosedLoopCorrectionEnabled == 1}
+		field = "Min (how much fuel can we remove, in ms)",	fuelClosedLoopPid_minValue, {fuelClosedLoopCorrectionEnabled == 1}
+		field = "Max (how much fuel can we add, in ms)",	fuelClosedLoopPid_maxValue, {fuelClosedLoopCorrectionEnabled == 1}
 
 
 	dialog = auxPidDialog, "Aux PID"
