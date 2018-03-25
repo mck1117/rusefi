@@ -367,10 +367,6 @@ static void fuelClosedLoopCorrection(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 
 	if(!fail) engine->engineState.fuelPidCorrection = fuelPid.getValue(ENGINE(engineState.targetAFR), ENGINE(sensors.currentAfr), 1);
 
-
-	persistentState.persistentConfiguration.engineConfiguration.fuelClosedLoopPid.maxValue = 3;
-	persistentState.persistentConfiguration.engineConfiguration.fuelClosedLoopPid.minValue = -3;
-
 	if (engineConfiguration->debugMode == DBG_FUEL_PID_CORRECTION) {
 		fuelPid.postState(&tsOutputChannels);
 		tsOutputChannels.debugFloatField1 = engine->engineState.fuelPidCorrection;
