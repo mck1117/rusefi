@@ -133,13 +133,13 @@ custom ignition_table_t	1024 array,   F32,   @OFFSET@, [16x16],"deg",	   1,     
 custom angle_table_t	1024 array,   F32,   @OFFSET@, [16x16],"deg",	   1,     0,     -720,  720,    2
 
 struct pid_s
-	float pFactor;;"",      1,      0,       -10000, 10000,      4
-	float iFactor;;"",      1,      0,       -10000, 10000,      4
-	float dFactor;;"",      1,      0,       -10000, 10000,      4
+	float pFactor;;"",      1,      0,       -10000, 10000,      7
+	float iFactor;;"",      1,      0,       -10000, 10000,      7
+	float dFactor;;"",      1,      0,       -10000, 10000,      7
 	int16_t offset;Linear addition to PID logic;"",      1,      0,       0, 1000,      0
 	int16_t period;PID dTime;"ms",      1,      0,       0, 3000,      0
-	int16_t minValue;;"",        1,     0,  -3000,    3000.0,  3
-	int16_t maxValue;;"",        1,     0,  -3000,    3000.0,  3
+	int16_t minValue;;"",        1,     0,  0,    3000.0,  3
+	int16_t maxValue;;"",        1,     0,  0,    3000.0,  3
 end_struct
 
 struct cranking_parameters_s
@@ -920,7 +920,7 @@ float[IAT_CURVE_SIZE] iatFuelCorr;;"%",      1,     0,      0.0,    500.0,   2
 float[CLT_CURVE_SIZE] cltIdleCorrBins;CLT-based idle position multiplier for simple manual idle controller, or target RPM multiplier for PID-based idle;"C",        1,     0,   -100.0,    250.0,  2
 float[CLT_CURVE_SIZE] cltIdleCorr;    CLT-based idle position multiplier for simple manual idle controller, or target RPM multiplier for PID-based idle;"%",      1,     0,      0.0,    1000.0,   2
 
-float[MAF_DECODING_COUNT] mafDecoding;kg/hour value.\nBy the way 2.081989116 kg/h = 1 ftï¿½/m;"kg/hour", 1, 0, -500.0, 4000.0, 2
+float[MAF_DECODING_COUNT] mafDecoding;kg/hour value.\nBy the way 2.081989116 kg/h = 1 ft³/m;"kg/hour", 1, 0, -500.0, 4000.0, 2
 float[MAF_DECODING_COUNT] mafDecodingBins;; "V", 1, 0, -5.0, 150.0, 2
 
 angle_table_t ignitionIatCorrTable;
