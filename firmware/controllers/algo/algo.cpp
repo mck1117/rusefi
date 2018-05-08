@@ -2,7 +2,7 @@
  * @file	algo.cpp
  *
  * @date Mar 2, 2014
- * @author Andrey Belomutskiy, (c) 2012-2017
+ * @author Andrey Belomutskiy, (c) 2012-2018
  *
  *
  * This file is part of rusEfi - see http://rusefi.com
@@ -39,8 +39,4 @@ void initDataStructures(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 
 void initAlgo(Logging *sharedLogger) {
 	initInterpolation(sharedLogger);
-#if EFI_SIMULATOR
-	// todo: this is a mess, remove code duplication with PROD
-	initSettings();
-#endif
 }

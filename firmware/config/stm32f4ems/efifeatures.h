@@ -69,7 +69,7 @@
  */
 #define EFI_CLI_SUPPORT TRUE
 
-#define EFI_RTC TRUE
+#define EFI_RTC FALSE
 
 #define EFI_ALTERNATOR_CONTROL TRUE
 
@@ -122,6 +122,8 @@
 
 #define EFI_INTERNAL_ADC TRUE
 
+#define EFI_NARROW_EGO_AVERAGING TRUE
+
 #define EFI_DENSO_ADC FALSE
 
 #define EFI_CAN_SUPPORT TRUE
@@ -129,6 +131,8 @@
 #define EFI_HD44780_LCD TRUE
 
 #define EFI_IDLE_CONTROL TRUE
+
+#define EFI_IDLE_INCREMENTAL_PID_CIC FALSE
 
 /**
  * Control the main power relay based on measured ignition voltage (Vbatt)
@@ -188,6 +192,8 @@
 #define EFI_UART_GPS TRUE
 //#define EFI_UART_GPS FALSE
 
+#define EFI_SERVO TRUE
+
 #define EFI_ELECTRONIC_THROTTLE_BODY TRUE
 //#define EFI_ELECTRONIC_THROTTLE_BODY FALSE
 
@@ -218,8 +224,6 @@
  */
 
 #define EFI_SPI3_AF 6
-// todo: finish migration to sdCardSpiDevice one day
-#define MMC_CARD_SPI SPID3
 
 #define EFI_I2C_SCL_BRAIN_PIN GPIOB_6
 

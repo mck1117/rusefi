@@ -28,8 +28,11 @@
 
 // I believe that TunerStudio curve editor has a bug with F32 support
 // because of that bug we cannot have '1.05' for 5% extra multiplier
-#define PERCENT_MULT 100.0
+#define PERCENT_MULT 100.0f
 
+/**
+ * http://rusefi.com/wiki/index.php?title=Manual:Engine_Type
+ */
 typedef enum {
 	CUSTOM_ENGINE = 0,
 	AUDI_AAN = 1,
@@ -136,6 +139,9 @@ typedef enum {
 
 	DODGE_NEON_2003_CRANK = 46,
 
+	/**
+	 * proper NB2 setup, 2003 red test mule car
+	 */
 	MAZDA_MIATA_2003 = 47,
 
 	HONDA_ACCORD_1_24_SHIFTED = 48,
@@ -156,7 +162,15 @@ typedef enum {
 	TEST_ISSUE_366_BOTH = 52,
 	TEST_ISSUE_366_RISE = 53,
 
-	MAZDA_MIATA_2003_BETTER = 54,
+	/**
+	 * green Hunchback race car - VVT engine on a NA body with NA return fuel lines which
+	 * means different fuel pressure situation
+	 */
+	MAZDA_MIATA_2003_NA_RAIL = 54,
+
+	MAZDA_MIATA_2003_BOARD_TEST = 55,
+
+	MAZDA_MIATA_NA8 = 56,
 
 	PROMETHEUS_DEFAULTS = 100,
 
@@ -209,6 +223,11 @@ typedef enum {
 
 	TT_36_2_2_2 = 23,
 
+	/**
+	 * only the 4 tooth signal, without the 360 signal
+	 * 8,2,2,2 Nissan pattern
+	 * See also TT_NISSAN_SR20VE_360
+	 */
 	TT_NISSAN_SR20VE = 24,
 
 	TT_2JZ_3_34 = 25,
@@ -229,6 +248,11 @@ typedef enum {
 	// crank-based in case your cam is broken
 	TT_DODGE_NEON_2003_CRANK = 32,
 
+	/**
+	 * this takes care of crank sensor, VVT sensor should be configured separately
+	 * for VVT simulated trigger signal we have https://github.com/rusefi/rusefi/issues/566 gap
+	 * See also TT_MAZDA_MIATA_VVT_TEST
+	 */
 	TT_MIATA_VVT = 33,
 
 	/**
@@ -246,26 +270,35 @@ typedef enum {
 
 	TT_JEEP_18_2_2_2 = 37,
 
+	/*
+	 * See also TT_NISSAN_SR20VE
+	 */
 	TT_NISSAN_SR20VE_360 = 38,
 
-	TT_UNUSED = 39, // this is used if we want to iterate over all trigger types
+	TT_DODGE_NEON_1995_ONLY_CRANK = 39,
+
+	TT_UNUSED = 40, // this is used if we want to iterate over all trigger types
 
 	Force_4b_trigger_type = ENUM_32_BITS,
 } trigger_type_e;
 
 typedef enum {
-	ADC_OFF = 0, ADC_SLOW = 1, ADC_FAST = 2,
+	ADC_OFF = 0,
+	ADC_SLOW = 1,
+	ADC_FAST = 2,
 
 	Force_4b_adc_channel_mode = ENUM_32_BITS,
 } adc_channel_mode_e;
 
 typedef enum {
-	TV_FALL = 0, TV_RISE = 1
+	TV_FALL = 0,
+	TV_RISE = 1
 } trigger_value_e;
 
 // todo: better names?
 typedef enum {
-	T_PRIMARY = 0, T_SECONDARY = 1,
+	T_PRIMARY = 0,
+	T_SECONDARY = 1,
 	// todo: I really do not want to call this 'tertiary'. maybe we should rename all of these?
 	T_CHANNEL_3 = 2,
 	T_NONE = 15
@@ -319,7 +352,9 @@ typedef enum {
 } engine_load_mode_e;
 
 typedef enum {
-	DM_NONE = 0, DM_HD44780 = 1, DM_HD44780_OVER_PCF8574 = 2,
+	DM_NONE = 0,
+	DM_HD44780 = 1,
+	DM_HD44780_OVER_PCF8574 = 2,
 
 	Force_4b_display_mode = ENUM_32_BITS,
 
@@ -363,27 +398,34 @@ typedef enum {
 	/**
 	 * logical OFF is floating, logical ON is GND
 	 */
-	OM_OPENDRAIN = 2, OM_OPENDRAIN_INVERTED = 3,
+	OM_OPENDRAIN = 2,
+	OM_OPENDRAIN_INVERTED = 3,
 
 	Force_4b_pin_output_mode = ENUM_32_BITS,
 } pin_output_mode_e;
 
 typedef enum {
-
+	// todo: drop this unused enum?
 	Force_4b_gpio_mode = ENUM_32_BITS,
 } gpio_mode_e;
 
 typedef enum {
-	PI_DEFAULT = 0, PI_PULLUP = 1, PI_PULLDOWN = 2,
+	PI_DEFAULT = 0,
+	PI_PULLUP = 1,
+	PI_PULLDOWN = 2,
 
 	Force_4b_pin_input_mode = ENUM_32_BITS,
 } pin_input_mode_e;
+
+#define CRANK_MODE_MULTIPLIER 2.0f
 
 // todo: better enum name
 typedef enum {
 	OM_NONE = 0,
 	/**
-	 * 720 degree engine cycle but trigger is defined using a 360 cycle which is when repeated
+	 * 720 degree engine cycle but trigger is defined using a 360 cycle which is when repeated.
+	 * For historical reasons we have a pretty weird approach where one crank trigger revolution is
+	 * defined as if it's stretched to 720 degress. See CRANK_MODE_MULTIPLIER
 	 */
 	FOUR_STROKE_CRANK_SENSOR = 1,
 	/**
@@ -414,7 +456,8 @@ typedef enum {
 	/**
 	 * in this mode we use as many coils as we have cylinders
 	 */
-	IM_INDIVIDUAL_COILS = 1, IM_WASTED_SPARK = 2,
+	IM_INDIVIDUAL_COILS = 1,
+	IM_WASTED_SPARK = 2,
 
 	Force_4b_ignition_mode = ENUM_32_BITS,
 } ignition_mode_e;
@@ -448,7 +491,8 @@ typedef enum {
  * @brief Ignition Mode while cranking
  */
 typedef enum {
-	CIM_DEFAULT = 0, CIM_FIXED_ANGLE = 1,
+	CIM_DEFAULT = 0,
+	CIM_FIXED_ANGLE = 1,
 
 	Force_4b_cranking_ignition_mode = ENUM_32_BITS,
 } cranking_ignition_mode_e;
@@ -690,6 +734,9 @@ typedef enum {
 	Force_4b_brain_pin_e = ENUM_32_BITS,
 } brain_pin_e;
 
+/**
+ * https://rusefi.com//wiki/index.php?title=Manual:Debug_fields
+ */
 typedef enum {
 	DBG_ALTERNATOR_PID = 0,
 	DBG_TPS_ACCEL = 1,
@@ -697,8 +744,8 @@ typedef enum {
 	DBG_IDLE_CONTROL = 3,
 	DBG_EL_ACCEL = 4,
 	DBG_TRIGGER_INPUT = 5,
-	FSIO_ADC = 6,
-	AUX_PID_1 = 7,
+	DBG_FSIO_ADC = 6,
+	DBG_AUX_PID_1 = 7,
 	/**
 	 * VVT position debugging - not VVT valve control
 	 */
@@ -714,19 +761,30 @@ typedef enum {
 	DBG_ELECTRONIC_THROTTLE = 17,
 	DBG_EXECUTOR = 18,
 	DBG_BENCH_TEST = 19,
-	DM_20 = 20,
-	DM_21 = 21,
-	DM_22 = 22,
+	DBG_AUX_VALVES = 20,
+	DBG_ADC = 21,
+	
+	DBG_INSTANT_RPM = 22,
+	DBG_FSIO_EXPRESSION = 23,
+	DBG_STATUS = 24,
+	DBG_CJ125 = 25,
+	DBG_CAN = 26,
+	DBG_MAP = 27,
+	DBG_28 = 28,
+	DBG_29 = 29,
 
 	Force_4b_debug_mode_e = ENUM_32_BITS,
 } debug_mode_e;
 
 typedef enum {
-	MT_CUSTOM = 0, MT_DENSO183 = 1,
+	MT_CUSTOM = 0,
+	MT_DENSO183 = 1,
 	/**
 	 * 20 to 250 kPa (2.9 to 36.3 psi) 0.2 to 4.9 V OUTPUT
 	 */
-	MT_MPX4250 = 2, MT_HONDA3BAR = 3, MT_DODGE_NEON_2003 = 4,
+	MT_MPX4250 = 2,
+	MT_HONDA3BAR = 3,
+	MT_DODGE_NEON_2003 = 4,
 	/**
 	 * 22012AA090
 	 */
@@ -747,11 +805,21 @@ typedef enum {
 	 */
 	MT_TOYOTA_89420_02010 = 8,
 
+	/**
+	 * 20 to 250 kPa (2.9 to 36.3 psi) 0.25 to 4.875 OUTPUT
+	 * More precise calibration data for new NXP sensor revisions MPX4250A and MPXA4250A.
+	 * For an old Freescale MPX4250D use "MT_MPX4250".
+	 * See https://www.nxp.com/docs/en/data-sheet/MPX4250A.pdf
+	 */
+	MT_MPX4250A = 9, 
+	
 	Force_4b_cranking_map_type = ENUM_32_BITS,
 } air_pressure_sensor_type_e;
 
 typedef enum {
-	CD_OFF = 0, CD_USE_CAN1 = 1, CD_USE_CAN2 = 2,
+	CD_OFF = 0,
+	CD_USE_CAN1 = 1,
+	CD_USE_CAN2 = 2,
 
 	Internal_ForceMyEnumIntSize_can_device_mode = ENUM_32_BITS,
 } can_device_mode_e;
@@ -761,7 +829,8 @@ typedef enum {
 	/**
 	 * You would use this value if you want to see a detailed graph of your trigger events
 	 */
-	SC_TRIGGER = 1, SC_MAP = 2,
+	SC_TRIGGER = 1,
+	SC_MAP = 2,
 	SC_RPM_ACCEL = 3,
 	SC_DETAILED_RPM = 4,
 
@@ -769,7 +838,7 @@ typedef enum {
 } sensor_chart_e;
 
 typedef enum {
-	REVERSE = -1,
+//todo fix enum generator  java tool to support negative	REVERSE = -1,
 	NEUTRAL = 0,
 	GEAR_1 = 1,
 	GEAR_2 = 2,

@@ -16,9 +16,11 @@
 
 void setAlgorithm(engine_load_mode_e algo DECLARE_ENGINE_PARAMETER_SUFFIX);
 
+#define assertEngineReference() efiAssertVoid(engine != NULL, "engine is NULL")
+
 
 #if EFI_ENABLE_ASSERTS
-#define assertAngleRange(angle, msg) if(angle > 10000000 || angle < -10000000) { firmwareError(ERROR_ANGLE_RANGE, "angle range %s %f", msg, angle);angle = 0;}
+#define assertAngleRange(angle, msg) if(angle > 10000000 || angle < -10000000) { firmwareError(ERROR_ANGLE_RANGE, "angle range %s %.2f", msg, angle);angle = 0;}
 #else
 #define assertAngleRange(angle, msg) {}
 #endif
@@ -30,9 +32,13 @@ void setFlatInjectorLag(float value DECLARE_ENGINE_PARAMETER_SUFFIX);
  * @brief Shifts angle into the [0..720) range for four stroke and [0..360) for two stroke
  * I guess this implementation would be faster than 'angle % engineCycle'
  */
-#define fixAngle(angle, msg)														\
+#define fixAngle(angle, msg)											    \
 	{																		\
-		assertAngleRange(angle, msg);											\
+   	    if (cisnan(angle)) {                                                \
+		   firmwareError(CUSTOM_ERR_ANGLE, "angle NaN %s", msg);            \
+		   angle = 0;                                                       \
+	    }                                                                   \
+		assertAngleRange(angle, msg);										\
 		float engineCycleDurationLocalCopy = ENGINE(engineCycle);	        \
 		/* todo: split this method into 'fixAngleUp' and 'fixAngleDown'*/   \
 		/*       as a performance optimization?*/                           \
@@ -66,6 +72,14 @@ floatms_t getEngineCycleDuration(int rpm DECLARE_ENGINE_PARAMETER_SUFFIX);
 float getEngineLoadT(DECLARE_ENGINE_PARAMETER_SIGNATURE);
 
 floatms_t getSparkDwell(int rpm DECLARE_ENGINE_PARAMETER_SUFFIX);
+
+ignition_mode_e getIgnitionMode(DECLARE_ENGINE_PARAMETER_SIGNATURE);
+
+/**
+ * This lightweight method is invoked in case of a configuration change or initialization.
+ * But also it's used for "Spinning-up to Cranking" transition.
+ */
+void prepareIgnitionPinIndices(ignition_mode_e ignitionMode DECLARE_ENGINE_PARAMETER_SUFFIX);
 
 int getCylinderId(int index DECLARE_ENGINE_PARAMETER_SUFFIX);
 

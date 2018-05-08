@@ -3,7 +3,7 @@
  * @brief   Hardware package entry point
  *
  * @date May 27, 2013
- * @author Andrey Belomutskiy, (c) 2012-2017
+ * @author Andrey Belomutskiy, (c) 2012-2018
  */
 
 #include "main.h"
@@ -23,6 +23,7 @@
 #include "max31855.h"
 #include "mpu_util.h"
 #include "accelerometer.h"
+#include "servo.h"
 
 #if EFI_PROD_CODE
 //#include "usb_msd.h"
@@ -42,7 +43,6 @@
 #include "trigger_central.h"
 #include "svnversion.h"
 #include "engine_configuration.h"
-#include "CJ125.h"
 #include "aux_pid.h"
 #endif /* EFI_PROD_CODE */
 
@@ -60,6 +60,16 @@ extern bool hasFirmwareErrorFlag;
 
 static mutex_t spiMtx;
 
+/**
+ * this depends on patch to chdebug.c
++extern int maxNesting;
+   ch.dbg.isr_cnt++;
++  if (ch.dbg.isr_cnt > maxNesting)
++          maxNesting = ch.dbg.isr_cnt;
+   port_unlock_from_isr();
+ *
+ */
+// todo: rename this to 'rusefiMaxISRNesting' one day
 int maxNesting = 0;
 
 #if HAL_USE_SPI || defined(__DOXYGEN__)
@@ -175,7 +185,7 @@ void adc_callback_fast(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
 		efiAssertVoid(getRemainingStack(chThdGetSelfX()) > 128, "lowstck#9b");
 
 #if EFI_MAP_AVERAGING
-		mapAveragingCallback(fastAdc.samples[fastMapSampleIndex]);
+		mapAveragingAdcCallback(fastAdc.samples[fastMapSampleIndex]);
 #endif /* EFI_MAP_AVERAGING */
 #if EFI_HIP_9011 || defined(__DOXYGEN__)
 		if (boardConfiguration->isHip9011Enabled) {
@@ -424,6 +434,10 @@ void initHardware(Logging *l) {
 	initGps();
 #endif
 
+#if EFI_SERVO
+	initServo();
+#endif
+
 #if ADC_SNIFFER || defined(__DOXYGEN__)
 	initAdcDriver();
 #endif
@@ -455,10 +469,6 @@ void initHardware(Logging *l) {
 #endif
 
 	calcFastAdcIndexes();
-
-#if EFI_CJ125 || defined(__DOXYGEN__)
-	initCJ125(sharedLogger);
-#endif
 
 	printMsg(sharedLogger, "initHardware() OK!");
 }

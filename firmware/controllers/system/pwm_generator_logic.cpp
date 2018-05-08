@@ -5,7 +5,7 @@
  * It constantly sets timer to that next toggle time, then sets the timer again from the callback, and so on.
  *
  * @date Mar 2, 2014
- * @author Andrey Belomutskiy, (c) 2012-2017
+ * @author Andrey Belomutskiy, (c) 2012-2018
  */
 
 #include "main.h"
@@ -30,7 +30,7 @@ void PwmConfig::baseConstructor() {
 	periodNt = NAN;
 	memset(&outputPins, 0, sizeof(outputPins));
 	phaseCount = 0;
-	cycleCallback = NULL;
+	pwmCycleCallback = NULL;
 	stateChangeCallback = NULL;
 }
 
@@ -48,9 +48,13 @@ void PwmConfig::init(float *st, single_wave_s *waves) {
 }
 
 /**
+ * This method allows you to change duty cycle on the fly
  * @param dutyCycle value between 0 and 1
  */
 void SimplePwm::setSimplePwmDutyCycle(float dutyCycle) {
+	if (dutyCycle < 0 || dutyCycle > 1) {
+		firmwareError(CUSTOM_ERR_ASSERT_VOID, "spwd:dutyCycle %.2f", dutyCycle);
+	}
 	multiWave.setSwitchTime(0, dutyCycle);
 }
 
@@ -60,7 +64,7 @@ static efitimeus_t getNextSwitchTimeUs(PwmConfig *state) {
 	float switchTime = state->multiWave.getSwitchTime(state->safe.phaseIndex);
 	float periodNt = state->safe.periodNt;
 #if DEBUG_PWM
-	scheduleMsg(&logger, "iteration=%d switchTime=%f period=%f", iteration, switchTime, period);
+	scheduleMsg(&logger, "iteration=%d switchTime=%.2f period=%.2f", iteration, switchTime, period);
 #endif
 
 	/**
@@ -76,6 +80,11 @@ static efitimeus_t getNextSwitchTimeUs(PwmConfig *state) {
 }
 
 void PwmConfig::setFrequency(float frequency) {
+	if (cisnan(frequency)) {
+		// explicit code just to be sure
+		periodNt = NAN;
+		return;
+	}
 	/**
 	 * see #handleCycleStart()
 	 */
@@ -84,8 +93,8 @@ void PwmConfig::setFrequency(float frequency) {
 
 void PwmConfig::handleCycleStart() {
 	if (safe.phaseIndex == 0) {
-		if (cycleCallback != NULL) {
-			cycleCallback(this);
+		if (pwmCycleCallback != NULL) {
+			pwmCycleCallback(this);
 		}
 		efiAssertVoid(periodNt != 0, "period not initialized");
 		if (safe.periodNt != periodNt || safe.iteration == ITERATION_LIMIT) {
@@ -105,29 +114,29 @@ void PwmConfig::handleCycleStart() {
 /**
  * @return Next time for signal toggle
  */
-static efitimeus_t togglePwmState(PwmConfig *state) {
+efitimeus_t PwmConfig::togglePwmState() {
 #if DEBUG_PWM
-	scheduleMsg(&logger, "togglePwmState phaseIndex=%d iteration=%d", state->safe.phaseIndex, state->safe.iteration);
-	scheduleMsg(&logger, "state->period=%f state->safe.period=%f", state->period, state->safe.period);
+	scheduleMsg(&logger, "togglePwmState phaseIndex=%d iteration=%d", safe.phaseIndex, safe.iteration);
+	scheduleMsg(&logger, "period=%.2f safe.period=%.2f", period, safe.period);
 #endif
 
-	if (cisnan(state->periodNt)) {
+	if (cisnan(periodNt)) {
 		/**
 		 * NaN period means PWM is paused
 		 */
 		return getTimeNowUs() + MS2US(100);
 	}
 
-	state->handleCycleStart();
+	handleCycleStart();
 
 	/**
 	 * Here is where the 'business logic' - the actual pin state change is happening
 	 */
 	// callback state index is offset by one. todo: why? can we simplify this?
-	int cbStateIndex = state->safe.phaseIndex == 0 ? state->phaseCount - 1 : state->safe.phaseIndex - 1;
-	state->stateChangeCallback(state, cbStateIndex);
+	int cbStateIndex = safe.phaseIndex == 0 ? phaseCount - 1 : safe.phaseIndex - 1;
+	stateChangeCallback(this, cbStateIndex);
 
-	efitimeus_t nextSwitchTimeUs = getNextSwitchTimeUs(state);
+	efitimeus_t nextSwitchTimeUs = getNextSwitchTimeUs(this);
 #if DEBUG_PWM
 	scheduleMsg(&logger, "%s: nextSwitchTime %d", state->name, nextSwitchTime);
 #endif /* DEBUG_PWM */
@@ -146,10 +155,10 @@ static efitimeus_t togglePwmState(PwmConfig *state) {
 //		timeToSwitch = 10;
 //	}
 
-	state->safe.phaseIndex++;
-	if (state->safe.phaseIndex == state->phaseCount) {
-		state->safe.phaseIndex = 0; // restart
-		state->safe.iteration++;
+	safe.phaseIndex++;
+	if (safe.phaseIndex == phaseCount) {
+		safe.phaseIndex = 0; // restart
+		safe.iteration++;
 	}
 	return nextSwitchTimeUs;
 }
@@ -161,8 +170,8 @@ static void timerCallback(PwmConfig *state) {
 	state->dbgNestingLevel++;
 	efiAssertVoid(state->dbgNestingLevel < 25, "PWM nesting issue");
 
-	efitimeus_t switchTimeUs = togglePwmState(state);
-	scheduleByTime(&state->scheduling, switchTimeUs, (schfunc_t) timerCallback, state);
+	efitimeus_t switchTimeUs = state->togglePwmState();
+	scheduleByTimestamp(&state->scheduling, switchTimeUs, (schfunc_t) timerCallback, state);
 	state->dbgNestingLevel--;
 }
 
@@ -177,7 +186,7 @@ void copyPwmParameters(PwmConfig *state, int phaseCount, float *switchTimes, int
 		state->multiWave.setSwitchTime(phaseIndex, switchTimes[phaseIndex]);
 
 		for (int waveIndex = 0; waveIndex < waveCount; waveIndex++) {
-//			print("output switch time index (%d/%d) at %f to %d\r\n", phaseIndex,waveIndex,
+//			print("output switch time index (%d/%d) at %.2f to %d\r\n", phaseIndex,waveIndex,
 //					switchTimes[phaseIndex], pinStates[waveIndex][phaseIndex]);
 			state->multiWave.waves[waveIndex].pinStates[phaseIndex] = pinStates[waveIndex][phaseIndex];
 		}
@@ -185,7 +194,7 @@ void copyPwmParameters(PwmConfig *state, int phaseCount, float *switchTimes, int
 }
 
 void PwmConfig::weComplexInit(const char *msg, int phaseCount, float *switchTimes, int waveCount,
-		pin_state_t **pinStates, pwm_cycle_callback *cycleCallback, pwm_gen_callback *stateChangeCallback) {
+		pin_state_t **pinStates, pwm_cycle_callback *pwmCycleCallback, pwm_gen_callback *stateChangeCallback) {
 
 	efiAssertVoid(periodNt != 0, "period is not initialized");
 	if (phaseCount == 0) {
@@ -199,7 +208,7 @@ void PwmConfig::weComplexInit(const char *msg, int phaseCount, float *switchTime
 	efiAssertVoid(waveCount > 0, "waveCount should be positive");
 	checkSwitchTimes2(phaseCount, switchTimes);
 
-	this->cycleCallback = cycleCallback;
+	this->pwmCycleCallback = pwmCycleCallback;
 	this->stateChangeCallback = stateChangeCallback;
 
 	multiWave.waveCount = waveCount;

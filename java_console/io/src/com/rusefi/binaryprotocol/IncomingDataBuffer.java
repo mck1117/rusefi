@@ -29,7 +29,7 @@ public class IncomingDataBuffer {
     }
 
     public void addData(byte[] freshData) {
-        logger.trace(freshData.length + " byte(s) arrived");
+        logger.info(freshData.length + " byte(s) arrived");
         synchronized (cbb) {
             if (cbb.size() - cbb.length() < freshData.length) {
                 logger.error("IncomingDataBuffer: buffer overflow not expected");
@@ -51,6 +51,7 @@ public class IncomingDataBuffer {
             while (cbb.length() < count) {
                 int timeout = (int) (startTimestamp + Timeouts.BINARY_IO_TIMEOUT - System.currentTimeMillis());
                 if (timeout <= 0) {
+                    logger.info(loggingMessage + ": timeout. Got only " + cbb.length());
                     return true; // timeout. Sad face.
                 }
                 cbb.wait(timeout);
@@ -63,7 +64,7 @@ public class IncomingDataBuffer {
         synchronized (cbb) {
             int pending = cbb.length();
             if (pending > 0) {
-                logger.error("Unexpected pending data: " + pending + " byte(s)");
+                logger.error("dropPending: Unexpected pending data: " + pending + " byte(s)");
                 byte[] bytes = new byte[pending];
                 cbb.get(bytes);
                 logger.error("data: " + Arrays.toString(bytes));

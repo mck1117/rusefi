@@ -105,10 +105,7 @@ CPPSRC = $(UTILSRC_CPP) \
 	$(TEST_SRC_CPP) \
 	$(SYSTEMSRC_CPP) \
 	$(PROJECT_DIR)/controllers/error_handling.cpp \
-	$(PROJECT_DIR)/controllers/trigger/trigger_central.cpp \
-	$(PROJECT_DIR)/controllers/trigger/rpm_calculator.cpp \
-	$(PROJECT_DIR)/controllers/trigger/spark_logic.cpp \
-	$(PROJECT_DIR)/controllers/trigger/main_trigger_callback.cpp \
+	$(TRIGGER_SRC_CPP) \
 	main.cpp
 
 # C sources to be compiled in ARM mode regardless of the global setting.
@@ -134,6 +131,8 @@ TCPPSRC =
 # List ASM source files here
 ASMSRC = $(PORTASM)
 
+CHIBIOS=$(PROJECT_DIR)/ChibiOS4
+
 INCDIR = . \
 	$(PROJECT_DIR)/util \
 	$(PROJECT_DIR)/config/engines \
@@ -146,9 +145,10 @@ INCDIR = . \
 	$(PROJECT_DIR)/controllers/trigger \
 	$(PROJECT_DIR)/controllers/trigger/decoders \
 	$(PROJECT_DIR)/ext_algo \
-	$(PROJECT_DIR)/ChibiOS3/os/rt/include \
-	$(PROJECT_DIR)/ChibiOS3/os/hal/lib/streams \
-	$(PROJECT_DIR)/ChibiOS3/os/rt/various \
+	$(CHIBIOS)/os/rt/include \
+	$(CHIBIOS)/os/rt/various \
+	$(CHIBIOS)/os/hal/lib/streams \
+	$(CHIBIOS)/os/hal/include \
 	$(PROJECT_DIR)/hw_layer \
 	test_data_structures \
 	test_basic_math

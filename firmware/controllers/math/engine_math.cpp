@@ -3,7 +3,7 @@
  * @brief
  *
  * @date Jul 13, 2013
- * @author Andrey Belomutskiy, (c) 2012-2017
+ * @author Andrey Belomutskiy, (c) 2012-2018
  *
  * This file is part of rusEfi - see http://rusefi.com
  *
@@ -34,6 +34,9 @@ EXTERN_ENGINE
 ;
 
 extern EnginePins enginePins;
+
+// Store current ignition mode for prepareIgnitionPinIndices()
+static ignition_mode_e ignitionModeForPinIndices;
 
 floatms_t getEngineCycleDuration(int rpm DECLARE_ENGINE_PARAMETER_SUFFIX) {
 	return getCrankshaftRevolutionTimeMs(rpm) * (engineConfiguration->operationMode == TWO_STROKE ? 1 : 2);
@@ -202,9 +205,11 @@ bool FuelSchedule::addFuelEventsForCylinder(int i  DECLARE_ENGINE_PARAMETER_SUFF
 		return false;
 	}
 
+	efiAssert(!cisnan(angle), "findAngle#3", false);
+	assertAngleRange(angle, "findAngle#a33");
 	TRIGGER_SHAPE(findTriggerPosition(&ev->injectionStart, angle PASS_ENGINE_PARAMETER_SUFFIX));
 #if EFI_UNIT_TEST || defined(__DOXYGEN__)
-	printf("registerInjectionEvent angle=%f trgIndex=%d inj %d\r\n", angle, ev->injectionStart.eventIndex, injectorIndex);
+	printf("registerInjectionEvent angle=%.2f trgIndex=%d inj %d\r\n", angle, ev->injectionStart.eventIndex, injectorIndex);
 #endif
 	return true;
 }
@@ -249,7 +254,7 @@ floatms_t getSparkDwell(int rpm DECLARE_ENGINE_PARAMETER_SUFFIX) {
 
 	if (cisnan(dwellMs) || dwellMs <= 0) {
 		// this could happen during engine configuration reset
-		warning(CUSTOM_ERR_DWELL_DURATION, "invalid dwell: %f at rpm=%d", dwellMs, rpm);
+		warning(CUSTOM_ERR_DWELL_DURATION, "invalid dwell: %.2f at rpm=%d", dwellMs, rpm);
 		return 0;
 	}
 	return dwellMs;
@@ -287,14 +292,24 @@ int TriggerShape::findAngleIndex(float target DECLARE_ENGINE_PARAMETER_SUFFIX) {
 }
 
 void TriggerShape::findTriggerPosition(event_trigger_position_s *position, angle_t angleOffset DECLARE_ENGINE_PARAMETER_SUFFIX) {
+	efiAssertVoid(!cisnan(angleOffset), "findAngle#1");
+	assertAngleRange(angleOffset, "findAngle#a1");
+
+	efiAssertVoid(!cisnan(ENGINE(triggerCentral.triggerShape.tdcPosition)), "tdcPos#1")
+	assertAngleRange(ENGINE(triggerCentral.triggerShape.tdcPosition), "tdcPos#a1");
+
+	efiAssertVoid(!cisnan(CONFIG(globalTriggerAngleOffset)), "tdcPos#2")
+	assertAngleRange(CONFIG(globalTriggerAngleOffset), "tdcPos#a2");
+
 	// convert engine cycle angle into trigger cycle angle
 	angleOffset += tdcPosition();
+	efiAssertVoid(!cisnan(angleOffset), "findAngle#2");
 	fixAngle(angleOffset, "addFuel#2");
 
 	int index = triggerIndexByAngle[(int)angleOffset];
 	angle_t eventAngle = eventAngles[index];
 	if (angleOffset < eventAngle) {
-		warning(CUSTOM_OBD_ANGLE_CONSTRAINT_VIOLATION, "angle constraint violation in findTriggerPosition(): %f/%f", angleOffset, eventAngle);
+		warning(CUSTOM_OBD_ANGLE_CONSTRAINT_VIOLATION, "angle constraint violation in findTriggerPosition(): %.2f/%.2f", angleOffset, eventAngle);
 		return;
 	}
 
@@ -450,7 +465,7 @@ int getCylinderId(int index DECLARE_ENGINE_PARAMETER_SUFFIX) {
 }
 
 static int getIgnitionPinForIndex(int i DECLARE_ENGINE_PARAMETER_SUFFIX) {
-	switch (CONFIG(ignitionMode)) {
+	switch (getIgnitionMode(PASS_ENGINE_PARAMETER_SIGNATURE)) {
 	case IM_ONE_COIL:
 		return 0;
 		break;
@@ -466,6 +481,25 @@ static int getIgnitionPinForIndex(int i DECLARE_ENGINE_PARAMETER_SUFFIX) {
 		warning(CUSTOM_OBD_IGNITION_MODE, "unsupported ignitionMode %d in initializeIgnitionActions()", engineConfiguration->ignitionMode);
 		return 0;
 	}
+}
+
+void prepareIgnitionPinIndices(ignition_mode_e ignitionMode DECLARE_ENGINE_PARAMETER_SUFFIX) {
+	if (ignitionMode != ignitionModeForPinIndices) {
+#if EFI_ENGINE_CONTROL || defined(__DOXYGEN__)
+		for (int i = 0; i < CONFIG(specs.cylindersCount); i++) {
+			ENGINE(ignitionPin[i]) = getIgnitionPinForIndex(i PASS_ENGINE_PARAMETER_SUFFIX);
+		}
+#endif /* EFI_ENGINE_CONTROL */
+		ignitionModeForPinIndices = ignitionMode;
+	}
+}
+
+ignition_mode_e getIgnitionMode(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
+	ignition_mode_e ignitionMode = CONFIG(ignitionMode);
+	// In spin-up cranking mode we don't have full phase sync. info yet, so wasted spark mode is better
+	if (ignitionMode == IM_INDIVIDUAL_COILS && ENGINE(rpmCalculator.isSpinningUp(PASS_ENGINE_PARAMETER_SIGNATURE)))
+		ignitionMode = IM_WASTED_SPARK;
+	return ignitionMode;
 }
 
 void TriggerShape::prepareShape(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
@@ -500,12 +534,13 @@ void prepareOutputSignals(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 #if EFI_UNIT_TEST
 	printf("prepareOutputSignals %d onlyEdge=%s %s\r\n", engineConfiguration->trigger.type, boolToString(engineConfiguration->useOnlyRisingEdgeForTrigger),
 			getIgnition_mode_e(engineConfiguration->ignitionMode));
-#endif
+#endif /* EFI_UNIT_TEST */
 
 	for (int i = 0; i < CONFIG(specs.cylindersCount); i++) {
 		ENGINE(angleExtra[i])= ENGINE(engineCycle) * i / CONFIG(specs.cylindersCount);
-		ENGINE(ignitionPin[i]) = getIgnitionPinForIndex(i PASS_ENGINE_PARAMETER_SUFFIX);
 	}
+
+	prepareIgnitionPinIndices(CONFIG(ignitionMode) PASS_ENGINE_PARAMETER_SUFFIX);
 
 	TRIGGER_SHAPE(prepareShape(PASS_ENGINE_PARAMETER_SIGNATURE));
 }
@@ -536,16 +571,11 @@ void setAlgorithm(engine_load_mode_e algo DECLARE_ENGINE_PARAMETER_SUFFIX) {
 	if (algo == LM_ALPHA_N) {
 		setTimingLoadBin(20, 120 PASS_ENGINE_PARAMETER_SUFFIX);
 	} else if (algo == LM_SPEED_DENSITY) {
-		setTableBin2(config->ignitionLoadBins, IGN_LOAD_COUNT, 20, 120, 3);
+		setLinearCurve(config->ignitionLoadBins, IGN_LOAD_COUNT, 20, 120, 3);
 		buildTimingMap(35 PASS_ENGINE_PARAMETER_SUFFIX);
 	}
 }
 
 void setFlatInjectorLag(float value DECLARE_ENGINE_PARAMETER_SUFFIX) {
 	setArrayValues(engineConfiguration->injector.battLagCorr, VBAT_INJECTOR_CURVE_SIZE, value);
-}
-
-// todo: make this a macro
-void assertEngineReference(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
-	efiAssertVoid(engine != NULL, "engine is NULL");
 }

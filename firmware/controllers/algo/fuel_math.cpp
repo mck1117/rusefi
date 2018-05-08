@@ -12,7 +12,7 @@
  *
  *
  * @date May 27, 2013
- * @author Andrey Belomutskiy, (c) 2012-2017
+ * @author Andrey Belomutskiy, (c) 2012-2018
  *
  * This file is part of rusEfi - see http://rusefi.com
  *
@@ -97,9 +97,21 @@ floatms_t getBaseFuel(int rpm DECLARE_ENGINE_PARAMETER_SUFFIX) {
 }
 
 angle_t getinjectionOffset(float rpm DECLARE_ENGINE_PARAMETER_SUFFIX) {
+	if (cisnan(rpm)) {
+		return 0; // error already reported
+	}
 	float engineLoad = getEngineLoadT(PASS_ENGINE_PARAMETER_SIGNATURE);
-	angle_t result = fuelPhaseMap.getValue(rpm, engineLoad) + CONFIG(extraInjectionOffset);
-	fixAngle(result, "inj offset");
+	if (cisnan(engineLoad)) {
+		return 0; // error already reported
+	}
+	angle_t value = fuelPhaseMap.getValue(rpm, engineLoad);
+	if (cisnan(value)) {
+		firmwareError(CUSTOM_ERR_ASSERT, "inj offset#1 %.2f %.2f", rpm, engineLoad);
+		return 0;
+	}
+	efiAssert(!cisnan(value), "inj offset#1", 0);
+	angle_t result =  value + CONFIG(extraInjectionOffset);
+	fixAngle(result, "inj offset#2");
 	return result;
 }
 
@@ -123,6 +135,7 @@ int getNumberOfInjections(injection_mode_e mode DECLARE_ENGINE_PARAMETER_SUFFIX)
 }
 
 /**
+ * This is more like MOSFET duty cycle since durations include injector lag
  * @see getCoilDutyCycle
  */
 percent_t getInjectorDutyCycle(int rpm DECLARE_ENGINE_PARAMETER_SUFFIX) {
@@ -154,7 +167,7 @@ floatms_t getInjectionDuration(int rpm DECLARE_ENGINE_PARAMETER_SUFFIX) {
 		fuelPerCycle = getRunningFuel(baseFuel PASS_ENGINE_PARAMETER_SUFFIX);
 		efiAssert(!cisnan(fuelPerCycle), "NaN fuelPerCycle", 0);
 #if EFI_PRINTF_FUEL_DETAILS || defined(__DOXYGEN__)
-	printf("baseFuel=%f fuelPerCycle=%f \t\n",
+	printf("baseFuel=%.2f fuelPerCycle=%.2f \t\n",
 			baseFuel, fuelPerCycle);
 #endif /*EFI_PRINTF_FUEL_DETAILS */
 	}
@@ -162,6 +175,12 @@ floatms_t getInjectionDuration(int rpm DECLARE_ENGINE_PARAMETER_SUFFIX) {
 		// here we convert per-cylinder fuel amount into total engine amount since the single injector serves all cylinders
 		fuelPerCycle *= engineConfiguration->specs.cylindersCount;
 	}
+	// Fuel cut-off isn't just 0 or 1, it can be tapered
+	fuelPerCycle *= ENGINE(engineState.fuelCutoffCorrection);
+	// If no fuel, don't add injector lag
+	if (fuelPerCycle == 0.0f)
+		return 0;
+
 	floatms_t theoreticalInjectionLength = fuelPerCycle / numberOfInjections;
 	
 	// Get injector lag
@@ -205,7 +224,7 @@ floatms_t getRunningFuel(floatms_t baseFuel DECLARE_ENGINE_PARAMETER_SUFFIX) {
  */
 floatms_t getInjectorLag(float vBatt DECLARE_ENGINE_PARAMETER_SUFFIX) {
 	if (cisnan(vBatt)) {
-		warning(OBD_System_Voltage_Malfunction, "vBatt=%f", vBatt);
+		warning(OBD_System_Voltage_Malfunction, "vBatt=%.2f", vBatt);
 		return 0;
 	}
 	float vBattCorrection = interpolate2d("lag", vBatt, INJECTOR_LAG_CURVE);
@@ -241,6 +260,42 @@ float getIatFuelCorrection(float iat DECLARE_ENGINE_PARAMETER_SUFFIX) {
 	if (cisnan(iat))
 		return 1; // this error should be already reported somewhere else, let's just handle it
 	return interpolate2d("iatc", iat, IAT_FUEL_CORRECTION_CURVE);
+}
+
+/**
+ * @brief	Called from EngineState::periodicFastCallback to update the state.
+ * @note The returned value is float, not boolean - to implement taper (smoothed correction).
+ * @return	Fuel duration correction for fuel cut-off control (ex. if coasting). No correction if 1.0
+ */
+float getFuelCutOffCorrection(efitick_t nowNt, int rpm DECLARE_ENGINE_PARAMETER_SUFFIX) {
+	// no corrections by default
+	float fuelCorr = 1.0f;
+
+	// coasting fuel cut-off correction
+	if (boardConfiguration->coastingFuelCutEnabled) {
+		percent_t tpsPos = getTPS(PASS_ENGINE_PARAMETER_SIGNATURE);
+	
+		// gather events
+		bool tpsDeactivate = (tpsPos >= CONFIG(coastingFuelCutTps));
+		bool cltDeactivate = cisnan(engine->sensors.clt) ? false : (engine->sensors.clt < (float)CONFIG(coastingFuelCutClt));
+		bool rpmDeactivate = (rpm < CONFIG(coastingFuelCutRpmLow));
+		bool rpmActivate = (rpm > CONFIG(coastingFuelCutRpmHigh));
+		
+		// state machine (coastingFuelCutStartTime is also used as a flag)
+		if (!tpsDeactivate && !cltDeactivate && rpmActivate) {
+			ENGINE(engineState.coastingFuelCutStartTime) = nowNt;
+		} else if (tpsDeactivate || rpmDeactivate || cltDeactivate) {
+			ENGINE(engineState.coastingFuelCutStartTime) = 0;
+		}
+		// enable fuelcut?
+		if (ENGINE(engineState.coastingFuelCutStartTime) != 0) {
+			// todo: add taper - interpolate using (nowNt - coastingFuelCutStartTime)?
+			fuelCorr = 0.0f;
+		}
+	}
+	
+	// todo: add other fuel cut-off checks here (possibly cutFuelOnHardLimit?)
+	return fuelCorr;
 }
 
 /**
@@ -294,4 +349,13 @@ floatms_t getCrankingFuel3(float coolantTemperature,
 			engineConfiguration->crankingTpsCoef, CRANKING_CURVE_SIZE);
 
 	return baseCrankingFuel * durationCoef * coolantTempCoef * tpsCoef;
+}
+
+float getFuelRate(floatms_t totalInjDuration, efitick_t timePeriod DECLARE_ENGINE_PARAMETER_SUFFIX) {
+	if (timePeriod <= 0.0f)
+		return 0.0f;
+	float timePeriodMs = (float)NT2US(timePeriod) / 1000.0f;
+	float fuelRate = totalInjDuration / timePeriodMs;
+	const float cc_min_to_L_h = 60.0f / 1000.0f;
+	return fuelRate * CONFIG(injector.flow) * cc_min_to_L_h;
 }

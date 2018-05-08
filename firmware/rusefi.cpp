@@ -3,11 +3,14 @@
  * @brief Initialization code and main status reporting look
  *
  * @date Dec 25, 2013
- * @author Andrey Belomutskiy, (c) 2012-2017
+ * @author Andrey Belomutskiy, (c) 2012-2018
  */
 
 /**
  * @mainpage
+ * This documentation https://rusefi.com/docs/html/
+ *
+ * For version see engine_controller.cpp getRusEfiVersion
  *
  * @section sec_into
  *
@@ -45,6 +48,13 @@
  * A single tooth primary signal would be a typical example when synchronization is not needed.
  *
  *
+ * @section sec_timers Timers
+ * At the moment rusEfi is build using 5 times:
+ * 1) 1MHz microsecond_timer.cpp
+ * 2) 10KHz fast ADC callback pwmpcb_fast adc_inputs.cpp
+ * 3) slow ADC callback pwmpcb_slow adc_inputs.cpp
+ * 4) periodicFastTimer engine_controller.cpp
+ * 5) periodicSlowTimer engine_controller.cpp
  *
  *
  *
@@ -110,6 +120,8 @@
 #include "pin_repository.h"
 #include "flash_main.h"
 #include "algo.h"
+#include "custom_engine.h"
+#include "engine_math.h"
 
 #if EFI_HD44780_LCD
 #include "lcd_HD44780.h"
@@ -118,10 +130,6 @@
 #if EFI_ENGINE_EMULATOR || defined(__DOXYGEN__)
 #include "engine_emulator.h"
 #endif /* EFI_ENGINE_EMULATOR */
-
-#if defined(EFI_BOOTLOADER_INCLUDE_CODE) || defined(__DOXYGEN__)
-#include "bootloader/bootloader.h"
-#endif /* EFI_BOOTLOADER_INCLUDE_CODE */
 
 LoggingWithStorage sharedLogger("main");
 
@@ -155,7 +163,7 @@ static void scheduleReboot(void) {
 
 void runRusEfi(void) {
 	efiAssertVoid(getRemainingStack(chThdGetSelfX()) > 512, "init s");
-	assertEngineReference(PASS_ENGINE_PARAMETER_SIGNATURE);
+	assertEngineReference();
 	initIntermediateLoggingBuffer();
 	initErrorHandling();
 
@@ -215,6 +223,8 @@ void runRusEfi(void) {
 #endif
 	startStatusThreads();
 
+	test557init();
+
 	rememberCurrentConfiguration();
 
 	print("Running main loop\r\n");
@@ -235,6 +245,15 @@ void runRusEfi(void) {
 	}
 }
 
+/**
+ * this depends on chcore.h patch
++void chDbgStackOverflowPanic(thread_t *otp);
++
+-    chSysHalt("stack overflow");                                            \
++    chDbgStackOverflowPanic(otp);                                           \
+
+ *
+ */
 void chDbgStackOverflowPanic(thread_t *otp) {
 	(void)otp;
 	strcpy(panicMessage, "stack overflow: ");
@@ -246,19 +265,4 @@ void chDbgStackOverflowPanic(thread_t *otp) {
 	chDbgPanic3(panicMessage, __FILE__, __LINE__);
 }
 
-static char UNUSED_RAM_SIZE[14100];
 
-static char UNUSED_CCM_SIZE[16000] CCM_OPTIONAL;
-
-int getRusEfiVersion(void) {
-	if (UNUSED_RAM_SIZE[0] != 0)
-		return 123; // this is here to make the compiler happy about the unused array
-	if (UNUSED_CCM_SIZE[0] * 0 != 0)
-		return 3211; // this is here to make the compiler happy about the unused array
-#if defined(EFI_BOOTLOADER_INCLUDE_CODE) || defined(__DOXYGEN__)
-	// make bootloader code happy too
-	if (initBootloader() != 0)
-		return 123;
-#endif /* EFI_BOOTLOADER_INCLUDE_CODE */
-	return 20171106;
-}

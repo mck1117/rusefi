@@ -2,7 +2,7 @@
  * @file	trigger_structure.cpp
  *
  * @date Jan 20, 2014
- * @author Andrey Belomutskiy, (c) 2012-2017
+ * @author Andrey Belomutskiy, (c) 2012-2018
  *
  * This file is part of rusEfi - see http://rusefi.com
  *
@@ -39,6 +39,7 @@ trigger_shape_helper::trigger_shape_helper() {
 
 TriggerShape::TriggerShape() :
 		wave(switchTimesBuffer, NULL) {
+	version = 0;
 	initialize(OM_NONE, false);
 	wave.waves = h.waves;
 
@@ -100,7 +101,7 @@ void TriggerShape::calculateTriggerSynchPoint(TriggerState *state DECLARE_ENGINE
 void TriggerShape::initialize(operation_mode_e operationMode, bool needSecondTriggerInput) {
 	isSynchronizationNeeded = true; // that's default value
 	this->needSecondTriggerInput = needSecondTriggerInput;
-	memset(dutyCycle, 0, sizeof(dutyCycle));
+	memset(expectedDutyCycle, 0, sizeof(expectedDutyCycle));
 	memset(eventAngles, 0, sizeof(eventAngles));
 //	memset(triggerIndexByAngle, 0, sizeof(triggerIndexByAngle));
 	setTriggerSynchronizationGap(2);
@@ -145,7 +146,10 @@ int multi_wave_s::getChannelState(int channelIndex, int phaseIndex) const {
 	return waves[channelIndex].pinStates[phaseIndex];
 }
 
-int multi_wave_s::waveIndertionAngle(float angle, int size) const {
+/**
+ * returns the index at which given value would need to be inserted into sorted array
+ */
+int multi_wave_s::findInsertionAngle(float angle, int size) const {
 	for (int i = size - 1; i >= 0; i--) {
 		if (angle > switchTimes[i])
 			return i + 1;
@@ -165,39 +169,6 @@ void multi_wave_s::setSwitchTime(int index, float value) {
 	switchTimes[index] = value;
 }
 
-TriggerState::TriggerState() {
-	reset();
-}
-
-void TriggerState::reset() {
-	cycleCallback = NULL;
-	shaft_is_synchronized = false;
-	toothed_previous_time = 0;
-	toothed_previous_duration = 0;
-	durationBeforePrevious = 0;
-	thirdPreviousDuration = 0;
-
-	totalRevolutionCounter = 0;
-	totalTriggerErrorCounter = 0;
-	orderingErrorCounter = 0;
-	currentDuration = 0;
-	curSignal = SHAFT_PRIMARY_FALLING;
-	prevSignal = SHAFT_PRIMARY_FALLING;
-	prevCycleDuration = 0;
-	startOfCycleNt = 0;
-
-	resetRunningCounters();
-	resetCurrentCycleState();
-	memset(expectedTotalTime, 0, sizeof(expectedTotalTime));
-	memset(prevTotalTime, 0, sizeof(prevTotalTime));
-	totalEventCountBase = 0;
-	isFirstEvent = true;
-}
-
-int TriggerState::getCurrentIndex() {
-	return currentCycle.current_index;
-}
-
 efitime_t TriggerState::getStartOfRevolutionIndex() {
 	return totalEventCountBase;
 }
@@ -208,36 +179,76 @@ void TriggerState::resetRunningCounters() {
 	runningOrderingErrorCounter = 0;
 }
 
-void TriggerState::runtimeStatistics(trigger_event_e const signal, efitime_t nowNt DECLARE_ENGINE_PARAMETER_SUFFIX) {
+void TriggerState::runtimeStatistics(efitime_t nowNt DECLARE_ENGINE_PARAMETER_SUFFIX) {
 	// empty base implementation
 }
 
-void TriggerStateWithRunningStatistics::runtimeStatistics(trigger_event_e const signal, efitime_t nowNt DECLARE_ENGINE_PARAMETER_SUFFIX) {
-	if (ENGINE(sensorChartMode) == SC_RPM_ACCEL || ENGINE(sensorChartMode) == SC_DETAILED_RPM) {
-		angle_t currentAngle = TRIGGER_SHAPE(eventAngles[currentCycle.current_index]);
-		// todo: make this '90' depend on cylinder count?
-		angle_t prevAngle = currentAngle - 90;
-		fixAngle(prevAngle, "prevAngle");
-		// todo: prevIndex should be pre-calculated
-		int prevIndex = TRIGGER_SHAPE(triggerIndexByAngle[(int)prevAngle]);
-		// now let's get precise angle for that event
-		prevAngle = TRIGGER_SHAPE(eventAngles[prevIndex]);
-		uint32_t time = nowNt - timeOfLastEvent[prevIndex];
-		angle_t angleDiff = currentAngle - prevAngle;
-		// todo: angle diff should be pre-calculated
-		fixAngle(angleDiff, "angleDiff");
+TriggerStateWithRunningStatistics::TriggerStateWithRunningStatistics() {
+	instantRpm = 0;
+	prevInstantRpmValue = 0;
+	// avoid ill-defined instant RPM when the data is not gathered yet
+	efitime_t nowNt = getTimeNowNt();
+	for (int i = 0; i < PWM_PHASE_MAX_COUNT; i++) {
+		timeOfLastEvent[i] = nowNt;
+	}
+}
 
-		float r = (60000000.0 / 360 * US_TO_NT_MULTIPLIER) * angleDiff / time;
+float TriggerStateWithRunningStatistics::calculateInstantRpm(int *prevIndex, efitime_t nowNt DECLARE_ENGINE_PARAMETER_SUFFIX) {
+	int current_index = currentCycle.current_index; // local copy so that noone changes the value on us
+	/**
+	 * Here we calculate RPM based on last 90 degrees
+	 */
+	angle_t currentAngle = TRIGGER_SHAPE(eventAngles[current_index]);
+	// todo: make this '90' depend on cylinder count or trigger shape?
+	angle_t previousAngle = currentAngle - 90;
+	fixAngle(previousAngle, "prevAngle");
+	// todo: prevIndex should be pre-calculated
+	*prevIndex = TRIGGER_SHAPE(triggerIndexByAngle[(int)previousAngle]);
+
+	// now let's get precise angle for that event
+	angle_t prevIndexAngle = TRIGGER_SHAPE(eventAngles[*prevIndex]);
+	uint32_t time = nowNt - timeOfLastEvent[*prevIndex];
+	angle_t angleDiff = currentAngle - prevIndexAngle;
+	// todo: angle diff should be pre-calculated
+	fixAngle(angleDiff, "angleDiff");
+
+	// just for safety
+	if (time == 0)
+		return prevInstantRpmValue;
+
+	float instantRpm = (60000000.0 / 360 * US_TO_NT_MULTIPLIER) * angleDiff / time;
+	instantRpmValue[current_index] = instantRpm;
+	timeOfLastEvent[current_index] = nowNt;
+
+	// This fixes early RPM instability based on incomplete data
+	if (instantRpm < RPM_LOW_THRESHOLD)
+		return prevInstantRpmValue;
+	prevInstantRpmValue = instantRpm;
+
+	return instantRpm;
+}
+
+void TriggerStateWithRunningStatistics::setLastEventTimeForInstantRpm(efitime_t nowNt DECLARE_ENGINE_PARAMETER_SUFFIX) {
+	timeOfLastEvent[currentCycle.current_index] = nowNt;
+}
+
+void TriggerStateWithRunningStatistics::runtimeStatistics(efitime_t nowNt DECLARE_ENGINE_PARAMETER_SUFFIX) {
+	if (engineConfiguration->debugMode == DBG_INSTANT_RPM) {
+		int prevIndex;
+		instantRpm = calculateInstantRpm(&prevIndex, nowNt PASS_ENGINE_PARAMETER_SUFFIX);
+	}
+	if (ENGINE(sensorChartMode) == SC_RPM_ACCEL || ENGINE(sensorChartMode) == SC_DETAILED_RPM) {
+		int prevIndex;
+		instantRpm = calculateInstantRpm(&prevIndex, nowNt PASS_ENGINE_PARAMETER_SUFFIX);
 
 #if EFI_SENSOR_CHART || defined(__DOXYGEN__)
+		angle_t currentAngle = TRIGGER_SHAPE(eventAngles[currentCycle.current_index]);
 		if (boardConfiguration->sensorChartMode == SC_DETAILED_RPM) {
-			scAddData(currentAngle, r);
+			scAddData(currentAngle, instantRpm);
 		} else {
-			scAddData(currentAngle, r / instantRpmValue[prevIndex]);
+			scAddData(currentAngle, instantRpm / instantRpmValue[prevIndex]);
 		}
 #endif /* EFI_SENSOR_CHART */
-		instantRpmValue[currentCycle.current_index] = r;
-		timeOfLastEvent[currentCycle.current_index] = nowNt;
 	}
 }
 
@@ -249,21 +260,6 @@ int TriggerState::getTotalRevolutionCounter() {
 	return totalRevolutionCounter;
 }
 
-
-void TriggerState::intTotalEventCounter() {
-	totalRevolutionCounter++;
-}
-
-bool TriggerState::isEvenRevolution() {
-	return totalRevolutionCounter & 1;
-}
-
-void TriggerState::resetCurrentCycleState() {
-	memset(currentCycle.eventCount, 0, sizeof(currentCycle.eventCount));
-	memset(currentCycle.timeOfPreviousEventNt, 0, sizeof(currentCycle.timeOfPreviousEventNt));
-	memset(currentCycle.totalTimeNt, 0, sizeof(currentCycle.totalTimeNt));
-	currentCycle.current_index = 0;
-}
 
 /**
  * physical primary trigger duration
@@ -332,7 +328,7 @@ void TriggerShape::addEvent2(angle_t angle, trigger_wheel_e const waveIndex, tri
 
 #if EFI_UNIT_TEST || defined(__DOXYGEN__)
 	if (printTriggerDebug) {
-		printf("addEvent2 %f i=%d r/f=%d\r\n", angle, waveIndex, stateParam);
+		printf("addEvent2 %.2f i=%d r/f=%d\r\n", angle, waveIndex, stateParam);
 	}
 #endif
 
@@ -363,7 +359,7 @@ void TriggerShape::addEvent2(angle_t angle, trigger_wheel_e const waveIndex, tri
 	efiAssertVoid(angle > 0, "angle should be positive");
 	if (size > 0) {
 		if (angle <= previousAngle) {
-			warning(CUSTOM_ERR_TRG_ANGLE_ORDER, "invalid angle order: %f and %f, size=%d", angle, previousAngle, size);
+			warning(CUSTOM_ERR_TRG_ANGLE_ORDER, "invalid angle order: new=%.2f and prev=%.2f, size=%d", angle, previousAngle, size);
 			shapeDefinitionError = true;
 			return;
 		}
@@ -395,24 +391,27 @@ void TriggerShape::addEvent2(angle_t angle, trigger_wheel_e const waveIndex, tri
 		return;
 	}
 
-	int index = wave.waveIndertionAngle(angle, size);
+	int index = wave.findInsertionAngle(angle, size);
 
-	// shifting existing data
-	// todo: does this logic actually work? I think it does not!
+	/**
+	 * todo: it would be nice to be able to provide trigger angles without sorting them externally
+	 * The idea here is to shift existing data - including handling high vs low state of the signals
+	 */
+	// todo: does this logic actually work? I think it does not! due to broken state handling
+/*
 	for (int i = size - 1; i >= index; i--) {
 		for (int j = 0; j < PWM_PHASE_MAX_WAVE_PER_PWM; j++) {
 			wave.waves[j].pinStates[i + 1] = wave.getChannelState(j, index);
 		}
 		wave.setSwitchTime(i + 1, wave.getSwitchTime(i));
 	}
-
+*/
 	isFrontEvent[index] = TV_RISE == stateParam;
 
 	if (index != size) {
 		firmwareError(ERROR_TRIGGER_DRAMA, "are we ever here?");
 	}
 
-//	int index = size;
 	size++;
 
 	for (int i = 0; i < PWM_PHASE_MAX_WAVE_PER_PWM; i++) {
@@ -470,9 +469,10 @@ void TriggerShape::setTriggerSynchronizationGap2(float syncRatioFrom, float sync
 	isSynchronizationNeeded = true;
 	this->syncRatioFrom = syncRatioFrom;
 	this->syncRatioTo = syncRatioTo;
+	this->syncRatioAvg = (int)efiRound((syncRatioFrom + syncRatioTo) * 0.5f, 1.0f);
 #if EFI_UNIT_TEST || defined(__DOXYGEN__)
 	if (printTriggerDebug) {
-		printf("setTriggerSynchronizationGap2 %f %f\r\n", syncRatioFrom, syncRatioTo);
+		printf("setTriggerSynchronizationGap2 %.2f %.2f\r\n", syncRatioFrom, syncRatioTo);
 	}
 #endif /* EFI_UNIT_TEST */
 }

@@ -4,7 +4,7 @@
  *
  * see http://en.wikipedia.org/wiki/Hitachi_HD44780_LCD_controller
  * @date 13.12.2013
- * @author Andrey Belomutskiy, (c) 2012-2017
+ * @author Andrey Belomutskiy, (c) 2012-2018
  */
 
 #include "main.h"
@@ -108,7 +108,7 @@ static void lcd_HD44780_write(uint8_t data) {
 		//	LCD Pin E  -> P2
 
 		// todo: finish all this stuff
-//				i2cAcquireBus(&I2CD1);
+				i2cAcquireBus(&I2CD1);
 //
 //				txbuf[0] = 4;
 //				i2cMasterTransmit(&I2CD1, LCD_PORT_EXP_ADDR, txbuf, 1, NULL, 0);
@@ -117,7 +117,7 @@ static void lcd_HD44780_write(uint8_t data) {
 //				txbuf[0] = 0;
 //				i2cMasterTransmit(&I2CD1, LCD_PORT_EXP_ADDR, txbuf, 1, NULL, 0);
 //
-//				i2cReleaseBus(&I2CD1);
+				i2cReleaseBus(&I2CD1);
 
 	}
 }
@@ -186,6 +186,7 @@ void lcd_HD44780_init(Logging *sharedLogger) {
 
 	if (engineConfiguration->displayMode > DM_HD44780_OVER_PCF8574) {
 		warning(CUSTOM_ERR_DISPLAY_MODE, "Unexpected displayMode %d", engineConfiguration->displayMode);
+		// I2C pins need initialization, code needs more work & testing
 		return;
 	}
 

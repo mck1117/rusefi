@@ -47,6 +47,7 @@ class TriggerState;
 
 /**
  * @brief Trigger shape has all the fields needed to describe and decode trigger signal.
+ * @see TriggerState for trigger decoder state which works based on this trigger shape model
  */
 class TriggerShape {
 public:
@@ -56,13 +57,26 @@ public:
 			event_trigger_position_s *position, angle_t angleOffset DECLARE_ENGINE_PARAMETER_SUFFIX);
 
 	bool isSynchronizationNeeded;
+	/**
+	 * this flag tells us if we should ignore events on second input channel
+	 * that's the way to ignore noise from the disconnected wire
+	 */
 	bool needSecondTriggerInput;
+	/**
+	 * true value here means that we do not have a valid trigger configuration
+	 */
 	bool shapeDefinitionError;
+
+	/**
+	 * this variable is incremented after each trigger shape redefinition
+	 * See also
+	 */
+	int version;
 
 	/**
 	 * duty cycle for each individual trigger channel
 	 */
-	float dutyCycle[PWM_PHASE_MAX_WAVE_PER_PWM];
+	float expectedDutyCycle[PWM_PHASE_MAX_WAVE_PER_PWM];
 
 	/**
 	 * These angles are in event coordinates - with synchronization point located at angle zero.
@@ -77,6 +91,10 @@ public:
 
 	float syncRatioFrom;
 	float syncRatioTo;
+	/**
+	 * used by NoiselessTriggerDecoder (See TriggerCentral::handleShaftSignal())
+	 */
+	int syncRatioAvg;
 
 	/**
 	 * Usually this is not needed, but some crazy triggers like 36-2-2-2 require two consecutive
@@ -87,7 +105,6 @@ public:
 
 	float thirdSyncRatioFrom;
 	float thirdSyncRatioTo;
-
 
 	/**
 	 * Trigger indexes within trigger cycle are counted from synchronization point, and all
@@ -193,6 +210,7 @@ private:
 
 	/**
 	 * This variable is used to confirm that events are added in the right order.
+	 * todo: this variable is pribably not needed, could be reimplemented by accessing by index
 	 */
 	angle_t previousAngle;
 	/**

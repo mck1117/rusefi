@@ -19,11 +19,18 @@ void initMainEventListener(Logging *sharedLogger DECLARE_ENGINE_PARAMETER_SUFFIX
 void mainTriggerCallback(trigger_event_e ckpSignalType, uint32_t eventIndex DECLARE_ENGINE_PARAMETER_SUFFIX);
 
 int isIgnitionTimingError(void);
+void startPrimeInjectionPulse(DECLARE_ENGINE_PARAMETER_SIGNATURE);
 
 void showMainHistogram(void);
 
+void startSimultaniousInjection(Engine *engine);
+void endSimultaniousInjection(InjectionEvent *event);
 void seTurnPinHigh(InjectionSignalPair *pair);
 void seTurnPinLow(InjectionSignalPair *pair);
 
 float getFuel(int rpm, float key);
+
+// reset injection switch counter if the engine started spinning
+void updatePrimeInjectionPulseState(DECLARE_ENGINE_PARAMETER_SIGNATURE);
+
 #endif /* MAIN_LOOP_H_ */

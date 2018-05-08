@@ -1,8 +1,9 @@
 /*
  * @file	trigger_central.cpp
+ * Here we have a bunch of higher-level methods which are not directly related to actual signal decoding
  *
  * @date Feb 23, 2014
- * @author Andrey Belomutskiy, (c) 2012-2017
+ * @author Andrey Belomutskiy, (c) 2012-2018
  */
 
 #include "main.h"
@@ -38,6 +39,12 @@ WaveChart waveChart;
 
 EXTERN_ENGINE;
 
+/**
+ * true if a recent configuration change has changed any of the trigger settings which
+ * we have not adjusted for yet
+ */
+static bool isTriggerConfigChanged = false;
+
 #if EFI_HISTOGRAMS || defined(__DOXYGEN__)
 static histogram_s triggerCallbackHistogram;
 #endif /* EFI_HISTOGRAMS */
@@ -68,11 +75,7 @@ void addTriggerEventListener(ShaftPositionListener listener, const char *name, E
 	engine->triggerCentral.addEventListener(listener, name, engine);
 }
 
-uint32_t triggerHanlderEntryTime;
-
 #if (EFI_PROD_CODE || EFI_SIMULATOR) || defined(__DOXYGEN__)
-EXTERN_ENGINE
-;
 
 int triggerReentraint = 0;
 int maxTriggerReentraint = 0;
@@ -81,13 +84,8 @@ uint32_t triggerMaxDuration = 0;
 
 static bool isInsideTriggerHandler = false;
 
-/**
- * true if most recent configuration change has changed any of the trigger settings
- */
-static bool isTriggerConfigChanged = false;
-
-efitick_t previousVvtCamTime = 0;
-efitick_t previousVvtCamDuration = 0;
+static efitick_t previousVvtCamTime = 0;
+static efitick_t previousVvtCamDuration = 0;
 
 void hwHandleVvtCamSignal(trigger_value_e front) {
 	if (ENGINE(isEngineChartEnabled)) {
@@ -119,13 +117,13 @@ void hwHandleVvtCamSignal(trigger_value_e front) {
 		previousVvtCamTime = nowNt;
 
 		if (engineConfiguration->isPrintTriggerSynchDetails) {
-			scheduleMsg(logger, "vvt ratio %f", ratio);
+			scheduleMsg(logger, "vvt ratio %.2f", ratio);
 		}
 		if (ratio < boardConfiguration->nb2ratioFrom || ratio > boardConfiguration->nb2ratioTo) {
 			return;
 		}
 		if (engineConfiguration->isPrintTriggerSynchDetails) {
-			scheduleMsg(logger, "looks good: vvt ratio %f", ratio);
+			scheduleMsg(logger, "looks good: vvt ratio %.2f", ratio);
 		}
 	}
 
@@ -148,7 +146,7 @@ void hwHandleVvtCamSignal(trigger_value_e front) {
 			 * let's increase the trigger event counter, that would adjust the state of
 			 * virtual crank-based trigger
 			 */
-			tc->triggerState.intTotalEventCounter();
+			tc->triggerState.incrementTotalEventCounter();
 #if EFI_PROD_CODE || defined(__DOXYGEN__)
 			if (engineConfiguration->debugMode == DBG_VVT) {
 				tsOutputChannels.debugIntField1++;
@@ -160,7 +158,7 @@ void hwHandleVvtCamSignal(trigger_value_e front) {
 		if (isEven) {
 			// see above comment
 #if EFI_PROD_CODE || defined(__DOXYGEN__)
-			tc->triggerState.intTotalEventCounter();
+			tc->triggerState.incrementTotalEventCounter();
 			if (engineConfiguration->debugMode == DBG_VVT) {
 				tsOutputChannels.debugIntField1++;
 			}
@@ -172,17 +170,21 @@ void hwHandleVvtCamSignal(trigger_value_e front) {
 		 * NB2 is a symmetrical crank, there are four phases total
 		 */
 		while (tc->triggerState.getTotalRevolutionCounter() % 4 != engineConfiguration->nbVvtIndex) {
-			tc->triggerState.intTotalEventCounter();
+			tc->triggerState.incrementTotalEventCounter();
 		}
 	}
 
 }
 
 void hwHandleShaftSignal(trigger_event_e signal) {
-	if (!isUsefulSignal(signal, engineConfiguration)) {
-		return;
+	// for effective noise filtering, we need both signal edges, 
+	// so we pass them to handleShaftSignal() and defer this test
+	if (!boardConfiguration->useNoiselessTriggerDecoder) {
+		if (!isUsefulSignal(signal, engineConfiguration)) {
+			return;
+		}
 	}
-	triggerHanlderEntryTime = GET_TIMESTAMP();
+	uint32_t triggerHandlerEntryTime = GET_TIMESTAMP();
 	isInsideTriggerHandler = true;
 	if (triggerReentraint > maxTriggerReentraint)
 		maxTriggerReentraint = triggerReentraint;
@@ -190,7 +192,7 @@ void hwHandleShaftSignal(trigger_event_e signal) {
 	efiAssertVoid(getRemainingStack(chThdGetSelfX()) > 128, "lowstck#8");
 	engine->triggerCentral.handleShaftSignal(signal PASS_ENGINE_PARAMETER_SUFFIX);
 	triggerReentraint--;
-	triggerDuration = GET_TIMESTAMP() - triggerHanlderEntryTime;
+	triggerDuration = GET_TIMESTAMP() - triggerHandlerEntryTime;
 	isInsideTriggerHandler = false;
 	if (triggerDuration > triggerMaxDuration)
 		triggerMaxDuration = triggerDuration;
@@ -207,6 +209,7 @@ TriggerCentral::TriggerCentral() {
 	memset(hwEventCounters, 0, sizeof(hwEventCounters));
 	clearCallbacks(&triggerListeneres);
 	triggerState.reset();
+	resetAccumSignalData();
 }
 
 int TriggerCentral::getHwEventCounter(int index) {
@@ -216,6 +219,12 @@ int TriggerCentral::getHwEventCounter(int index) {
 void TriggerCentral::resetCounters() {
 	memset(hwEventCounters, 0, sizeof(hwEventCounters));
 	triggerState.resetRunningCounters();
+}
+
+void TriggerCentral::resetAccumSignalData() {
+	memset(lastSignalTimes, 0xff, sizeof(lastSignalTimes));	// = -1
+	memset(accumSignalPeriods, 0, sizeof(accumSignalPeriods));
+	memset(accumSignalPrevPeriods, 0, sizeof(accumSignalPrevPeriods));
 }
 
 static char shaft_signal_msg_index[15];
@@ -241,6 +250,68 @@ static ALWAYS_INLINE void reportEventToWaveChart(trigger_event_e ckpSignalType, 
 	}
 }
 
+/**
+ * This is used to filter noise spikes (interference) in trigger signal. See 
+ * The basic idea is to use not just edges, but the average amount of time the signal stays in '0' or '1'.
+ * So we update 'accumulated periods' to track where the signal is. 
+ * And then compare between the current period and previous, with some tolerance (allowing for the wheel speed change).
+ * @return true if the signal is passed through.
+ */
+bool TriggerCentral::noiseFilter(efitick_t nowNt, trigger_event_e signal DECLARE_ENGINE_PARAMETER_SUFFIX) {
+	// todo: find a better place for these defs
+	static const trigger_event_e opposite[6] = { SHAFT_PRIMARY_RISING, SHAFT_PRIMARY_FALLING, SHAFT_SECONDARY_RISING, SHAFT_SECONDARY_FALLING, 
+			SHAFT_3RD_RISING, SHAFT_3RD_FALLING };
+	static const trigger_wheel_e triggerIdx[6] = { T_PRIMARY, T_PRIMARY, T_SECONDARY, T_SECONDARY, T_CHANNEL_3, T_CHANNEL_3 };
+	// we process all trigger channels independently
+	trigger_wheel_e ti = triggerIdx[signal];
+	// falling is opposite to rising, and vise versa
+	trigger_event_e os = opposite[signal];
+	
+	// todo: currently only primary channel is filtered, because there are some weird trigger types on other channels
+	if (ti != T_PRIMARY)
+		return true;
+	
+	// update period accumulator: for rising signal, we update '0' accumulator, and for falling - '1'
+	if (lastSignalTimes[signal] != -1)
+		accumSignalPeriods[signal] += nowNt - lastSignalTimes[signal];
+	// save current time for this trigger channel
+	lastSignalTimes[signal] = nowNt;
+	
+	// now we want to compare current accumulated period to the stored one 
+	efitick_t currentPeriod = accumSignalPeriods[signal];
+	// the trick is to compare between different
+	efitick_t allowedPeriod = accumSignalPrevPeriods[os];
+
+	// but first check if we're expecting a gap
+	bool isGapExpected = TRIGGER_SHAPE(isSynchronizationNeeded) && triggerState.shaft_is_synchronized && 
+			(triggerState.currentCycle.eventCount[ti] + 1) == TRIGGER_SHAPE(expectedEventCount[ti]);
+	
+	if (isGapExpected) {
+		// usually we need to extend the period for gaps, based on the trigger info
+		allowedPeriod *= TRIGGER_SHAPE(syncRatioAvg);
+	}
+	
+	// also we need some margin for rapidly changing trigger-wheel speed,
+	// that's why we expect the period to be no less than 2/3 of the previous period (this is just an empirical 'magic' coef.)
+	efitick_t minAllowedPeriod = 2 * allowedPeriod / 3;
+	// but no longer than 5/4 of the previous 'normal' period
+	efitick_t maxAllowedPeriod = 5 * allowedPeriod / 4;
+	
+	// above all, check if the signal comes not too early
+	if (currentPeriod >= minAllowedPeriod) {
+		// now we store this period as a reference for the next time,
+		// BUT we store only 'normal' periods, and ignore too long periods (i.e. gaps)
+		if (!isGapExpected && (maxAllowedPeriod == 0 || currentPeriod <= maxAllowedPeriod)) {
+			accumSignalPrevPeriods[signal] = currentPeriod;
+		}
+		// reset accumulator
+		accumSignalPeriods[signal] = 0;
+		return true;
+	}
+	// all premature or extra-long events are ignored - treated as interference
+	return false;
+}
+
 void TriggerCentral::handleShaftSignal(trigger_event_e signal DECLARE_ENGINE_PARAMETER_SUFFIX) {
 	efiAssertVoid(engine!=NULL, "configuration");
 
@@ -252,7 +323,18 @@ void TriggerCentral::handleShaftSignal(trigger_event_e signal DECLARE_ENGINE_PAR
 
 	nowNt = getTimeNowNt();
 
-	engine->onTriggerEvent(nowNt);
+	// This code gathers some statistics on signals and compares accumulated periods to filter interference
+	if (boardConfiguration->useNoiselessTriggerDecoder) {
+		if (!noiseFilter(nowNt, signal PASS_ENGINE_PARAMETER_SUFFIX)) {
+			return;
+		}
+		// moved here from hwHandleShaftSignal()
+		if (!isUsefulSignal(signal, engineConfiguration)) {
+			return;
+		}
+	}
+
+	engine->onTriggerSignalEvent(nowNt);
 
 #if EFI_HISTOGRAMS && EFI_PROD_CODE
 	int beforeCallback = hal_lld_get_counter_value();
@@ -266,7 +348,7 @@ void TriggerCentral::handleShaftSignal(trigger_event_e signal DECLARE_ENGINE_PAR
 		 * We are here if there is a time gap between now and previous shaft event - that means the engine is not runnig.
 		 * That means we have lost synchronization since the engine is not running :)
 		 */
-		triggerState.shaft_is_synchronized = false;
+		triggerState.onSynchronizationLost(PASS_ENGINE_PARAMETER_SIGNATURE);
 	}
 	previousShaftEventTimeNt = nowNt;
 
@@ -338,10 +420,10 @@ static void triggerShapeInfo(void) {
 #if (EFI_PROD_CODE || EFI_SIMULATOR) || defined(__DOXYGEN__)
 	TriggerShape *s = &engine->triggerCentral.triggerShape;
 	scheduleMsg(logger, "useRise=%s", boolToString(s->useRiseEdge));
-	scheduleMsg(logger, "gap from %f to %f", s->syncRatioFrom, s->syncRatioTo);
+	scheduleMsg(logger, "gap from %.2f to %.2f", s->syncRatioFrom, s->syncRatioTo);
 
 	for (int i = 0; i < s->getSize(); i++) {
-		scheduleMsg(logger, "event %d %f", i, s->eventAngles[i]);
+		scheduleMsg(logger, "event %d %.2f", i, s->eventAngles[i]);
 	}
 #endif
 }
@@ -384,21 +466,23 @@ void printAllTriggers() {
 		TriggerShape *s = &engine->triggerCentral.triggerShape;
 		s->initializeTriggerShape(NULL PASS_ENGINE_PARAMETER_SUFFIX);
 
-		fprintf(fp, "TRIGGERTYPE %d %d %s %f\r\n", triggerId, s->getLength(), getTrigger_type_e(tt), s->tdcPosition);
+		efiAssertVoid(!s->shapeDefinitionError, "trigger error");
 
-		fprintf(fp, "# duty %f %f\r\n", s->dutyCycle[0], s->dutyCycle[1]);
+		fprintf(fp, "TRIGGERTYPE %d %d %s %.2f\n", triggerId, s->getLength(), getTrigger_type_e(tt), s->tdcPosition);
+
+		fprintf(fp, "# duty %.2f %.2f\n", s->expectedDutyCycle[0], s->expectedDutyCycle[1]);
 
 		for (int i = 0; i < s->getLength(); i++) {
 
 			int triggerDefinitionCoordinate = (s->getTriggerShapeSynchPointIndex() + i) % s->getSize();
 
 
-			fprintf(fp, "event %d %d %f\r\n", i, s->triggerSignals[triggerDefinitionCoordinate], s->eventAngles[i]);
+			fprintf(fp, "event %d %d %.2f\n", i, s->triggerSignals[triggerDefinitionCoordinate], s->eventAngles[i]);
 		}
 
 	}
 	fclose(fp);
-	printf("All triggers exported to %s\r\n", TRIGGERS_FILE_NAME);
+	printf("All triggers exported to %s\n", TRIGGERS_FILE_NAME);
 }
 
 #endif
@@ -445,7 +529,7 @@ void triggerInfo(void) {
 
 	TriggerShape *ts = &engine->triggerCentral.triggerShape;
 
-	scheduleMsg(logger, "Template %s (%d) trigger %s (%d) useRiseEdge=%s onlyFront=%s useOnlyFirstChannel=%s tdcOffset=%d",
+	scheduleMsg(logger, "Template %s (%d) trigger %s (%d) useRiseEdge=%s onlyFront=%s useOnlyFirstChannel=%s tdcOffset=%.2f",
 			getConfigurationName(engineConfiguration->engineType), engineConfiguration->engineType,
 			getTrigger_type_e(engineConfiguration->trigger.type), engineConfiguration->trigger.type,
 			boolToString(TRIGGER_SHAPE(useRiseEdge)), boolToString(engineConfiguration->useOnlyRisingEdgeForTrigger),
@@ -468,7 +552,7 @@ void triggerInfo(void) {
 
 	scheduleMsg(logger, "trigger type=%d/need2ndChannel=%s", engineConfiguration->trigger.type,
 			boolToString(TRIGGER_SHAPE(needSecondTriggerInput)));
-	scheduleMsg(logger, "expected duty #0=%f/#1=%f", TRIGGER_SHAPE(dutyCycle[0]), TRIGGER_SHAPE(dutyCycle[1]));
+	scheduleMsg(logger, "expected duty #0=%.2f/#1=%.2f", TRIGGER_SHAPE(expectedDutyCycle[0]), TRIGGER_SHAPE(expectedDutyCycle[1]));
 
 	scheduleMsg(logger, "synchronizationNeeded=%s/isError=%s/total errors=%d ord_err=%d/total revolutions=%d/self=%s",
 			boolToString(ts->isSynchronizationNeeded),
@@ -477,15 +561,15 @@ void triggerInfo(void) {
 			boolToString(engineConfiguration->directSelfStimulation));
 
 	if (TRIGGER_SHAPE(isSynchronizationNeeded)) {
-		scheduleMsg(logger, "gap from %f to %f", ts->syncRatioFrom, ts->syncRatioTo);
+		scheduleMsg(logger, "gap from %.2f to %.2f", ts->syncRatioFrom, ts->syncRatioTo);
 	}
 
 #endif /* EFI_PROD_CODE || EFI_SIMULATOR */
 
 #if EFI_PROD_CODE || defined(__DOXYGEN__)
 	if (engineConfiguration->camInput != GPIO_UNASSIGNED) {
-		scheduleMsg(logger, "VVT input: %s mode %d", hwPortname(engineConfiguration->camInput),
-				engineConfiguration->vvtMode);
+		scheduleMsg(logger, "VVT input: %s mode %s", hwPortname(engineConfiguration->camInput),
+				getVvt_mode_e(engineConfiguration->vvtMode));
 		scheduleMsg(logger, "VVT event counters: %d/%d", vvtEventRiseCounter, vvtEventFallCounter);
 
 	}
@@ -545,12 +629,6 @@ void triggerInfo(void) {
 #endif /* EFI_PROD_CODE */
 }
 
-#if ! EFI_UNIT_TEST
-float getTriggerDutyCycle(int index) {
-	return engine->triggerCentral.triggerState.getTriggerDutyCycle(index);
-}
-#endif
-
 static void resetRunningTriggerCounters() {
 #if !EFI_UNIT_TEST || defined(__DOXYGEN__)
 	engine->triggerCentral.resetCounters();
@@ -560,9 +638,8 @@ static void resetRunningTriggerCounters() {
 
 #define COMPARE_CONFIG_PARAMS(param) (engineConfiguration->param != previousConfiguration->param)
 
-void onConfigurationChangeTriggerCallback(engine_configuration_s *previousConfiguration) {
-#if EFI_PROD_CODE || EFI_SIMULATOR || defined(__DOXYGEN__)
-	isTriggerConfigChanged = COMPARE_CONFIG_PARAMS(trigger.type) ||
+void onConfigurationChangeTriggerCallback(engine_configuration_s *previousConfiguration DECLARE_ENGINE_PARAMETER_SUFFIX) {
+	bool changed = COMPARE_CONFIG_PARAMS(trigger.type) ||
 		COMPARE_CONFIG_PARAMS(operationMode) ||
 		COMPARE_CONFIG_PARAMS(useOnlyRisingEdgeForTrigger) ||
 		COMPARE_CONFIG_PARAMS(globalTriggerAngleOffset) ||
@@ -579,18 +656,37 @@ void onConfigurationChangeTriggerCallback(engine_configuration_s *previousConfig
 		COMPARE_CONFIG_PARAMS(bc.nb2ratioFrom) ||
 		COMPARE_CONFIG_PARAMS(bc.nb2ratioTo) ||
 		COMPARE_CONFIG_PARAMS(nbVvtIndex);
-#endif /* EFI_PROD_CODE */
+	if (changed) {
+		assertEngineReference();
+
+	#if EFI_ENGINE_CONTROL || defined(__DOXYGEN__)
+		engine->triggerCentral.triggerShape.initializeTriggerShape(logger PASS_ENGINE_PARAMETER_SUFFIX);
+		engine->triggerCentral.resetAccumSignalData();
+	#endif
+	}
+#if EFI_DEFAILED_LOGGING
+	scheduleMsg(logger, "isTriggerConfigChanged=%d", isTriggerConfigChanged);
+#endif /* EFI_DEFAILED_LOGGING */
+
+	// we do not want to miss two updates in a row
+	isTriggerConfigChanged = isTriggerConfigChanged || changed;
 }
 
 /**
  * @returns true if configuration just changed, and if that change has affected trigger
  */
 bool checkIfTriggerConfigChanged(void) {
-#if EFI_PROD_CODE || EFI_SIMULATOR || defined(__DOXYGEN__)
-	return triggerVersion.isOld() && isTriggerConfigChanged;
-#else
-	return triggerVersion.isOld();
-#endif /* EFI_PROD_CODE */
+	bool result = triggerVersion.isOld() && isTriggerConfigChanged;
+	isTriggerConfigChanged = false; // whoever has called the method is supposed to react to changes
+	return result;
+}
+
+bool readIfTriggerConfigChangedForUnitTest(void) {
+	return isTriggerConfigChanged;
+}
+
+void resetTriggerConfigChangedForUnitTest(void) {
+	isTriggerConfigChanged = false;
 }
 
 void initTriggerCentral(Logging *sharedLogger) {

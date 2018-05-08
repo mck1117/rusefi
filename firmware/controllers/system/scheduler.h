@@ -26,7 +26,10 @@ public:
 	bool isScheduled;
 };
 
-void scheduleTask(scheduling_s *scheduling, int delayUs, schfunc_t callback, void *param);
-void scheduleByTime(scheduling_s *scheduling, efitimeus_t time, schfunc_t callback, void *param);
+/**
+ * see also scheduleByAngle
+ */
+void scheduleForLater(scheduling_s *scheduling, int delayUs, schfunc_t callback, void *param);
+void scheduleByTimestamp(scheduling_s *scheduling, efitimeus_t time, schfunc_t callback, void *param);
 
 #endif /* SCHEDULER_H_ */

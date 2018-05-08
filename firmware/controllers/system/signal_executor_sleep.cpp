@@ -6,7 +6,7 @@
  * TODO: https://sourceforge.net/p/rusefi/tickets/6/
  *
  * @date Feb 10, 2013
- * @author Andrey Belomutskiy, (c) 2012-2017
+ * @author Andrey Belomutskiy, (c) 2012-2018
  *
  * This file is part of rusEfi - see http://rusefi.com
  *
@@ -34,8 +34,8 @@
 
 #if EFI_SIGNAL_EXECUTOR_SLEEP || defined(__DOXYGEN__)
 
-void scheduleByTime(scheduling_s *scheduling, efitimeus_t time, schfunc_t callback, void *param) {
-	scheduleTask(scheduling, time - getTimeNowUs(), callback, param);
+void scheduleByTimestamp(scheduling_s *scheduling, efitimeus_t time, schfunc_t callback, void *param) {
+	scheduleForLater(scheduling, time - getTimeNowUs(), callback, param);
 }
 
 static void timerCallback(scheduling_s *scheduling) {
@@ -52,7 +52,7 @@ static void timerCallback(scheduling_s *scheduling) {
 
 }
 
-void scheduleTask(scheduling_s *scheduling, int delayUs, schfunc_t callback, void *param) {
+void scheduleForLater(scheduling_s *scheduling, int delayUs, schfunc_t callback, void *param) {
 	int delaySt = MY_US2ST(delayUs);
 	if (delaySt <= 0) {
 		/**
@@ -82,8 +82,9 @@ void scheduleTask(scheduling_s *scheduling, int delayUs, schfunc_t callback, voi
 #endif /* EFI_SIMULATOR */
 
 	chVTSetI(&scheduling->timer, delaySt, (vtfunc_t)timerCallback, scheduling);
-	if (!alreadyLocked)
+	if (!alreadyLocked) {
 		unlockAnyContext();
+	}
 }
 
 void initSignalExecutorImpl(void) {

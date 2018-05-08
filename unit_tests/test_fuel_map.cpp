@@ -2,7 +2,7 @@
  * @file	test_fuel_map.cpp
  *
  * @date Nov 6, 2013
- * @author Andrey Belomutskiy, (c) 2012-2017
+ * @author Andrey Belomutskiy, (c) 2012-2018
  */
 
 #include "test_fuel_map.h"
@@ -157,8 +157,8 @@ static void confgiureFordAspireTriggerShape(TriggerShape * s DECLARE_ENGINE_PARA
 	assertEqualsM("expecting not found", -1, s->wave.findAngleMatch(53 / 720.0, s->getSize()));
 	assertEquals(7, s->wave.findAngleMatch(588.045 / 720.0, s->getSize()));
 
-	assertEqualsM("expecting 0", 0, s->wave.waveIndertionAngle(23.747 / 720.0, s->getSize()));
-	assertEqualsM("expecting 1", 1, s->wave.waveIndertionAngle(63.747 / 720.0, s->getSize()));
+	assertEqualsM("expecting 0", 0, s->wave.findInsertionAngle(23.747 / 720.0, s->getSize()));
+	assertEqualsM("expecting 1", 1, s->wave.findInsertionAngle(63.747 / 720.0, s->getSize()));
 }
 
 void testAngleResolver(void) {

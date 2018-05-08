@@ -4,7 +4,7 @@
  *
  *
  * @date Nov 15, 2012
- * @author Andrey Belomutskiy, (c) 2012-2017
+ * @author Andrey Belomutskiy, (c) 2012-2018
  *
  *
  * This file is part of rusEfi - see http://rusefi.com
@@ -118,6 +118,7 @@ static void sayHello(void) {
  */
 static void cmd_threads(void) {
 #if CH_DBG_THREADS_PROFILING || defined(__DOXYGEN__)
+	 /* todo: fix this code to work with fresh chibios
   static const char *states[] = { CH_STATE_NAMES };
   thread_t *tp;
   
@@ -128,6 +129,7 @@ static void cmd_threads(void) {
 		(uint32_t) (0), states[tp->p_state], (uint32_t) tp->p_time, tp->p_name);
     tp = chRegNextThread(tp);
   } 
+*/
   
 #else
   scheduleMsg(&logger, "CH_DBG_THREADS_PROFILING is not enabled");

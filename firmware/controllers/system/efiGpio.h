@@ -43,6 +43,7 @@ public:
 	bool isInitialized();
 
 	void setValue(int logicValue);
+	void toggle();
 	bool getLogicValue();
 
 
@@ -105,6 +106,7 @@ public:
 	void unregisterPins();
 	void startInjectionPins();
 	void startIgnitionPins();
+	void startAuxValves();
 	void stopInjectionPins();
 	void stopIgnitionPins();
 	OutputPin mainRelay;
@@ -112,7 +114,6 @@ public:
 	OutputPin acRelay;
 	OutputPin fuelPumpRelay;
 	OutputPin o2heater;
-//	OutputPin alternatorField;
 	/**
 	 * brain board RED LED by default
 	 */
@@ -127,7 +128,10 @@ public:
 	 * this one is usually on the gauge cluster, not on the ECU
 	 */
 	OutputPin checkEnginePin;
+
 	NamedOutputPin tachOut;
+	NamedOutputPin dizzyOutput;
+
 	OutputPin etbOutput1;
 	OutputPin etbOutput2;
 	OutputPin fsioOutputs[FSIO_COMMAND_COUNT];
@@ -138,7 +142,7 @@ public:
 
 	InjectorOutputPin injectors[INJECTION_PIN_COUNT];
 	IgnitionOutputPin coils[IGNITION_PIN_COUNT];
-	NamedOutputPin dizzyOutput;
+	NamedOutputPin auxValve[AUX_DIGITAL_VALVE_COUNT];
 };
 
 /**

@@ -5,7 +5,7 @@
  *
  *
  * @date Feb 7, 2013
- * @author Andrey Belomutskiy, (c) 2012-2017
+ * @author Andrey Belomutskiy, (c) 2012-2018
  *
  * This file is part of rusEfi - see http://rusefi.com
  *
@@ -66,20 +66,24 @@
 #include "lcd_controller.h"
 #include "pin_repository.h"
 #include "tachometer.h"
+#include "CJ125.h"
 #endif /* EFI_PROD_CODE */
+
+#if defined(EFI_BOOTLOADER_INCLUDE_CODE) || defined(__DOXYGEN__)
+#include "bootloader/bootloader.h"
+#endif /* EFI_BOOTLOADER_INCLUDE_CODE */
 
 extern bool hasFirmwareErrorFlag;
 extern EnginePins enginePins;
 
 EXTERN_ENGINE;
 
-
 /**
  * CH_FREQUENCY is the number of system ticks in a second
  */
 
-static virtual_timer_t periodicSlowTimer;
-static virtual_timer_t periodicFastTimer;
+static virtual_timer_t periodicSlowTimer; // 20Hz
+static virtual_timer_t periodicFastTimer; // 50Hz
 
 static LoggingWithStorage logger("Engine Controller");
 
@@ -262,6 +266,8 @@ static void periodicSlowCallback(Engine *engine) {
 		writeToFlashIfPending();
 #endif
 		resetAccel();
+	} else {
+		updatePrimeInjectionPulseState(PASS_ENGINE_PARAMETER_SIGNATURE);
 	}
 
 	if (versionForConfigurationListeners.isOld()) {
@@ -274,7 +280,7 @@ static void periodicSlowCallback(Engine *engine) {
 	engine->checkShutdown();
 
 #if (EFI_PROD_CODE && EFI_FSIO) || defined(__DOXYGEN__)
-	runFsio();
+	runFsio(PASS_ENGINE_PARAMETER_SIGNATURE);
 #endif /* EFI_PROD_CODE && EFI_FSIO */
 
 	cylinderCleanupControl(engine);
@@ -320,7 +326,7 @@ static void printAnalogChannelInfoExt(const char *name, adc_channel_e hwChannel,
 	}
 
 	float voltage = adcVoltage * dividerCoeff;
-	scheduleMsg(&logger, "%s ADC%d %s %s adc=%f/input=%fv/divider=%f", name, hwChannel, getAdcMode(hwChannel),
+	scheduleMsg(&logger, "%s ADC%d %s %s adc=%.2f/input=%.2fv/divider=%.2f", name, hwChannel, getAdcMode(hwChannel),
 			getPinNameByAdcChannel(name, hwChannel, pinNameBuffer), adcVoltage, voltage, dividerCoeff);
 #endif
 }
@@ -332,7 +338,7 @@ static void printAnalogChannelInfo(const char *name, adc_channel_e hwChannel) {
 }
 
 static void printAnalogInfo(void) {
-	scheduleMsg(&logger, "analogInputDividerCoefficient: %f", engineConfiguration->analogInputDividerCoefficient);
+	scheduleMsg(&logger, "analogInputDividerCoefficient: %.2f", engineConfiguration->analogInputDividerCoefficient);
 
 	printAnalogChannelInfo("hip9011", engineConfiguration->hipOutputChannel);
 	printAnalogChannelInfo("fuel gauge", engineConfiguration->fuelLevelSensor);
@@ -491,41 +497,41 @@ static void setMockVoltage(int hwChannel, float voltage) {
 	engine->engineState.mockAdcState.setMockVoltage(hwChannel, voltage);
 }
 
-void setCltVoltage(float voltage) {
+void setMockCltVoltage(float voltage) {
 	setMockVoltage(engineConfiguration->clt.adcChannel, voltage);
 }
 
-void setIatVoltage(float voltage) {
+void setMockIatVoltage(float voltage) {
 	setMockVoltage(engineConfiguration->iat.adcChannel, voltage);
 }
 
-void setMafVoltage(float voltage) {
+void setMockMafVoltage(float voltage) {
 	setMockVoltage(engineConfiguration->mafAdcChannel, voltage);
 }
 
-void setAfrVoltage(float voltage) {
+void setMockAfrVoltage(float voltage) {
 	setMockVoltage(engineConfiguration->afr.hwChannel, voltage);
 }
 
-void setTpsVoltage(float voltage) {
+void setMockTpsVoltage(float voltage) {
 	setMockVoltage(engineConfiguration->tpsAdcChannel, voltage);
 }
 
-void setMapVoltage(float voltage) {
+void setMockMapVoltage(float voltage) {
 	setMockVoltage(engineConfiguration->map.sensor.hwChannel, voltage);
 }
 
-void setVBattVoltage(float voltage) {
+void setMockVBattVoltage(float voltage) {
 	setMockVoltage(engineConfiguration->vbattAdcChannel, voltage);
 }
 
 static void initMockVoltage(void) {
 #if EFI_SIMULATOR || defined(__DOXYGEN__)
-	setCltVoltage(2);
+	setMockCltVoltage(2);
 #endif /* EFI_SIMULATOR */
 
 #if EFI_SIMULATOR || defined(__DOXYGEN__)
-	setIatVoltage(2);
+	setMockIatVoltage(2);
 #endif /* EFI_SIMULATOR */
 
 }
@@ -553,6 +559,9 @@ static void getKnockInfo(void) {
 
 // this method is used by real firmware and simulator
 void commonInitEngineController(Logging *sharedLogger DECLARE_ENGINE_PARAMETER_SUFFIX) {
+#if EFI_SIMULATOR
+	printf("commonInitEngineController\n");
+#endif
 	initConfigActions();
 	initMockVoltage();
 
@@ -589,6 +598,9 @@ void commonInitEngineController(Logging *sharedLogger DECLARE_ENGINE_PARAMETER_S
 }
 
 void initEngineContoller(Logging *sharedLogger DECLARE_ENGINE_PARAMETER_SUFFIX) {
+#if EFI_SIMULATOR
+	printf("initEngineContoller\n");
+#endif
 	addConsoleAction("analoginfo", printAnalogInfo);
 	commonInitEngineController(sharedLogger);
 
@@ -605,6 +617,14 @@ void initEngineContoller(Logging *sharedLogger DECLARE_ENGINE_PARAMETER_SUFFIX) 
 		initWaveAnalyzer(sharedLogger);
 	}
 #endif /* EFI_WAVE_ANALYZER */
+
+#if EFI_CJ125 || defined(__DOXYGEN__)
+	/**
+	 * this uses SimplePwm which depends on scheduler, has to be initialized after scheduler
+	 */
+	initCJ125(sharedLogger);
+#endif
+
 
 #if EFI_SHAFT_POSITION_INPUT || defined(__DOXYGEN__)
 	/**
@@ -664,6 +684,8 @@ void initEngineContoller(Logging *sharedLogger DECLARE_ENGINE_PARAMETER_SUFFIX) 
 	}
 #endif /* EFI_MAP_AVERAGING */
 
+	initEgoAveraging(PASS_ENGINE_PARAMETER_SIGNATURE);
+
 #if EFI_ENGINE_CONTROL || defined(__DOXYGEN__)
 	if (boardConfiguration->isEngineControlEnabled) {
 		/**
@@ -692,4 +714,24 @@ void initEngineContoller(Logging *sharedLogger DECLARE_ENGINE_PARAMETER_SUFFIX) 
 #if EFI_PROD_CODE || defined(__DOXYGEN__)
 	initTachometer();
 #endif /* EFI_PROD_CODE */
+}
+
+static char UNUSED_RAM_SIZE[7000];
+
+static char UNUSED_CCM_SIZE[7000] CCM_OPTIONAL;
+
+/**
+ * See also VCS_VERSION
+ */
+int getRusEfiVersion(void) {
+	if (UNUSED_RAM_SIZE[0] != 0)
+		return 123; // this is here to make the compiler happy about the unused array
+	if (UNUSED_CCM_SIZE[0] * 0 != 0)
+		return 3211; // this is here to make the compiler happy about the unused array
+#if defined(EFI_BOOTLOADER_INCLUDE_CODE) || defined(__DOXYGEN__)
+	// make bootloader code happy too
+	if (initBootloader() != 0)
+		return 123;
+#endif /* EFI_BOOTLOADER_INCLUDE_CODE */
+	return 20180401;
 }

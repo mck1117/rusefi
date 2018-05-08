@@ -2,7 +2,7 @@
  * @file	test_signal_executor.cpp
  *
  * @date Nov 28, 2013
- * @author Andrey Belomutskiy, (c) 2012-2017
+ * @author Andrey Belomutskiy, (c) 2012-2018
  */
 
 #include <time.h>
@@ -13,20 +13,21 @@
 #include "io_pins.h"
 #include "utlist.h"
 #include "event_queue.h"
+#include "unit_test_framework.h"
 
 EventQueue schedulingQueue;
 
 bool_t debugSignalExecutor = false;
 
-void scheduleTask(scheduling_s *scheduling, int delayUs,
+void scheduleForLater(scheduling_s *scheduling, int delayUs,
 		schfunc_t callback, void *param) {
 	if (debugSignalExecutor) {
 		printf("scheduleTask %d\r\n", delayUs);
 	}
-	scheduleByTime(scheduling, getTimeNowUs() + delayUs, callback, param);
+	scheduleByTimestamp(scheduling, getTimeNowUs() + delayUs, callback, param);
 }
 
-void scheduleByTime(scheduling_s *scheduling,
+void scheduleByTimestamp(scheduling_s *scheduling,
 		efitimeus_t time, schfunc_t callback, void *param) {
 	if (debugSignalExecutor) {
 		printf("scheduleByTime %d\r\n", time);

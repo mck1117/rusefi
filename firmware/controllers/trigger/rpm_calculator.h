@@ -29,6 +29,11 @@
 #define NOISY_RPM -1
 #define UNREALISTIC_RPM 30000
 
+#ifndef RPM_LOW_THRESHOLD
+// no idea what is the best value, 25 is as good as any other guess
+#define RPM_LOW_THRESHOLD 25
+#endif
+
 #ifdef __cplusplus
 
 typedef enum {
@@ -36,6 +41,11 @@ typedef enum {
 	 * The engine is not spinning, RPM=0
 	 */
 	STOPPED,
+	/**
+	 * The engine is spinning up (reliable RPM is not detected yet).
+	 * In this state, rpmValue is >= 0 (can be zero).
+	 */
+	SPINNING_UP,
 	/**
 	 * The engine is cranking (0 < RPM < cranking.rpm)
 	 */
@@ -61,7 +71,11 @@ public:
 	 */
 	bool isStopped(DECLARE_ENGINE_PARAMETER_SIGNATURE);
 	/**
-	 * Returns true if the engine is cranking
+	 * Returns true if the engine is spinning up
+	 */
+	bool isSpinningUp(DECLARE_ENGINE_PARAMETER_SIGNATURE);
+	/**
+	 * Returns true if the engine is cranking OR spinning up
 	 */
 	bool isCranking(DECLARE_ENGINE_PARAMETER_SIGNATURE);
 	/**
@@ -71,6 +85,20 @@ public:
 
 	bool checkIfSpinning(DECLARE_ENGINE_PARAMETER_SIGNATURE);
 
+	/**
+	 * This accessor is used in unit-tests.
+	 */
+	spinning_state_e getState(void);
+
+	/**
+	 * Should be called on every trigger event when the engine is just starting to spin up.
+	 */
+	void setSpinningUp(efitime_t nowNt DECLARE_ENGINE_PARAMETER_SUFFIX);
+	/**
+	 * Called if the synchronization is lost due to a trigger timeout.
+	 */
+	void setStopSpinning(DECLARE_ENGINE_PARAMETER_SIGNATURE);
+
 	int getRpm(DECLARE_ENGINE_PARAMETER_SIGNATURE);
 	/**
 	 * This method is invoked once per engine cycle right after we calculate new RPM value
@@ -78,16 +106,28 @@ public:
 	void onNewEngineCycle();
 	uint32_t getRevolutionCounter(void);
 	void setRpmValue(int value DECLARE_ENGINE_PARAMETER_SUFFIX);
+	/**
+	 * The same as setRpmValue() but without state change.
+	 * We need this to be public because of calling rpmState->assignRpmValue() from rpmShaftPositionCallback()
+	 */
+	void assignRpmValue(int value DECLARE_ENGINE_PARAMETER_SUFFIX);
 	uint32_t getRevolutionCounterSinceStart(void);
+	/**
+	 * RPM rate of change between current RPM and RPM measured during previous engine cycle
+	 * see also SC_RPM_ACCEL
+	 */
 	float getRpmAcceleration();
 	/**
 	 * This is public because sometimes we cannot afford to call isRunning() and the value is good enough
 	 * Zero if engine is not running
 	 */
 	volatile int rpmValue;
+	/**
+	 * this is RPM on previous engine cycle.
+	 */
 	int previousRpmValue;
 	/**
-	 * This is a performance optimization: let's pre-calulate this each time RPM changes
+	 * This is a performance optimization: let's pre-calculate this each time RPM changes
 	 * NaN while engine is not spinning
 	 */
 	volatile floatus_t oneDegreeUs;
@@ -98,7 +138,6 @@ private:
 	 */
 	void setStopped(DECLARE_ENGINE_PARAMETER_SIGNATURE);
 
-	void assignRpmValue(int value);
 	/**
 	 * This counter is incremented with each revolution of one of the shafts. Could be
 	 * crankshaft could be camshaft.
@@ -110,6 +149,12 @@ private:
 	volatile uint32_t revolutionCounterSinceStart;
 
 	spinning_state_e state;
+
+	/**
+	 * True if the engine is spinning (regardless of its state), i.e. if shaft position changes.
+	 * Needed by spinning-up logic.
+	 */
+	bool isSpinning;
 };
 
 /**

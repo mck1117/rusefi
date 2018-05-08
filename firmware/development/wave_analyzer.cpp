@@ -5,9 +5,10 @@
  * This file is responsible for sniffing of external digital signals and registering
  * these digital events in WaveChart used by the Sniffer tab of Dev Console.
  *
+ * this is rusEfi build-in logic analyzer
  *
  * @date Jan 7, 2013
- * @author Andrey Belomutskiy, (c) 2012-2017
+ * @author Andrey Belomutskiy, (c) 2012-2018
  */
 
 #include "main.h"
@@ -123,7 +124,7 @@ static void initWave(const char *name, int index) {
 	WaveReader *reader = &readers[index];
 	reader->name = name;
 
-	reader->hw = initWaveAnalyzerDriver("wave input", brainPin);
+	reader->hw = addWaveAnalyzerDriver("wave input", brainPin);
 
 
 	reader->hw->widthListeners.registerCallback((VoidInt) waAnaWidthCallback, (void*) reader);
@@ -239,13 +240,15 @@ static void reportWave(Logging *logging, int index) {
 
 		uint32_t offsetUs = getWaveOffset(index);
 		int rpm = getRpmE(engine);
-		float oneDegreeUs = rpm == 0 ? NAN : getOneDegreeTimeUs(rpm);
+		if (rpm != 0) {
+			float oneDegreeUs = getOneDegreeTimeUs(rpm);
 
-		appendPrintf(logging, "advance%d%s", index, DELIMETER);
-		float angle = (offsetUs / oneDegreeUs) - tdcPosition();
-		fixAngle(angle, "angle");
-		appendFloat(logging, angle, 3);
-		appendPrintf(logging, "%s", DELIMETER);
+			appendPrintf(logging, "advance%d%s", index, DELIMETER);
+			float angle = (offsetUs / oneDegreeUs) - tdcPosition();
+			fixAngle(angle, "waveAn");
+			appendFloat(logging, angle, 3);
+			appendPrintf(logging, "%s", DELIMETER);
+		}
 	}
 }
 

@@ -5,7 +5,7 @@
  * and average the value within a specified angle position window for each cylinder
  *
  * @date Dec 11, 2013
- * @author Andrey Belomutskiy, (c) 2012-2017
+ * @author Andrey Belomutskiy, (c) 2012-2018
  *
  * This file is part of rusEfi - see http://rusefi.com
  *
@@ -59,7 +59,7 @@ static volatile int measurementsPerRevolutionCounter = 0;
 static volatile int measurementsPerRevolution = 0;
 
 /**
- * In this lock-free imlementation 'readIndex' is always pointing
+ * In this lock-free implementation 'readIndex' is always pointing
  * to the consistent copy of accumulator and counter pair
  */
 static int readIndex = 0;
@@ -69,7 +69,7 @@ static int counters[2];
 /**
  * Running MAP accumulator - sum of all measurements within averaging window
  */
-static volatile float mapAccumulator = 0;
+static volatile float mapAdcAccumulator = 0;
 /**
  * Running counter of measurements to consider for averaging
  */
@@ -86,8 +86,11 @@ static float v_averagedMapValue;
 static float averagedMapRunningBuffer[MAX_MAP_BUFFER_LENGTH];
 int mapMinBufferLength = 0;
 static int averagedMapBufIdx = 0;
-// this is 'minimal averaged' MAP
-static float currentPressure;
+// we need this 'NO_VALUE_YET' to properly handle transition from engine not running to engine already running
+// but prior to first processed result
+#define NO_VALUE_YET -100
+// this is 'minimal averaged' MAP within avegaging window
+static float currentPressure = NO_VALUE_YET;
 
 EXTERN_ENGINE
 ;
@@ -110,7 +113,7 @@ static void startAveraging(void *arg) {
 	bool wasLocked = lockAnyContext();
 	;
 	// with locking we would have a consistent state
-	mapAccumulator = 0;
+	mapAdcAccumulator = 0;
 	mapMeasurementsCounter = 0;
 	isAveraging = true;
 	if (!wasLocked)
@@ -125,7 +128,7 @@ static void startAveraging(void *arg) {
  * @note This method is invoked OFTEN, this method is a potential bottle-next - the implementation should be
  * as fast as possible
  */
-void mapAveragingCallback(adcsample_t adcValue) {
+void mapAveragingAdcCallback(adcsample_t adcValue) {
 	if (!isAveraging && ENGINE(sensorChartMode) != SC_MAP) {
 		return;
 	}
@@ -163,7 +166,7 @@ void mapAveragingCallback(adcsample_t adcValue) {
 	;
 	// with locking we would have a consistent state
 
-	mapAccumulator += adcValue;
+	mapAdcAccumulator += adcValue;
 	mapMeasurementsCounter++;
 	if (!alreadyLocked)
 		unlockAnyContext();
@@ -177,19 +180,22 @@ static void endAveraging(void *arg) {
 	isAveraging = false;
 	// with locking we would have a consistent state
 #if EFI_PROD_CODE || defined(__DOXYGEN__)
-	v_averagedMapValue = adcToVoltsDivided(
-			mapAccumulator / mapMeasurementsCounter);
-	// todo: move out of locked context?
-	averagedMapRunningBuffer[averagedMapBufIdx] = getMapByVoltage(v_averagedMapValue);
-	// increment circular running buffer index
-	averagedMapBufIdx = (averagedMapBufIdx + 1) % mapMinBufferLength;
-	// find min. value (only works for pressure values, not raw voltages!)
-	float minPressure = averagedMapRunningBuffer[0];
-	for (int i = 1; i < mapMinBufferLength; i++) {
-		if (averagedMapRunningBuffer[i] < minPressure)
-			minPressure = averagedMapRunningBuffer[i];
+	if (mapMeasurementsCounter > 0) {
+		v_averagedMapValue = adcToVoltsDivided(mapAdcAccumulator / mapMeasurementsCounter);
+		// todo: move out of locked context?
+		averagedMapRunningBuffer[averagedMapBufIdx] = getMapByVoltage(v_averagedMapValue);
+		// increment circular running buffer index
+		averagedMapBufIdx = (averagedMapBufIdx + 1) % mapMinBufferLength;
+		// find min. value (only works for pressure values, not raw voltages!)
+		float minPressure = averagedMapRunningBuffer[0];
+		for (int i = 1; i < mapMinBufferLength; i++) {
+			if (averagedMapRunningBuffer[i] < minPressure)
+				minPressure = averagedMapRunningBuffer[i];
+		}
+		currentPressure = minPressure;
+	} else {
+		warning(CUSTOM_ERR_6548, "No MAP values");
 	}
-	currentPressure = minPressure;
 #endif
 	if (!wasLocked)
 		unlockAnyContext();
@@ -208,10 +214,41 @@ static void applyMapMinBufferLength() {
 	}
 }
 
+void postMapState(TunerStudioOutputChannels *tsOutputChannels) {
+	tsOutputChannels->debugFloatField1 = v_averagedMapValue;
+	tsOutputChannels->debugFloatField2 = engine->engineState.mapAveragingDuration;
+	tsOutputChannels->debugFloatField3 = currentPressure;
+	tsOutputChannels->debugIntField1 = mapMeasurementsCounter;
+}
+
+void refreshMapAveragingPreCalc(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
+	int rpm = engine->rpmCalculator.rpmValue;
+	if (isValidRpm(rpm)) {
+		MAP_sensor_config_s * c = &engineConfiguration->map;
+		angle_t start = interpolate2d("mapa", rpm, c->samplingAngleBins, c->samplingAngle, MAP_ANGLE_SIZE);
+
+		angle_t offsetAngle = TRIGGER_SHAPE(eventAngles[CONFIG(mapAveragingSchedulingAtIndex)]);
+
+		for (int i = 0; i < engineConfiguration->specs.cylindersCount; i++) {
+			angle_t cylinderOffset = getEngineCycle(engineConfiguration->operationMode) * i / engineConfiguration->specs.cylindersCount;
+			float cylinderStart = start + cylinderOffset - offsetAngle + tdcPosition();
+			fixAngle(cylinderStart, "cylinderStart");
+			engine->engineState.mapAveragingStart[i] = cylinderStart;
+		}
+		engine->engineState.mapAveragingDuration = interpolate2d("samp", rpm, c->samplingWindowBins, c->samplingWindow, MAP_WINDOW_SIZE);
+	} else {
+		for (int i = 0; i < engineConfiguration->specs.cylindersCount; i++) {
+			engine->engineState.mapAveragingStart[i] = NAN;
+		}
+		engine->engineState.mapAveragingDuration = NAN;
+	}
+
+}
+
 /**
  * Shaft Position callback used to schedule start and end of MAP averaging
  */
-static void mapAveragingCallback(trigger_event_e ckpEventType,
+static void mapAveragingTriggerCallback(trigger_event_e ckpEventType,
 		uint32_t index DECLARE_ENGINE_PARAMETER_SUFFIX) {
 	// this callback is invoked on interrupt thread
 	UNUSED(ckpEventType);
@@ -231,7 +268,9 @@ static void mapAveragingCallback(trigger_event_e ckpEventType,
 	measurementsPerRevolution = measurementsPerRevolutionCounter;
 	measurementsPerRevolutionCounter = 0;
 
-	for (int i = 0; i < engineConfiguration->specs.cylindersCount; i++) {
+	int samplingCount = boardConfiguration->measureMapOnlyInOneCylinder ? 1 : engineConfiguration->specs.cylindersCount;
+
+	for (int i = 0; i < samplingCount; i++) {
 		angle_t samplingStart = ENGINE(engineState.mapAveragingStart[i]);
 
 		angle_t samplingDuration = ENGINE(engineState.mapAveragingDuration);
@@ -241,20 +280,25 @@ static void mapAveragingCallback(trigger_event_e ckpEventType,
 		}
 
 		angle_t samplingEnd = samplingStart + samplingDuration;
-		fixAngle(samplingEnd, "samplingEnd");
-		if (!cisnan(samplingEnd)) {
-			// only if value is already prepared
-			int structIndex = getRevolutionCounter() % 2;
-			// todo: schedule this based on closest trigger event, same as ignition works
-			scheduleByAngle(rpm, &startTimer[i][structIndex], samplingStart,
-					startAveraging, NULL, &engine->rpmCalculator);
-			scheduleByAngle(rpm, &endTimer[i][structIndex], samplingEnd,
-					endAveraging, NULL, &engine->rpmCalculator);
-			engine->m.mapAveragingCbTime = GET_TIMESTAMP()
-					- engine->m.beforeMapAveragingCb;
-		}
-	}
 
+		if (cisnan(samplingEnd)) {
+			// todo: when would this happen?
+			warning(CUSTOM_ERR_6549, "no map angles");
+			return;
+		}
+
+
+		fixAngle(samplingEnd, "samplingEnd");
+		// only if value is already prepared
+		int structIndex = getRevolutionCounter() % 2;
+		// todo: schedule this based on closest trigger event, same as ignition works
+		scheduleByAngle(rpm, &startTimer[i][structIndex], samplingStart,
+				startAveraging, NULL, &engine->rpmCalculator);
+		scheduleByAngle(rpm, &endTimer[i][structIndex], samplingEnd,
+				endAveraging, NULL, &engine->rpmCalculator);
+		engine->m.mapAveragingCbTime = GET_TIMESTAMP()
+				- engine->m.beforeMapAveragingCb;
+	}
 }
 
 static void showMapStats(void) {
@@ -273,7 +317,7 @@ float getMap(void) {
 	}
 
 #if EFI_ANALOG_SENSORS || defined(__DOXYGEN__)
-	if (!isValidRpm(engine->rpmCalculator.rpmValue))
+	if (!isValidRpm(engine->rpmCalculator.rpmValue) || currentPressure == NO_VALUE_YET)
 		return validateMap(getRawMap()); // maybe return NaN in case of stopped engine?
 	return validateMap(currentPressure);
 #else
@@ -290,7 +334,7 @@ void initMapAveraging(Logging *sharedLogger, Engine *engine) {
 //	endTimer[0].name = "map end0";
 //	endTimer[1].name = "map end1";
 
-	addTriggerEventListener(&mapAveragingCallback, "MAP averaging", engine);
+	addTriggerEventListener(&mapAveragingTriggerCallback, "MAP averaging", engine);
 	addConsoleAction("faststat", showMapStats);
 	applyMapMinBufferLength();
 }

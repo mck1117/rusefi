@@ -110,12 +110,13 @@ class FuelConsumptionState {
 public:
 	FuelConsumptionState();
 	void addData(float durationMs);
+	void update(efitick_t nowNt DECLARE_ENGINE_PARAMETER_SUFFIX);
 	float perSecondConsumption;
 	float perMinuteConsumption;
 	float perSecondAccumulator;
 	float perMinuteAccumulator;
-	int accumulatedSecond;
-	int accumulatedMinute;
+	efitick_t accumulatedSecondPrevNt;
+	efitick_t accumulatedMinutePrevNt;
 };
 
 class TransmissionState {
@@ -147,6 +148,8 @@ public:
 
 	float engineNoiseHipLevel;
 
+	float auxValveStart;
+	float auxValveEnd;
 
 	ThermistorMath iatCurve;
 	ThermistorMath cltCurve;
@@ -172,8 +175,10 @@ public:
 	float iatFuelCorrection;
 	float cltFuelCorrection;
 	float postCrankingFuelCorrection;
+	float fuelCutoffCorrection;
+	efitick_t coastingFuelCutStartTime;
 	/**
-	 * Global injector lag + injectorLag(VBatt)
+	 * injectorLag(VBatt)
 	 *
 	 * this value depends on a slow-changing VBatt value, so
 	 * we update it once in a while
@@ -375,6 +380,8 @@ public:
 
 	float fsioTimingAdjustment;
 
+	float servoValues[SERVO_COUNT];
+
 	/**
 	 * Are we experiencing knock right now?
 	 */
@@ -415,10 +422,13 @@ public:
 	 */
 	int ignitionPin[IGNITION_PIN_COUNT];
 
-	void onTriggerEvent(efitick_t nowNt);
+	/**
+	 * this is invoked each time we register a trigger tooth signal
+	 */
+	void onTriggerSignalEvent(efitick_t nowNt);
 	EngineState engineState;
 	SensorsState sensors;
-	efitick_t lastTriggerEventTimeNt;
+	efitick_t lastTriggerToothEventTimeNt;
 
 
 	/**
@@ -500,7 +510,7 @@ void prepareShapes(DECLARE_ENGINE_PARAMETER_SIGNATURE);
 void resetConfigurationExt(Logging * logger, engine_type_e engineType DECLARE_ENGINE_PARAMETER_SUFFIX);
 void applyNonPersistentConfiguration(Logging * logger DECLARE_ENGINE_PARAMETER_SUFFIX);
 void prepareOutputSignals(DECLARE_ENGINE_PARAMETER_SIGNATURE);
-void assertEngineReference(DECLARE_ENGINE_PARAMETER_SIGNATURE);
+
 void validateConfiguration(DECLARE_ENGINE_PARAMETER_SIGNATURE);
 
 #endif /* H_ENGINE_H_ */

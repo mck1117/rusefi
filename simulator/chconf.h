@@ -28,6 +28,9 @@
 #ifndef _CHCONF_H_
 #define _CHCONF_H_
 
+#define _CHIBIOS_RT_CONF_
+
+
 #define CHPRINTF_USE_FLOAT          	TRUE
 
 /*===========================================================================*/
@@ -336,9 +339,12 @@
  *
  * @note    The default is @p FALSE.
  */
-#define CH_DBG_SYSTEM_STATE_CHECK           FALSE
+#define CH_DBG_SYSTEM_STATE_CHECK           TRUE
 
-#define USE_PORT_LOCK TRUE
+  #define ON_LOCK_HOOK
+  #define ON_UNLOCK_HOOK
+
+#define USE_PORT_LOCK FALSE
 
 /**
  * @brief   Debug option, parameters checks.
@@ -449,6 +455,20 @@
 }
 
 /**
+ * @brief   ISR enter hook.
+ */
+#define CH_CFG_IRQ_PROLOGUE_HOOK() {                                        \
+  /* IRQ prologue code here.*/                                              \
+}
+
+/**
+ * @brief   ISR exit hook.
+ */
+#define CH_CFG_IRQ_EPILOGUE_HOOK() {                                        \
+  /* IRQ epilogue code here.*/                                              \
+}
+
+ /**
  * @brief   Idle thread enter hook.
  * @note    This hook is invoked within a critical zone, no OS functions
  *          should be invoked from here.
@@ -483,14 +503,29 @@
   /* System tick event code here.*/                                         \
 }
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdarg.h>
+
 /**
  * @brief   System halt hook.
  * @details This hook is invoked in case to a system halting error before
  *          the system is halted.
  */
 #define CH_CFG_SYSTEM_HALT_HOOK(reason) {                                   \
-  /* System halt code here.*/                                               \
+		  printf("chSysHalt\r\n");                                          \
+		  exit(-1);                                                         \
 }
+
+/**
+ * @brief   Trace hook.
+ * @details This hook is invoked each time a new record is written in the
+ *          trace buffer.
+ */
+#define CH_CFG_TRACE_HOOK(tep) {                                            \
+  /* Trace code here.*/                                                     \
+}
+
 
 /** @} */
 

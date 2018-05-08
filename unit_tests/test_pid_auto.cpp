@@ -2,12 +2,13 @@
  * test_pid_auto.cpp
  *
  *  Created on: Sep 14, 2017
- * @author Andrey Belomutskiy, (c) 2012-2017
+ * @author Andrey Belomutskiy, (c) 2012-2018
  */
 
 #include "main.h"
 #include "test_pid_auto.h"
 #include "pid_auto_tune.h"
+#include "unit_test_framework.h"
 
 efitimems_t mockTimeMs = 0;
 

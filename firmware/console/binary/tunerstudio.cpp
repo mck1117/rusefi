@@ -15,7 +15,7 @@
  * queryCommand:
  * 		Communication initialization command. TunerStudio sends a single byte H
  * 		ECU response:
- * 			One of the known ECU id strings. We are using "MShift v0.01" id string.
+ * 			One of the known ECU id strings.
  *
  * ochGetCommand:
  * 		Request for output channels state.TunerStudio sends a single byte O
@@ -28,7 +28,7 @@
  *
  *
  * @date Oct 22, 2013
- * @author Andrey Belomutskiy, (c) 2012-2017
+ * @author Andrey Belomutskiy, (c) 2012-2018
  *
  * This file is part of rusEfi - see http://rusefi.com
  *
@@ -245,6 +245,16 @@ void handlePageSelectCommand(ts_channel_s *tsChannel, ts_response_format_e mode,
 	sendOkResponse(tsChannel, mode);
 }
 
+/**
+ * Some changes like changing VE table or timing table are applied right away, meaning
+ * that the values are copied from communication copy into actual engine control copy right away.
+ * We call these parameters 'soft parameters'
+ *
+ * This is needed to support TS online auto-tune.
+ *
+ * On the contrary, 'hard parameters' are waiting for the Burn button to be clicked and configuration version
+ * would be increased and much more complicated logic would be executed.
+ */
 static void onlineTuneBytes(int currentPageId, uint32_t offset, int count) {
 	UNUSED(currentPageId);
 	if (offset > sizeof(engine_configuration_s)) {
@@ -263,9 +273,9 @@ static void onlineTuneBytes(int currentPageId, uint32_t offset, int count) {
  * read log file content for rusEfi console
  */
 static void handleReadFileContent(ts_channel_s *tsChannel, short fileId, short offset, short length) {
-#if EFI_PROD_CODE || defined(__DOXYGEN__)
+#if EFI_FILE_LOGGING || defined(__DOXYGEN__)
 	readLogFileContent(tsChannel->crcReadBuffer, fileId, offset, length);
-#endif
+#endif /* EFI_FILE_LOGGING */
 }
 
 /**
@@ -659,6 +669,8 @@ static void handleGetVersion(ts_channel_s *tsChannel, ts_response_format_e mode)
 
 static void handleGetText(ts_channel_s *tsChannel) {
 	tsState.textCommandCounter++;
+
+	printOverallStatus(getTimeNowSeconds());
 
 	int outputSize;
 	char *output = swapOutputBuffers(&outputSize);

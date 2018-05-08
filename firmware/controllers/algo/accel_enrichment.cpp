@@ -17,7 +17,7 @@
  * http://rusefi.com/wiki/index.php?title=Manual:Software:Fuel_Control
  * @date Apr 21, 2014
  * @author Dmitry Sidin
- * @author Andrey Belomutskiy, (c) 2012-2017
+ * @author Andrey Belomutskiy, (c) 2012-2018
  */
 
 #include "main.h"
@@ -49,6 +49,10 @@ void WallFuel::reset() {
 
 floatms_t WallFuel::adjust(int injectorIndex, floatms_t target DECLARE_ENGINE_PARAMETER_SUFFIX) {
 	if (cisnan(target)) {
+		return target;
+	}
+	// disable this correction for cranking
+	if (ENGINE(rpmCalculator).isCranking(PASS_ENGINE_PARAMETER_SIGNATURE)) {
 		return target;
 	}
 	float addedToWallCoef = CONFIG(addedToWallCoef);
@@ -203,13 +207,13 @@ static void accelInfo() {
 	if (logger == NULL)
 		return;
 //	scheduleMsg(logger, "EL accel length=%d", mapInstance.cb.getSize());
-	scheduleMsg(logger, "EL accel th=%f/mult=%f", engineConfiguration->engineLoadAccelEnrichmentThreshold, engineConfiguration->engineLoadAccelEnrichmentMultiplier);
-	scheduleMsg(logger, "EL decel th=%f/mult=%f", engineConfiguration->engineLoadDecelEnleanmentThreshold, engineConfiguration->engineLoadDecelEnleanmentMultiplier);
+	scheduleMsg(logger, "EL accel th=%.2f/mult=%.2f", engineConfiguration->engineLoadAccelEnrichmentThreshold, engineConfiguration->engineLoadAccelEnrichmentMultiplier);
+	scheduleMsg(logger, "EL decel th=%.2f/mult=%.2f", engineConfiguration->engineLoadDecelEnleanmentThreshold, engineConfiguration->engineLoadDecelEnleanmentMultiplier);
 
 //	scheduleMsg(logger, "TPS accel length=%d", tpsInstance.cb.getSize());
-	scheduleMsg(logger, "TPS accel th=%f/mult=%f", engineConfiguration->tpsAccelEnrichmentThreshold, -1);
+	scheduleMsg(logger, "TPS accel th=%.2f/mult=%.2f", engineConfiguration->tpsAccelEnrichmentThreshold, -1);
 
-	scheduleMsg(logger, "added to wall=%f/sucked=%f", engineConfiguration->addedToWallCoef, engineConfiguration->suckedOffCoef);
+	scheduleMsg(logger, "added to wall=%.2f/sucked=%.2f", engineConfiguration->addedToWallCoef, engineConfiguration->suckedOffCoef);
 }
 
 void setEngineLoadAccelThr(float value) {

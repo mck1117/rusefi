@@ -3,7 +3,7 @@
  *
  * @date Dec 28, 2013
  * @author Kot_dnz
- * @author Andrey Belomutskiy, (c) 2012-2017
+ * @author Andrey Belomutskiy, (c) 2012-2018
  *
  * default pinouts in case of SPI2 connected to MMC: PB13 - SCK, PB14 - MISO, PB15 - MOSI, PD4 - CS, 3.3v
  * default pinouts in case of SPI3 connected to MMC: PB3  - SCK, PB4  - MISO, PB5  - MOSI, PD4 - CS, 3.3v
@@ -80,7 +80,7 @@ SPI_BaudRatePrescaler_256 };
 
 /* MMC/SD over SPI driver configuration.*/
 // don't forget check if STM32_SPI_USE_SPI2 defined and spi has init with correct GPIO in hardware.cpp
-static MMCConfig mmccfg = { &MMC_CARD_SPI, &ls_spicfg, &hs_spicfg };
+static MMCConfig mmccfg = { NULL, &ls_spicfg, &hs_spicfg };
 
 #define FILE_LOG_DELAY 200
 
@@ -91,8 +91,15 @@ static FATFS MMC_FS;
 
 static LoggingWithStorage logger("mmcCard");
 
+static int fatFsErrors = 0;
+
 // print FAT error function
 static void printError(const char *str, FRESULT f_error) {
+	if (fatFsErrors++ > 16) {
+		// no reason to spam the console
+		return;
+	}
+
 	scheduleMsg(&logger, "FATfs Error \"%s\" %d", str, f_error);
 }
 
@@ -230,9 +237,6 @@ int
             return (0);
     }
 
-
-static char lfNameBuff[100];
-
 static void listDirectory(const char *path) {
 
 	if (!fs_ready) {
@@ -255,10 +259,7 @@ static void listDirectory(const char *path) {
 	int i = strlen(path);
 	for (int count = 0;count < FILE_LIST_MAX_COUNT;) {
 		FILINFO fno;
-#if _USE_LFN
-  fno.lfname = lfNameBuff;
-  fno.lfsize = sizeof(lfNameBuff);
-#endif
+
 		res = f_readdir(&dir, &fno);
 		if (res != FR_OK || fno.fname[0] == 0)
 			break;
@@ -267,7 +268,7 @@ static void listDirectory(const char *path) {
 		if ((fno.fattrib & AM_DIR) || mystrncasecmp(RUSEFI_LOG_PREFIX, fno.fname, sizeof(RUSEFI_LOG_PREFIX) - 1)) {
 			continue;
 		}
-		scheduleMsg(&logger, "logfile%lu:%s", fno.fsize, fno.lfname[0] == 0 ? fno.fname : fno.lfname);
+		scheduleMsg(&logger, "logfile%lu:%s", fno.fsize, fno.fname);
 		count++;
 
 //			scheduleMsg(&logger, "%c%c%c%c%c %u/%02u/%02u %02u:%02u %9lu  %-12s", (fno.fattrib & AM_DIR) ? 'D' : '-',
@@ -433,9 +434,7 @@ void initMmcCard(void) {
 
 	hs_spicfg.ssport = ls_spicfg.ssport = getHwPort("mmc", boardConfiguration->sdCardCsPin);
 	hs_spicfg.sspad = ls_spicfg.sspad = getHwPin("mmc", boardConfiguration->sdCardCsPin);
-/* todo: un-comment this one day. incompatible configuration change for existing users :(
 	mmccfg.spip = getSpiDevice(engineConfiguration->sdCardSpiDevice);
-*/
 
 	/**
 	 * FYI: SPI does not work with CCM memory, be sure to have main() stack in RAM, not in CCMRAM

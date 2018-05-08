@@ -2,7 +2,7 @@
  * @file	console_io.cpp
  *
  * @date Dec 29, 2012
- * @author Andrey Belomutskiy, (c) 2012-2017
+ * @author Andrey Belomutskiy, (c) 2012-2018
  *
  * This file is part of rusEfi - see http://rusefi.com
  *
@@ -69,7 +69,7 @@ static bool getConsoleLine(BaseSequentialStream *chp, char *line, unsigned size)
 			continue;
 		}
 
-		short c = (short) chSequentialStreamGet(chp);
+		short c = (short) streamGet(chp);
 		onDataArrived();
 
 #if defined(EFI_CONSOLE_UART_DEVICE) || defined(__DOXYGEN__)
@@ -131,6 +131,10 @@ static bool getConsoleLine(BaseSequentialStream *chp, char *line, unsigned size)
 
 CommandHandler console_line_callback;
 
+/**
+ * todo: what does this variable currently mean? is it still needed?
+ * looks like things are a bit confusing here
+ */
 static bool b_isCommandLineConsoleOverTTL;
 
 bool isCommandLineConsoleOverTTL(void) {

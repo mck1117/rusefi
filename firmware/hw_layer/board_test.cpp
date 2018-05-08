@@ -5,7 +5,7 @@
  * By default this is enabled by grounding PB0
  *
  * @date Mar 12, 2014
- * @author Andrey Belomutskiy, (c) 2012-2017
+ * @author Andrey Belomutskiy, (c) 2012-2018
  *
  * This file is part of rusEfi - see http://rusefi.com
  *
@@ -60,7 +60,7 @@ static void processAdcPin(AdcDevice *adc, int index) {
 
 //		print("ADC%d val= %d%s", hwIndex, value, DELIMETER);
 		float volts = adcToVolts(adcValue) * 2;
-		print("v=%f  adc=%d  c=%d (hit 'n'<ENTER> for next step\r\n", volts, adcValue, c++);
+		print("v=%.2f  adc=%d  c=%d (hit 'n'<ENTER> for next step\r\n", volts, adcValue, c++);
 
 		chThdSleepMilliseconds(300);
 
@@ -77,13 +77,13 @@ static void waitForKey(void) {
 	}
 }
 
-static void nextStep(void) {
+static void nextTestStep(void) {
 	stepCoutner++;
 }
 
 static void setIndex(int index) {
 	currentIndex = index;
-	nextStep();
+	nextTestStep();
 }
 
 static brain_pin_e BLINK_PINS[] = {
@@ -196,7 +196,7 @@ static void blinkAllOutputPins() {
 
 void initBoardTest(void) {
 	is_board_test_mode = true;
-	addConsoleAction("n", nextStep);
+	addConsoleAction("n", nextTestStep);
 	addConsoleActionI("set", setIndex);
 
 	btInitOutputPins();

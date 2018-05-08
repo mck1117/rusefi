@@ -2,7 +2,7 @@
  * @file	test_util.c
  *
  * @date Dec 8, 2013
- * @author Andrey Belomutskiy, (c) 2012-2017
+ * @author Andrey Belomutskiy, (c) 2012-2018
  */
 
 #include <string.h>
@@ -14,6 +14,7 @@
 
 #include "malfunction_central.h"
 #include "cli_registry.h"
+#include "unit_test_framework.h"
 
 #include "nmea.h"
 #include "efilib2.h"

@@ -13,7 +13,7 @@
  *
  *
  * @date May 19, 2016
- * @author Andrey Belomutskiy, (c) 2012-2017
+ * @author Andrey Belomutskiy, (c) 2012-2018
  */
 
 #include "accelerometer.h"
@@ -24,8 +24,7 @@
 EXTERN_ENGINE;
 
 #if EFI_MEMS || defined(__DOXYGEN__)
-static SPIDriver *driver = &SPID1; // todo: make this configurable
-static spi_device_e device = SPI_DEVICE_1;
+static SPIDriver *driver;
 
 /*
  * SPI1 configuration structure.
@@ -73,16 +72,14 @@ static msg_t ivThread(int param) {
 }
 
 void initAccelerometer(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
-	if (engineConfiguration->LIS302DLCsPin == GPIOA_0)
-		return; // temporary code to handle old configurations
 	if (engineConfiguration->LIS302DLCsPin == GPIO_UNASSIGNED)
 		return; // not used
 
 	if (!boardConfiguration->is_enabled_spi_1)
 		return; // temporary
-	// todo: driver = getSpiDevice(device);
+	driver = getSpiDevice(engineConfiguration->accelerometerSpiDevice);
 
-	turnOnSpi(device);
+	turnOnSpi(engineConfiguration->accelerometerSpiDevice);
 	spiStart(driver, &accelerometerCfg);
 	initSpiCs((SPIConfig *)driver->config, engineConfiguration->LIS302DLCsPin);
 

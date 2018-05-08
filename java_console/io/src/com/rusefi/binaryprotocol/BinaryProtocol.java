@@ -3,15 +3,15 @@ package com.rusefi.binaryprotocol;
 import com.opensr5.ConfigurationImage;
 import com.opensr5.Logger;
 import com.opensr5.io.DataListener;
-import com.rusefi.*;
+import com.rusefi.ConfigurationImageDiff;
+import com.rusefi.FileLog;
+import com.rusefi.Timeouts;
 import com.rusefi.config.FieldType;
 import com.rusefi.config.Fields;
 import com.rusefi.core.Pair;
 import com.rusefi.core.Sensor;
 import com.rusefi.core.SensorCentral;
 import com.rusefi.io.*;
-import com.rusefi.io.serial.SerialIoStream;
-import jssc.SerialPort;
 import jssc.SerialPortException;
 
 import java.io.EOFException;
@@ -122,7 +122,7 @@ public class BinaryProtocol implements BinaryProtocolCommands {
      */
     public boolean connectAndReadConfiguration(DataListener listener) {
         switchToBinaryProtocol();
-        readImage(TsPageSize.IMAGE_SIZE);
+        readImage(Fields.TOTAL_CONFIG_SIZE);
         if (isClosed)
             return false;
 
@@ -327,13 +327,12 @@ public class BinaryProtocol implements BinaryProtocolCommands {
         if (isClosed)
             return null;
         try {
+            LinkManager.assertCommunicationThread();
             dropPending();
 
             sendPacket(packet);
             return receivePacket(msg, allowLongResponse);
-        } catch (InterruptedException e) {
-            throw new IllegalStateException(e);
-        } catch (IOException e) {
+        } catch (InterruptedException | IOException e) {
             logger.error(msg + ": executeCommand failed: " + e);
             close();
             return null;
@@ -457,7 +456,7 @@ public class BinaryProtocol implements BinaryProtocolCommands {
         return true;
     }
 
-    public String requestPendingMessages() {
+    private String requestPendingMessages() {
         if (isClosed)
             return null;
         try {
@@ -467,7 +466,8 @@ public class BinaryProtocol implements BinaryProtocolCommands {
             //        System.out.println(result);
             return new String(response, 1, response.length - 1);
         } catch (InterruptedException e) {
-            throw new IllegalStateException(e);
+            FileLog.MAIN.log(e);
+            return null;
         }
     }
 

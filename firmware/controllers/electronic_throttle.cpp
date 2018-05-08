@@ -27,11 +27,12 @@
  * enable verbose_etb
  * disable verbose_etb
  * ethinfo
+ * set mock_pedal_position X
  *
  * http://rusefi.com/forum/viewtopic.php?f=5&t=592
  *
  * @date Dec 7, 2013
- * @author Andrey Belomutskiy, (c) 2012-2017
+ * @author Andrey Belomutskiy, (c) 2012-2018
  *
  * This file is part of rusEfi - see http://rusefi.com
  *
@@ -83,7 +84,7 @@ EXTERN_ENGINE;
 
 static Pid pid(&engineConfiguration->etb);
 
-static float prevTps;
+//static float prevTps;
 
 static percent_t currentEtbDuty;
 
@@ -108,14 +109,15 @@ static msg_t etbThread(void *arg) {
 		}
 
 
-		percent_t throttlePedal = getPedalPosition(PASS_ENGINE_PARAMETER_SIGNATURE);
-		percent_t tps = getTPS();
+		percent_t targetPosition = getPedalPosition(PASS_ENGINE_PARAMETER_SIGNATURE);
 
-		currentEtbDuty = pid.getValue(throttlePedal, getTPS());
+		percent_t actualThrottlePosition = getTPS();
+
+		currentEtbDuty = pid.getValue(targetPosition, actualThrottlePosition);
 
 		etbPwmUp.setSimplePwmDutyCycle(currentEtbDuty / 100);
 
-		bool needEtbBraking = absF(throttlePedal - tps) < 3;
+		bool needEtbBraking = absF(targetPosition - actualThrottlePosition) < 3;
 		if (needEtbBraking != wasEtbBraking) {
 			scheduleMsg(&logger, "need ETB braking: %d", needEtbBraking);
 			wasEtbBraking = needEtbBraking;
@@ -148,7 +150,7 @@ static void setThrottleConsole(int level) {
 
 	float dc = 0.01 + (minI(level, 98)) / 100.0;
 	etbPwmUp.setSimplePwmDutyCycle(dc);
-	print("st = %f\r\n", dc);
+	print("st = %.2f\r\n", dc);
 }
 
 static void showEthInfo(void) {
@@ -157,15 +159,15 @@ static void showEthInfo(void) {
 	scheduleMsg(&logger, "etbAutoTune=%d",
 			engine->etbAutoTune);
 
-	scheduleMsg(&logger, "throttlePedal=%f %f/%f @%s",
+	scheduleMsg(&logger, "throttlePedal=%.2f %.2f/%.2f @%s",
 			getPedalPosition(),
 			engineConfiguration->throttlePedalUpVoltage,
 			engineConfiguration->throttlePedalWOTVoltage,
 			getPinNameByAdcChannel("tPedal", engineConfiguration->pedalPositionChannel, pinNameBuffer));
 
-	scheduleMsg(&logger, "TPS=%f", getTPS());
+	scheduleMsg(&logger, "TPS=%.2f", getTPS());
 
-	scheduleMsg(&logger, "etbControlPin1=%s duty=%f freq=%d",
+	scheduleMsg(&logger, "etbControlPin1=%s duty=%.2f freq=%d",
 			hwPortname(boardConfiguration->etbControlPin1),
 			currentEtbDuty,
 			engineConfiguration->etbFreq);

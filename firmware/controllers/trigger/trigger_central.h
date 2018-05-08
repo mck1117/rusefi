@@ -32,6 +32,8 @@ public:
 	void handleShaftSignal(trigger_event_e signal DECLARE_ENGINE_PARAMETER_SUFFIX);
 	int getHwEventCounter(int index);
 	void resetCounters();
+	void resetAccumSignalData();
+	bool noiseFilter(efitick_t nowNt, trigger_event_e signal DECLARE_ENGINE_PARAMETER_SUFFIX);
 	TriggerStateWithRunningStatistics triggerState;
 	efitick_t nowNt;
 	angle_t vvtPosition;
@@ -46,6 +48,11 @@ public:
 private:
 	IntListenerArray<15> triggerListeneres;
 	int hwEventCounters[HW_EVENT_TYPES];
+	
+	// Used by 'useNoiselessTriggerDecoder', see handleShaftSignal()
+	efitick_t lastSignalTimes[HW_EVENT_TYPES];
+	efitick_t accumSignalPeriods[HW_EVENT_TYPES];
+	efitick_t accumSignalPrevPeriods[HW_EVENT_TYPES];
 };
 #endif
 
@@ -54,7 +61,7 @@ efitime_t getCrankEventCounter(DECLARE_ENGINE_PARAMETER_SIGNATURE);
 efitime_t getStartOfRevolutionIndex(DECLARE_ENGINE_PARAMETER_SIGNATURE);
 void hwHandleShaftSignal(trigger_event_e signal);
 void hwHandleVvtCamSignal(trigger_value_e front);
-float getTriggerDutyCycle(int index);
+
 void initTriggerCentral(Logging *sharedLogger);
 void printAllCallbacksHistogram(void);
 void printAllTriggers();
@@ -63,7 +70,9 @@ void addTriggerEventListener(ShaftPositionListener handler, const char *name, En
 int isSignalDecoderError(void);
 void resetMaxValues();
 
-void onConfigurationChangeTriggerCallback(engine_configuration_s *previousConfiguration);
+void onConfigurationChangeTriggerCallback(engine_configuration_s *previousConfiguration DECLARE_ENGINE_PARAMETER_SUFFIX);
 bool checkIfTriggerConfigChanged(void);
+bool readIfTriggerConfigChangedForUnitTest(void);
+void resetTriggerConfigChangedForUnitTest(void);
 
 #endif /* TRIGGER_CENTRAL_H_ */

@@ -1,13 +1,14 @@
 /**
+ * @file map.cpp
  *
  * See also map_averaging.cpp
  *
- * @author Andrey Belomutskiy, (c) 2012-2017
+ * @author Andrey Belomutskiy, (c) 2012-2018
  */
 #include "main.h"
 #include "engine_configuration.h"
 #include "engine_math.h"
-#include "adc_inputs.h"
+#include "analog_input.h"
 #include "interpolation.h"
 #include "error_handling.h"
 #include "map.h"
@@ -28,6 +29,9 @@ static FastInterpolation customMap;
 static efitick_t prevWidthTimeNt = 0;
 
 static float mapFreq = 0;
+
+// See 'useFixedBaroCorrFromMap'
+static float storedInitialBaroPressure = NAN;
 
 /**
  * @brief	MAP value decoded for a 1.83 Honda sensor
@@ -51,6 +55,8 @@ static FastInterpolation subyDenso(0, 0, 5, 200);
 static FastInterpolation gm3bar(0.631, 40, 4.914, 304);
 
 static FastInterpolation mpx4250(0, 8, 5, 260);
+
+static FastInterpolation mpx4250A(0.25, 20, 4.875, 250);
 
 static FastInterpolation mpx4100(0.3, 20, 4.9, 105);
 
@@ -81,6 +87,7 @@ float decodePressure(float voltage, air_pressure_sensor_config_s * mapConfig DEC
 				engineConfiguration->mapHighValueVoltage, mapConfig->highValue, voltage);
 	case MT_DENSO183:
 	case MT_MPX4250:
+	case MT_MPX4250A:
 	case MT_HONDA3BAR:
 	case MT_DODGE_NEON_2003:
 	case MT_SUBY_DENSO:
@@ -100,9 +107,21 @@ float decodePressure(float voltage, air_pressure_sensor_config_s * mapConfig DEC
  */
 float validateMap(float mapKPa DECLARE_ENGINE_PARAMETER_SUFFIX) {
 	if (cisnan(mapKPa) || mapKPa < CONFIG(mapErrorDetectionTooLow) || mapKPa > CONFIG(mapErrorDetectionTooHigh)) {
-		warning(OBD_Manifold_Absolute_Pressure_Circuit_Malfunction, "unexpected MAP value: %f", mapKPa);
+		warning(OBD_Manifold_Absolute_Pressure_Circuit_Malfunction, "unexpected MAP value: %.2f", mapKPa);
 		return 0;
 	}
+	return mapKPa;
+}
+
+/**
+ * This function checks if Baro/MAP sensor value is inside of expected range
+ * @return unchanged mapKPa parameter or NaN
+ */
+float validateBaroMap(float mapKPa DECLARE_ENGINE_PARAMETER_SUFFIX) {
+	const float atmoPressure = 100.0f;
+	const float atmoPressureRange = 15.0f;	// 85..115
+	if (cisnan(mapKPa) || absF(mapKPa - atmoPressure) > atmoPressureRange)
+		return NAN;
 	return mapKPa;
 }
 
@@ -134,8 +153,12 @@ float getRawMap(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	return getMapByVoltage(voltage PASS_ENGINE_PARAMETER_SUFFIX);
 }
 
+/**
+ * Returns true if a real Baro sensor is present.
+ * Also if 'useFixedBaroCorrFromMap' option is enabled, and we have the initial pressure value stored and passed validation.
+ */
 bool hasBaroSensor(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
-	return engineConfiguration->baroSensor.hwChannel != EFI_ADC_NONE;
+	return engineConfiguration->baroSensor.hwChannel != EFI_ADC_NONE || !cisnan(storedInitialBaroPressure);
 }
 
 bool hasMapSensor(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
@@ -143,6 +166,9 @@ bool hasMapSensor(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 }
 
 float getBaroPressure(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
+	// Override the real Baro sensor with the stored initial MAP value, if the option is set.
+	if (CONFIG(useFixedBaroCorrFromMap))
+		return storedInitialBaroPressure;
 	float voltage = getVoltageDivided("baro", engineConfiguration->baroSensor.hwChannel);
 	return decodePressure(voltage, &engineConfiguration->baroSensor PASS_ENGINE_PARAMETER_SUFFIX);
 }
@@ -155,6 +181,8 @@ static FastInterpolation *getDecoder(air_pressure_sensor_type_e type) {
 		return &denso183;
 	case MT_MPX4250:
 		return &mpx4250;
+	case MT_MPX4250A:
+		return &mpx4250A;
 	case MT_HONDA3BAR:
 		return &honda3bar;
 	case MT_DODGE_NEON_2003:
@@ -191,13 +219,13 @@ extern int mapMinBufferLength;
 
 static void printMAPInfo(void) {
 #if EFI_ANALOG_SENSORS || defined(__DOXYGEN__)
-	scheduleMsg(logger, "instant value=%fkPa", getRawMap());
+	scheduleMsg(logger, "instant value=%.2fkPa", getRawMap());
 
 
 	if (engineConfiguration->hasFrequencyReportingMapSensor) {
-		scheduleMsg(logger, "instant value=%fHz @ %s", mapFreq, hwPortname(boardConfiguration->frequencyReportingMapInputPin));
+		scheduleMsg(logger, "instant value=%.2fHz @ %s", mapFreq, hwPortname(boardConfiguration->frequencyReportingMapInputPin));
 	} else {
-		scheduleMsg(logger, "map type=%d/%s MAP=%fkPa mapMinBufferLength=%d", engineConfiguration->map.sensor.type,
+		scheduleMsg(logger, "map type=%d/%s MAP=%.2fkPa mapMinBufferLength=%d", engineConfiguration->map.sensor.type,
 				getAir_pressure_sensor_type_e(engineConfiguration->map.sensor.type),
 				getMap(),
 				mapMinBufferLength);
@@ -205,10 +233,10 @@ static void printMAPInfo(void) {
 		adc_channel_e mapAdc = engineConfiguration->map.sensor.hwChannel;
 		static char pinNameBuffer[16];
 
-		scheduleMsg(logger, "MAP %fv @%s", getVoltage("mapinfo", mapAdc),
+		scheduleMsg(logger, "MAP %.2fv @%s", getVoltage("mapinfo", mapAdc),
 				getPinNameByAdcChannel("map", mapAdc, pinNameBuffer));
 		if (engineConfiguration->map.sensor.type == MT_CUSTOM) {
-			scheduleMsg(logger, "at %fv=%f at %fv=%f",
+			scheduleMsg(logger, "at %.2fv=%.2f at %.2fv=%.2f",
 					engineConfiguration->mapLowValueVoltage,
 					engineConfiguration->map.sensor.lowValue,
 					engineConfiguration->mapHighValueVoltage,
@@ -217,9 +245,9 @@ static void printMAPInfo(void) {
 	}
 
 	if (hasBaroSensor(PASS_ENGINE_PARAMETER_SIGNATURE)) {
-		scheduleMsg(logger, "baro type=%d value=%f", engineConfiguration->baroSensor.type, getBaroPressure());
+		scheduleMsg(logger, "baro type=%d value=%.2f", engineConfiguration->baroSensor.type, getBaroPressure());
 		if (engineConfiguration->baroSensor.type == MT_CUSTOM) {
-			scheduleMsg(logger, "min=%f@%f max=%f@%f",
+			scheduleMsg(logger, "min=%.2f@%.2f max=%.2f@%.2f",
 					engineConfiguration->baroSensor.lowValue,
 					engineConfiguration->mapLowValueVoltage,
 					engineConfiguration->baroSensor.highValue,
@@ -238,12 +266,25 @@ void initMapDecoder(Logging *sharedLogger DECLARE_ENGINE_PARAMETER_SUFFIX) {
 
 #if EFI_PROD_CODE || defined(__DOXYGEN__)
 	if (engineConfiguration->hasFrequencyReportingMapSensor) {
-		digital_input_s* digitalMapInput = initWaveAnalyzerDriver("map freq", boardConfiguration->frequencyReportingMapInputPin);
+		digital_input_s* digitalMapInput = addWaveAnalyzerDriver("map freq", boardConfiguration->frequencyReportingMapInputPin);
 		startInputDriver(digitalMapInput, true);
 
 		digitalMapInput->widthListeners.registerCallback((VoidInt) digitalMapWidthCallback, NULL);
 	}
 
+	if (CONFIG(useFixedBaroCorrFromMap)) {
+		// Read initial MAP sensor value and store it for Baro correction.
+		storedInitialBaroPressure = getRawMap(PASS_ENGINE_PARAMETER_SIGNATURE);
+		scheduleMsg(logger, "Get initial baro MAP pressure = %.2fkPa", storedInitialBaroPressure);
+		// validate if it's within a reasonable range (the engine should not be spinning etc.)
+		storedInitialBaroPressure = validateBaroMap(storedInitialBaroPressure);
+		if (!cisnan(storedInitialBaroPressure)) {
+			scheduleMsg(logger, "Using this fixed MAP pressure to override the baro correction!");
+		} else {
+			scheduleMsg(logger, "The baro pressure is invalid. The fixed baro correction will be disabled!");
+		}
+	}
+	
 	addConsoleAction("mapinfo", printMAPInfo);
 #endif
 }

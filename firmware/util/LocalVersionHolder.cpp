@@ -2,14 +2,16 @@
  * @file	LocalVersionHolder.cpp
  *
  * @date Mar 19, 2014
- * @author Andrey Belomutskiy, (c) 2012-2017
+ * @author Andrey Belomutskiy, (c) 2012-2018
  */
 
 #include "LocalVersionHolder.h"
 
+/**
+ * we rely on external source of global version
+ */
 int getGlobalConfigurationVersion(void);
 
-//ctor
 LocalVersionHolder::LocalVersionHolder() {
 	/**
 	 * we want local version to be 'old' on instantiation

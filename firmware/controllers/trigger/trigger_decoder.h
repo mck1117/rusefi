@@ -41,23 +41,33 @@ typedef struct {
 	uint32_t totalTimeNt[PWM_PHASE_MAX_WAVE_PER_PWM];
 } current_cycle_state_s;
 
+/**
+ * @see TriggerShape for trigger wheel shape deginition
+ */
 class TriggerState {
 public:
 	TriggerState();
+	/**
+	 * current trigger processing index, between zero and #size
+	 */
 	int getCurrentIndex();
 	int getTotalRevolutionCounter();
 	/**
 	 * this is important for crank-based virtual trigger and VVT magic
 	 */
 	bool isEvenRevolution();
-	void intTotalEventCounter();
+	void incrementTotalEventCounter();
 	efitime_t getTotalEventCounter();
 	efitime_t getStartOfRevolutionIndex();
 	void decodeTriggerEvent(trigger_event_e const signal, efitime_t nowUs DECLARE_ENGINE_PARAMETER_SUFFIX);
+	/**
+	 * Resets synchronization flag and alerts rpm_calculator to reset engine spinning flag.
+	 */
+	void onSynchronizationLost(DECLARE_ENGINE_PARAMETER_SIGNATURE);
 
 	bool isValidIndex(DECLARE_ENGINE_PARAMETER_SIGNATURE);
 	float getTriggerDutyCycle(int index);
-	TriggerStateCallback cycleCallback;
+	TriggerStateCallback triggerCycleCallback;
 
 	/**
 	 * TRUE if we know where we are
@@ -75,11 +85,7 @@ public:
 	efitime_t toothed_previous_time;
 
 	current_cycle_state_s currentCycle;
-	/**
-	 * Total time result for previous trigger cycle
-	 * See totalTimeNt
-	 */
-	uint32_t prevTotalTime[PWM_PHASE_MAX_WAVE_PER_PWM];
+
 	int expectedTotalTime[PWM_PHASE_MAX_WAVE_PER_PWM];
 
 	/**
@@ -93,7 +99,7 @@ public:
 	void reset();
 	void resetRunningCounters();
 
-	virtual void runtimeStatistics(trigger_event_e const signal, efitime_t nowNt DECLARE_ENGINE_PARAMETER_SUFFIX);
+	virtual void runtimeStatistics(efitime_t nowNt DECLARE_ENGINE_PARAMETER_SUFFIX);
 
 	uint32_t runningRevolutionCounter;
 	/**
@@ -109,7 +115,7 @@ private:
 	efitime_t totalEventCountBase;
 	uint32_t totalRevolutionCounter;
 	bool isFirstEvent;
-	efitime_t prevCycleDuration;
+
 };
 
 
@@ -118,9 +124,27 @@ private:
  */
 class TriggerStateWithRunningStatistics : public TriggerState {
 public:
+	TriggerStateWithRunningStatistics();
+	float instantRpm;
+	/**
+	 * timestamp of each trigger wheel tooth
+	 */
 	uint32_t timeOfLastEvent[PWM_PHASE_MAX_COUNT];
+	/**
+	 * instant RPM calculated at this trigger wheel tooth
+	 */
 	float instantRpmValue[PWM_PHASE_MAX_COUNT];
-	virtual void runtimeStatistics(trigger_event_e const signal, efitime_t nowNt DECLARE_ENGINE_PARAMETER_SUFFIX);
+	/**
+	 * Stores last non-zero instant RPM value to fix early instability
+	 */
+	float prevInstantRpmValue;
+	float calculateInstantRpm(int *prevIndex, efitime_t nowNt DECLARE_ENGINE_PARAMETER_SUFFIX);
+	virtual void runtimeStatistics(efitime_t nowNt DECLARE_ENGINE_PARAMETER_SUFFIX);
+	/**
+	 * Update timeOfLastEvent[] on every trigger event - even without synchronization
+	 * Needed for early spin-up RPM detection.
+	 */
+	void setLastEventTimeForInstantRpm(efitime_t nowNt DECLARE_ENGINE_PARAMETER_SUFFIX);
 };
 
 angle_t getEngineCycle(operation_mode_e operationMode);

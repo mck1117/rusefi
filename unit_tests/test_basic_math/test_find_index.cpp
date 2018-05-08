@@ -2,14 +2,13 @@
  * test_find_index.cpp
  *
  *  Created on: Oct 30, 2013
- * @author Andrey Belomutskiy, (c) 2012-2017
+ * @author Andrey Belomutskiy, (c) 2012-2018
  */
 
 #include "main.h"
 #include "engine_math.h"
 #include "interpolation.h"
-#include <stdio.h>
-#include "engine_configuration.h"
+#include "unit_test_framework.h"
 
 static int testIndex(const int expected, const float array[], int size, float value) {
 	assertEquals(expected, findIndex(array, size, value));

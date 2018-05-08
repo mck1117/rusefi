@@ -2,7 +2,7 @@
  * @file spark_logic.cpp
  *
  * @date Sep 15, 2016
- * @author Andrey Belomutskiy, (c) 2012-2017
+ * @author Andrey Belomutskiy, (c) 2012-2018
  */
 
 #include "engine_math.h"
@@ -81,7 +81,7 @@ static void turnSparkPinHigh2(IgnitionEvent *event, IgnitionOutputPin *output) {
 #if ! EFI_UNIT_TEST || defined(__DOXYGEN__)
 	if (GET_RPM() > 2 * engineConfiguration->cranking.rpm) {
 		const char *outputName = output->name;
-		if (prevSparkName == outputName && engineConfiguration->ignitionMode != IM_ONE_COIL) {
+		if (prevSparkName == outputName && getIgnitionMode(PASS_ENGINE_PARAMETER_SIGNATURE) != IM_ONE_COIL) {
 			warning(CUSTOM_OBD_SKIPPED_SPARK, "looks like skipped spark event %d %s", getRevolutionCounter(), outputName);
 		}
 		prevSparkName = outputName;
@@ -126,7 +126,7 @@ static ALWAYS_INLINE void handleSparkEvent(bool limitedSpark, uint32_t trgEventI
 
 	const floatms_t dwellMs = ENGINE(engineState.sparkDwell);
 	if (cisnan(dwellMs) || dwellMs <= 0) {
-		warning(CUSTOM_DWELL, "invalid dwell to handle: %f at %d", dwellMs, rpm);
+		warning(CUSTOM_DWELL, "invalid dwell to handle: %.2f at %d", dwellMs, rpm);
 		return;
 	}
 
@@ -135,7 +135,7 @@ static ALWAYS_INLINE void handleSparkEvent(bool limitedSpark, uint32_t trgEventI
 	ignitionErrorDetection.add(isIgnitionError);
 	if (isIgnitionError) {
 #if EFI_PROD_CODE || defined(__DOXYGEN__)
-		scheduleMsg(logger, "Negative spark delay=%f", chargeDelayUs);
+		scheduleMsg(logger, "Negative spark delay=%.2f", chargeDelayUs);
 #endif /* EFI_PROD_CODE */
 		chargeDelayUs = 0;
 		return;
@@ -166,13 +166,16 @@ static ALWAYS_INLINE void handleSparkEvent(bool limitedSpark, uint32_t trgEventI
 		 * This way we make sure that coil dwell started while spark was enabled would fire and not burn
 		 * the coil.
 		 */
-		scheduleTask(sUp, chargeDelayUs, (schfunc_t) &turnSparkPinHigh, iEvent);
+		scheduleForLater(sUp, chargeDelayUs, (schfunc_t) &turnSparkPinHigh, iEvent);
 	}
 	/**
 	 * Spark event is often happening during a later trigger event timeframe
 	 * TODO: improve precision
 	 */
-	TRIGGER_SHAPE(findTriggerPosition(&iEvent->sparkPosition, iEvent->advance PASS_ENGINE_PARAMETER_SUFFIX));
+	float advance = iEvent->advance;
+	efiAssertVoid(!cisnan(advance), "findAngle#4");
+	assertAngleRange(advance, "findAngle#a5");
+	TRIGGER_SHAPE(findTriggerPosition(&iEvent->sparkPosition, advance PASS_ENGINE_PARAMETER_SUFFIX));
 
 #if EFI_UNIT_TEST || defined(__DOXYGEN__)
 	printf("spark dwell@ %d/%d spark@ %d/%d id=%d\r\n", iEvent->dwellPosition.eventIndex, (int)iEvent->dwellPosition.angleOffset,
@@ -190,7 +193,7 @@ static ALWAYS_INLINE void handleSparkEvent(bool limitedSpark, uint32_t trgEventI
 		scheduleMsg(logger, "scheduling sparkDown ind=%d %d %s now=%d %d later id=%d", trgEventIndex, getRevolutionCounter(), iEvent->getOutputForLoggins()->name, (int)getTimeNowUs(), (int)timeTillIgnitionUs, iEvent->sparkId);
 #endif /* FUEL_MATH_EXTREME_LOGGING */
 
-		scheduleTask(sDown, (int) timeTillIgnitionUs, (schfunc_t) &turnSparkPinLow, iEvent);
+		scheduleForLater(sDown, (int) timeTillIgnitionUs, (schfunc_t) &turnSparkPinLow, iEvent);
 	} else {
 #if SPARK_EXTREME_LOGGING || defined(__DOXYGEN__)
 		scheduleMsg(logger, "to queue sparkDown ind=%d %d %s %d for %d", trgEventIndex, getRevolutionCounter(), iEvent->getOutputForLoggins()->name, (int)getTimeNowUs(), iEvent->sparkPosition.eventIndex);
@@ -222,12 +225,13 @@ void prepareIgnitionSchedule(IgnitionEvent *event DECLARE_ENGINE_PARAMETER_SUFFI
 
 	// change of sign here from 'before TDC' to 'after TDC'
 	const angle_t localAdvance = -ENGINE(engineState.timingAdvance) + ENGINE(angleExtra[event->cylinderIndex]) + CONFIG(timing_offset_cylinder[event->cylinderIndex]);
+	efiAssertVoid(!cisnan(localAdvance), "localAdvance#1");
 	const int index = ENGINE(ignitionPin[event->cylinderIndex]);
 	const int coilIndex = ID2INDEX(getCylinderId(index PASS_ENGINE_PARAMETER_SUFFIX));
 	IgnitionOutputPin *output = &enginePins.coils[coilIndex];
 
 	IgnitionOutputPin *secondOutput;
-	if (CONFIG(ignitionMode) == IM_WASTED_SPARK && CONFIG(twoWireBatchIgnition)) {
+	if (getIgnitionMode(PASS_ENGINE_PARAMETER_SIGNATURE) == IM_WASTED_SPARK && CONFIG(twoWireBatchIgnition)) {
 		int secondIndex = index + CONFIG(specs.cylindersCount) / 2;
 		int secondCoilIndex = ID2INDEX(getCylinderId(secondIndex PASS_ENGINE_PARAMETER_SUFFIX));
 		secondOutput = &enginePins.coils[secondCoilIndex];
@@ -243,7 +247,10 @@ void prepareIgnitionSchedule(IgnitionEvent *event DECLARE_ENGINE_PARAMETER_SUFFI
 	event->outputs[1] = secondOutput;
 	event->advance = localAdvance;
 
-	TRIGGER_SHAPE(findTriggerPosition(&event->dwellPosition, localAdvance - dwellAngle PASS_ENGINE_PARAMETER_SUFFIX));
+	angle_t a = localAdvance - dwellAngle;
+	efiAssertVoid(!cisnan(a), "findAngle#5");
+	assertAngleRange(a, "findAngle#a6");
+	TRIGGER_SHAPE(findTriggerPosition(&event->dwellPosition, a PASS_ENGINE_PARAMETER_SUFFIX));
 
 #if FUEL_MATH_EXTREME_LOGGING || defined(__DOXYGEN__)
 	printf("addIgnitionEvent %s ind=%d\n", output->name, event->dwellPosition.eventIndex);
@@ -262,9 +269,9 @@ static void initializeIgnitionActions(IgnitionEventList *list DECLARE_ENGINE_PAR
 
 	for (int cylinderIndex = 0; cylinderIndex < CONFIG(specs.cylindersCount); cylinderIndex++) {
 		list->elements[cylinderIndex].cylinderIndex = cylinderIndex;
-#if EFI_UNIT_TEST
+#if EFI_UNIT_TEST || defined(__DOXYGEN__)
 		list->elements[cylinderIndex].engine = engine;
-#endif
+#endif /* EFI_UNIT_TEST */
 		prepareIgnitionSchedule(&list->elements[cylinderIndex] PASS_ENGINE_PARAMETER_SUFFIX);
 	}
 	list->isReady = true;
@@ -282,7 +289,7 @@ static ALWAYS_INLINE void prepareIgnitionSchedule(DECLARE_ENGINE_PARAMETER_SIGNA
 	 */
 	float maxAllowedDwellAngle = (int) (getEngineCycle(engineConfiguration->operationMode) / 2); // the cast is about making Coverity happy
 
-	if (engineConfiguration->ignitionMode == IM_ONE_COIL) {
+	if (getIgnitionMode(PASS_ENGINE_PARAMETER_SIGNATURE) == IM_ONE_COIL) {
 		maxAllowedDwellAngle = getEngineCycle(engineConfiguration->operationMode) / engineConfiguration->specs.cylindersCount / 1.1;
 	}
 
@@ -290,7 +297,7 @@ static ALWAYS_INLINE void prepareIgnitionSchedule(DECLARE_ENGINE_PARAMETER_SIGNA
 		warning(CUSTOM_ZERO_DWELL, "dwell is zero?");
 	}
 	if (engine->engineState.dwellAngle > maxAllowedDwellAngle) {
-		warning(CUSTOM_DWELL_TOO_LONG, "dwell angle too long: %f", engine->engineState.dwellAngle);
+		warning(CUSTOM_DWELL_TOO_LONG, "dwell angle too long: %.2f", engine->engineState.dwellAngle);
 	}
 
 	// todo: add some check for dwell overflow? like 4 times 6 ms while engine cycle is less then that
@@ -334,7 +341,7 @@ void handleSpark(bool limitedSpark, uint32_t trgEventIndex, int rpm
 
 
 			float timeTillIgnitionUs = ENGINE(rpmCalculator.oneDegreeUs) * current->sparkPosition.angleOffset;
-			scheduleTask(sDown, (int) timeTillIgnitionUs, (schfunc_t) &turnSparkPinLow, current);
+			scheduleForLater(sDown, (int) timeTillIgnitionUs, (schfunc_t) &turnSparkPinLow, current);
 		}
 	}
 
@@ -375,7 +382,7 @@ int getNumberOfSparks(ignition_mode_e mode DECLARE_ENGINE_PARAMETER_SUFFIX) {
  * @see getInjectorDutyCycle
  */
 percent_t getCoilDutyCycle(int rpm DECLARE_ENGINE_PARAMETER_SUFFIX) {
-	floatms_t totalPerCycle = 1/**getInjectionDuration(rpm PASS_ENGINE_PARAMETER_SUFFIX)*/ * getNumberOfSparks(engineConfiguration->ignitionMode PASS_ENGINE_PARAMETER_SUFFIX);
+	floatms_t totalPerCycle = 1/**getInjectionDuration(rpm PASS_ENGINE_PARAMETER_SUFFIX)*/ * getNumberOfSparks(getIgnitionMode(PASS_ENGINE_PARAMETER_SIGNATURE) PASS_ENGINE_PARAMETER_SUFFIX);
 	floatms_t engineCycleDuration = getCrankshaftRevolutionTimeMs(rpm) * (engineConfiguration->operationMode == TWO_STROKE ? 1 : 2);
 	return 100 * totalPerCycle / engineCycleDuration;
 }

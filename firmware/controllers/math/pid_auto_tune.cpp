@@ -2,7 +2,7 @@
  * pid_auto_tune.cpp
  *
  *  Created on: Sep 13, 2017
- * @author Andrey Belomutskiy, (c) 2012-2017
+ * @author Andrey Belomutskiy, (c) 2012-2018
  */
 
 #include "pid_auto_tune.h"
@@ -67,7 +67,7 @@ int PID_AutoTune::Runtime(Logging *logging) {
 		output = outputStart + oStep;
 
 	if (output != prevOutput) {
-		scheduleMsg(logging, "direction change %f", output);
+		scheduleMsg(logging, "direction change %.2f", output);
 	}
 
 
@@ -88,7 +88,7 @@ int PID_AutoTune::Runtime(Logging *logging) {
 	}
 
 	if (isMax || isMin) {
-		scheduleMsg(logging, "min %d max %d %f peakType=%d", isMin, isMax, input, peakType);
+		scheduleMsg(logging, "min %d max %d %.2f peakType=%d", isMin, isMax, input, peakType);
 	}
 
 

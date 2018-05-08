@@ -11,7 +11,7 @@
  * todo: one emulator should be enough! another one should be eliminated
  *
  * @date Mar 3, 2014
- * @author Andrey Belomutskiy, (c) 2012-2017
+ * @author Andrey Belomutskiy, (c) 2012-2018
  */
 #include "main.h"
 
@@ -19,7 +19,6 @@
 
 #include "trigger_emulator_algo.h"
 #include "engine_configuration.h"
-#include "LocalVersionHolder.h"
 #include "trigger_central.h"
 #include "trigger_simulator.h"
 
@@ -46,7 +45,7 @@ void TriggerEmulatorHelper::handleEmulatorCallback(PwmConfig *state, int stateIn
 	bool thirdWheelState = state->multiWave.waves[2].pinStates[prevIndex];
 	int new3rdWheelState = state->multiWave.waves[2].pinStates[stateIndex];
 
-	// todo: code duplication with TriggerStimulatorHelper::nextStep?
+	// todo: code duplication with TriggerStimulatorHelper::feedSimulatedEvent?
 
 	if (primaryWheelState != newPrimaryWheelState) {
 		primaryWheelState = newPrimaryWheelState;
@@ -87,7 +86,7 @@ static int stopEmulationAtIndex = DO_NOT_STOP;
 static bool isEmulating = true;
 
 static Logging *logger;
-static LocalVersionHolder emulatorConfigVersion;
+static int atTriggerVersion = 0;
 
 #if EFI_ENGINE_SNIFFER
 #include "engine_sniffer.h"
@@ -101,7 +100,7 @@ void setTriggerEmulatorRPM(int rpm DECLARE_ENGINE_PARAMETER_SUFFIX) {
 	 * togglePwmState() would see that the periodMs has changed and act accordingly
 	 */
 	if (rpm == 0) {
-		triggerSignal.periodNt = NAN;
+		triggerSignal.setFrequency(NAN);
 	} else {
 		float rpmM = getRpmMultiplier(engineConfiguration->operationMode);
 		float rPerSecond = rpm * rpmM / 60.0; // per minute converted to per second
@@ -116,11 +115,11 @@ void setTriggerEmulatorRPM(int rpm DECLARE_ENGINE_PARAMETER_SUFFIX) {
 }
 
 static void updateTriggerShapeIfNeeded(PwmConfig *state) {
-	if (emulatorConfigVersion.isOld()) {
-		scheduleMsg(logger, "Stimulator: updating trigger shape: %d/%d %d", emulatorConfigVersion.getVersion(),
+	if (atTriggerVersion < engine->triggerCentral.triggerShape.version) {
+		atTriggerVersion = engine->triggerCentral.triggerShape.version;
+		scheduleMsg(logger, "Stimulator: updating trigger shape: %d/%d %d", atTriggerVersion,
 				getGlobalConfigurationVersion(), currentTimeMillis());
 
-		applyNonPersistentConfiguration(logger PASS_ENGINE_PARAMETER_SUFFIX);
 
 		TriggerShape *s = &engine->triggerCentral.triggerShape;
 		pin_state_t *pinStates[PWM_PHASE_MAX_WAVE_PER_PWM] = { s->wave.waves[0].pinStates, s->wave.waves[1].pinStates,

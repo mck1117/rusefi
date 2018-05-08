@@ -4,7 +4,7 @@
  *
  *
  * @date Sep 19, 2013
- * @author Andrey Belomutskiy, (c) 2012-2017
+ * @author Andrey Belomutskiy, (c) 2012-2018
  */
 
 #include <main.h>
@@ -13,6 +13,7 @@
 #include "eficonsole.h"
 #include "flash.h"
 #include "rusefi.h"
+#include "engine_math.h"
 
 // this message is part of console API, see FLASH_SUCCESS_MSG in java code
 #define FLASH_SUCCESS_MSG "FLASH_SUCESS"
@@ -96,7 +97,7 @@ void writeToFlashNow(void) {
 	} else {
 		scheduleMsg(logger, "Flashing failed");
 	}
-	assertEngineReference(PASS_ENGINE_PARAMETER_SIGNATURE);
+	assertEngineReference();
 	resetMaxValues();
 }
 
@@ -131,7 +132,6 @@ static persisted_configuration_state_e doReadConfiguration(flashaddr_t address, 
  */
 persisted_configuration_state_e readConfiguration(Logging * logger) {
 	efiAssert(getRemainingStack(chThdGetSelfX()) > 256, "read f", PC_ERROR);
-	assertEngineReference(PASS_ENGINE_PARAMETER_SIGNATURE);
 	persisted_configuration_state_e result = doReadConfiguration(FLASH_ADDR, logger);
 	if (result != PC_OK) {
 		printMsg(logger, "Reading second configuration copy");
