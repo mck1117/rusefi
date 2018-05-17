@@ -658,6 +658,9 @@ extern int invalidResponsesCount;
 
 #if EFI_TUNER_STUDIO || defined(__DOXYGEN__)
 
+extern float sdChargeTemp; // this is a hack
+
+
 void updateTunerStudioState(TunerStudioOutputChannels *tsOutputChannels DECLARE_ENGINE_PARAMETER_SUFFIX) {
 #if EFI_SHAFT_POSITION_INPUT || defined(__DOXYGEN__)
 	int rpm = getRpmE(engine);
@@ -901,7 +904,7 @@ void updateTunerStudioState(TunerStudioOutputChannels *tsOutputChannels DECLARE_
 	tsOutputChannels->clutchDownState = engine->clutchDownState;
 	tsOutputChannels->brakePedalState = engine->brakePedalState;
 
-	tsOutputChannels->tCharge = getTCharge(rpm, tps, coolant, intake PASS_ENGINE_PARAMETER_SUFFIX);
+	tsOutputChannels->tCharge = sdChargeTemp - 273.15;
 	float timing = engine->engineState.timingAdvance;
 	tsOutputChannels->ignitionAdvance = timing > 360 ? timing - 720 : timing;
 	tsOutputChannels->sparkDwell = ENGINE(engineState.sparkDwell);

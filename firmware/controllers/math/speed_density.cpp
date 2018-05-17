@@ -14,9 +14,6 @@
 #include "engine_math.h"
 #include "engine_state.h"
 
-#define rpmMin 500
-#define rpmMax 8000
-
 EXTERN_ENGINE;
 
 fuel_Map3D_t veMap("VE");
@@ -24,34 +21,19 @@ fuel_Map3D_t ve2Map("VE2");
 afr_Map3D_t afrMap("AFR", 1.0 / AFR_STORAGE_MULT);
 baroCorr_Map3D_t baroCorrMap("baro");
 
-#define tpMin 0
-#define tpMax 100
-//  http://rusefi.com/math/t_charge.html
-float getTCharge(int rpm, float tps, float coolantTemp, float airTemp DECLARE_ENGINE_PARAMETER_SUFFIX) {
-	if (cisnan(coolantTemp) || cisnan(airTemp)) {
-		warning(CUSTOM_ERR_6147, "t-getTCharge NaN");
-		return coolantTemp;
-	}
-	float minRpmKcurrentTPS = interpolate(tpMin, engineConfiguration->tChargeMinRpmMinTps, tpMax,
-			engineConfiguration->tChargeMinRpmMaxTps, tps);
-	float maxRpmKcurrentTPS = interpolate(tpMin, engineConfiguration->tChargeMaxRpmMinTps, tpMax,
-			engineConfiguration->tChargeMaxRpmMaxTps, tps);
-
-	float Tcharge_coff = interpolate(rpmMin, minRpmKcurrentTPS, rpmMax, maxRpmKcurrentTPS, rpm);
-	if (cisnan(Tcharge_coff)) {
-		warning(CUSTOM_ERR_6148, "t2-getTCharge NaN");
-		return coolantTemp;
+static float tCharge(float massFlowRateGPerS)
+{
+	if(massFlowRateGPerS < 1)
+	{
+		return 0.1317;
 	}
 
-	float Tcharge = coolantTemp * (1 - Tcharge_coff) + airTemp * Tcharge_coff;
+	return 1.3867f / massFlowRateGPerS + 0.1317f;
+}
 
-	if (cisnan(Tcharge)) {
-		// we can probably end up here while resetting engine state - interpolation would fail
-		warning(CUSTOM_ERR_TCHARGE_NOT_READY, "getTCharge NaN");
-		return coolantTemp;
-	}
-
-	return Tcharge;
+static float tChargeMathK(float airTemp, float coolantTemp, float Tcharge_coff)
+{
+	return coolantTemp * Tcharge_coff + airTemp * (1 - Tcharge_coff) + 273.15;
 }
 
 /**
@@ -90,30 +72,56 @@ float sdMath(engine_configuration_s *engineConfiguration, float airMass, float A
 
 EXTERN_ENGINE;
 
+
+float sdChargeTemp = 0;
+
 /**
  * @return per cylinder injection time, in Milliseconds
  */
 floatms_t getSpeedDensityFuel(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
-	/**
-	 * most of the values are pre-calculated for performance reasons
-	 */
-	float tChargeK = ENGINE(engineState.tChargeK);
-	if (cisnan(tChargeK)) {
-		warning(CUSTOM_ERR_TCHARGE_NOT_READY2, "tChargeK not ready"); // this would happen before we have CLT reading for example
-		return 0;
-	}
 	float map = getMap();
+	map = 70;
 	efiAssert(!cisnan(map), "NaN map", 0);
 
 	float adjustedMap = map + engine->engineLoadAccelEnrichment.getEngineLoadEnrichment(PASS_ENGINE_PARAMETER_SIGNATURE);
 	efiAssert(!cisnan(adjustedMap), "NaN adjustedMap", 0);
+	
+	int rpm = ENGINE(rpmCalculator).getRpm(PASS_ENGINE_PARAMETER_SIGNATURE);
+	float coolantC = ENGINE(sensors.clt);
+	float intakeC = ENGINE(sensors.iat);
 
-	float airMass = getCylinderAirMass(engineConfiguration, ENGINE(engineState.currentVE), adjustedMap, tChargeK);
+	if(cisnan(coolantC) || cisnan(intakeC))
+	{
+		warning(CUSTOM_ERR_TCHARGE_NOT_READY2, "tChargeK not ready"); // this would happen before we have CLT reading for example
+		return 0;
+	}
+
+	// Initial estimate at 40 deg C, since that's a reasonable starting point
+	//float airMass = getCycleAirMass(engineConfiguration, ENGINE(engineState.currentVE), adjustedMap, 273 + 40);
+	float airMass = 0;
+
+	float chargeTemp = 0;
+
+	// Iterate to converge to a tCharge solution
+	for(int i = 0; i < 3; i++)
+	{
+		float massFlow = airMass * rpm / 2 / 60;
+		float tcharge = tCharge(massFlow);
+		chargeTemp = tChargeMathK(intakeC, coolantC, tcharge);
+		airMass = getCycleAirMass(engineConfiguration, /*ENGINE(engineState.currentVE)*/ 0.734f, adjustedMap, chargeTemp);
+	}
+
+	sdChargeTemp = chargeTemp;
+
+	// Convert to per-cylinder air mass
+	airMass = airMass / engineConfiguration->specs.cylindersCount;
+
 	efiAssert(!cisnan(airMass), "NaN airMass", 0);
 #if EFI_PRINTF_FUEL_DETAILS || defined(__DOXYGEN__)
 	printf("map=%.2f adjustedMap=%.2f airMass=%.2f\t\n",
 			map, adjustedMap, engine->engineState.airMass);
 #endif /*EFI_PRINTF_FUEL_DETAILS */
+
 
 	engine->engineState.airMass = airMass;
 	return sdMath(engineConfiguration, airMass, ENGINE(engineState.targetAFR)) * 1000;
