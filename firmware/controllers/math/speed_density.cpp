@@ -31,9 +31,9 @@ static float tCharge(float massFlowRateGPerS)
 	return 1.3867f / massFlowRateGPerS + 0.1317f;
 }
 
-static float tChargeMathK(float airTemp, float coolantTemp, float Tcharge_coff)
+static float tChargeMathK(float airTempC, float coolantTempC, float charge_xfer_eff)
 {
-	return coolantTemp * Tcharge_coff + airTemp * (1 - Tcharge_coff) + 273.15;
+	return coolantTempC * charge_xfer_eff + airTempC * (1 - charge_xfer_eff) + 273.15;
 }
 
 /**
@@ -106,9 +106,9 @@ floatms_t getSpeedDensityFuel(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	for(int i = 0; i < 3; i++)
 	{
 		float massFlow = airMass * rpm / 2 / 60;
-		float tcharge = tCharge(massFlow);
-		chargeTemp = tChargeMathK(intakeC, coolantC, tcharge);
-		airMass = getCycleAirMass(engineConfiguration, /*ENGINE(engineState.currentVE)*/ 0.734f, adjustedMap, chargeTemp);
+		float xfer_eff = tCharge(massFlow);
+		chargeTemp = tChargeMathK(intakeC, coolantC, xfer_eff);
+		airMass = getCycleAirMass(engineConfiguration, ENGINE(engineState.currentVE), adjustedMap, chargeTemp);
 	}
 
 	sdChargeTemp = chargeTemp;
