@@ -80,7 +80,6 @@ float sdChargeTemp = 0;
  */
 floatms_t getSpeedDensityFuel(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	float map = getMap();
-	map = 70;
 	efiAssert(!cisnan(map), "NaN map", 0);
 
 	float adjustedMap = map + engine->engineLoadAccelEnrichment.getEngineLoadEnrichment(PASS_ENGINE_PARAMETER_SIGNATURE);
