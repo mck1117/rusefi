@@ -23,9 +23,9 @@ baroCorr_Map3D_t baroCorrMap("baro");
 
 static float tCharge(float massFlowRateGPerS)
 {
-	if(massFlowRateGPerS < 1)
+	if(massFlowRateGPerS < 1.8)
 	{
-		return 0.1317;
+		return 1;
 	}
 
 	return 1.3867f / massFlowRateGPerS + 0.1317f;
