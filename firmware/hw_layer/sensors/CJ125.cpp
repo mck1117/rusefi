@@ -75,32 +75,30 @@ static volatile float lambda = 1.0f;
 // LSU conversion tables. See cj125_sensor_type_e
 // For LSU4.2, See http://www.bosch-motorsport.com/media/catalog_resources/Lambda_Sensor_LSU_42_Datasheet_51_en_2779111435pdf.pdf
 // See LSU4.9, See http://www.bosch-motorsport.com/media/catalog_resources/Lambda_Sensor_LSU_49_Datasheet_51_en_2779147659pdf.pdf
-static const int CJ125_LSU_CURVE_SIZE = 16;
+static const int CJ125_LSU_CURVE_SIZE = 25;
 // This is a number of bins for each sensor type (should be < CJ125_LSU_CURVE_SIZE)
 static const float cjLSUTableSize[2] = {
-	9, 15,
+	9, 24,
 };
 // Pump current, mA
 static const float cjLSUBins[2][CJ125_LSU_CURVE_SIZE] = {	{ 
 	// LSU 4.2
 	-1.85f, -1.08f, -0.76f, -0.47f, 0.0f, 0.34f, 0.68f, 0.95f, 1.4f }, { 
 	// LSU 4.9
-	-2.0f, -1.602f, -1.243f, -0.927f, -0.8f, -0.652f, -0.405f, -0.183f, -0.106f, -0.04f, 0, 0.015f, 0.097f, 0.193f, 0.250f },
+	-2.0f, -1.602f, -1.243f, -0.927f, -0.8f, -0.652f, -0.405f, -0.183f, -0.106f, -0.04f, 0, 0.015f, 0.097f, 0.193f, 0.250f, 0.329f, 0.671f, 0.938f, 1.150f, 1.385f, 1.700f, 2.000f, 2.150f, 2.250f },
 };
 // Lambda value
 static const float cjLSULambda[2][CJ125_LSU_CURVE_SIZE] = { {
 	// LSU 4.2
 	0.7f, 0.8f, 0.85f, 0.9f, 1.009f, 1.18f, 1.43f, 1.7f, 2.42f }, {
 	// LSU 4.9
-	0.65f, 0.7f, 0.75f, 0.8f, 0.822f, 0.85f, 0.9f, 0.95f, 0.97f, 0.99f, 1.003f, 1.01f, 1.05f, 1.1f, 1.132f },
+	0.65f, 0.7f, 0.75f, 0.8f, 0.822f, 0.85f, 0.9f, 0.95f, 0.97f, 0.99f, 1.003f, 1.01f, 1.05f, 1.1f, 1.132f, 1.179f, 1.429f, 1.701f, 1.990f, 2.434f, 3.413f, 5.391f, 7.506f, 10.119f },
 };
 
 static int cjReadRegister(unsigned char regAddr) {
 	spiSelect(driver);
 	tx_buff[0] = regAddr;
 	spiSend(driver, 1, tx_buff);
-	// safety?
-	chThdSleepMilliseconds(10);
 	
 	rx_buff[0] = 0;
 	spiReceive(driver, 1, rx_buff);
@@ -138,7 +136,7 @@ static float getUr() {
 
 static float getUa() {
 	if (CONFIG(cj125ua) != EFI_ADC_NONE)
-		return getVoltageDivided("cj125ua", CONFIG(cj125ua));
+		return getVoltage("cj125ua", CONFIG(cj125ua));
 	return 0.0f;
 }
 
@@ -234,7 +232,7 @@ static void cjCalibrate(void) {
 	cjSetMode(CJ125_MODE_CALIBRATION);
 	int init1 = cjReadRegister(INIT_REG1_RD);
 	// check if our command has been accepted
-	if (init1 != CJ125_INIT1_CALBRT) {
+	if ((init1 & 0xFE) != (CJ125_INIT1_CALBRT & 0xFE)) {
 		scheduleMsg(logger, "cj125: Calibration error (init1=0x%02x)! Failed!", init1);
 		cjSetMode(CJ125_MODE_NORMAL_17);
 		return;
@@ -254,6 +252,10 @@ static void cjCalibrate(void) {
 	// find average
 	vUaCal /= (float)CJ125_CALIBRATE_NUM_SAMPLES;
 	vUrCal /= (float)CJ125_CALIBRATE_NUM_SAMPLES;
+
+	// why is cal resistor different than operating value?
+	vUrCal += 0.25f;
+
 	// restore normal mode
 	cjSetMode(CJ125_MODE_NORMAL_17);
 	chThdSleepMilliseconds(CJ125_CALIBRATION_DELAY);
@@ -278,21 +280,40 @@ static void cjStart(void) {
 		return;
 	}
 	
+	// software reset (a few times)
+	for(int i = 0; i < 3; i++)
+	{
+		cjWriteRegister(INIT_REG2_WR, 0x40);
+		chThdSleepMilliseconds(100);
+	}
+	
 	cjIdentify();
 
-	// Load calibration values
+	// defaults
+	vUaCal = 1.5;
+	vUrCal = 1.0;
+
+	/*// Load calibration values
 	uint32_t storedLambda = backupRamLoad(BACKUP_CJ125_CALIBRATION_LAMBDA);
 	uint32_t storedHeater = backupRamLoad(BACKUP_CJ125_CALIBRATION_HEATER);
 	// if no calibration, try to calibrate now and store new values
 	if (storedLambda == 0 || storedHeater == 0) {
-		cjCalibrate();
+		// Calibrate as soon as the thread starts, so we don't have to wait for it
+		state = CJ125_CALIBRATION;
 	} else {
+		state = CJ125_INIT;
+
 		scheduleMsg(logger, "cj125: Loading stored calibration data (%d %d)", storedLambda, storedHeater);
 		vUaCal = getVoltageFrom16bit(storedLambda);
-		vUrCal = getVoltageFrom16bit(storedHeater);
-		// Start normal measurement mode
-		cjSetMode(CJ125_MODE_NORMAL_17);
-	}
+		vUrCal = getVoltageFrom16bit(storedHeater);	
+	}*/
+
+	state = CJ125_INIT;
+
+	// Start normal measurement mode
+	cjSetMode(CJ125_MODE_NORMAL_17);
+	cjWriteRegister(INIT_REG2_WR, 0x00);
+
 	cjPrintData();
 
 	lastSlowAdcCounter = getSlowAdcCounter();
@@ -346,8 +367,8 @@ static bool cjIsWorkingState(void) {
 
 static void cjInitPid(void) {
 	// todo: these values are valid only for LSU 4.2
-	heaterPidConfig.pFactor = CJ125_PID_LSU42_P;
-	heaterPidConfig.iFactor = CJ125_PID_LSU42_I;
+	heaterPidConfig.pFactor = 8.0f;
+	heaterPidConfig.iFactor = 0.003f;
 	heaterPidConfig.dFactor = 0.0f;
 	heaterPidConfig.minValue = 0;
 	heaterPidConfig.maxValue = 1;
@@ -370,8 +391,7 @@ static void cjStartSpi(void) {
 	spiStart(driver, &cj125spicfg);
 }
 
-static msg_t cjThread(void)
-{
+static msg_t cjThread(void) {
 	chRegSetThreadName("cj125");
 
 	chThdSleepMilliseconds(500);
@@ -384,50 +404,70 @@ static msg_t cjThread(void)
 
 		cjUpdateAnalogValues();
 		
-		// If the controller is disabled
-		if (state == CJ125_IDLE || state == CJ125_ERROR) {
-			chThdSleepMilliseconds(CJ125_IDLE_TICK_DELAY);
-			continue;
-		}
+		switch (state) {
+			case CJ125_IDLE:
+				chThdSleepMilliseconds(CJ125_IDLE_TICK_DELAY);
+				continue;
+			case CJ125_INIT:
+				// If the engine's turning, time to heat the sensor.
+				if(!isStopped) {
+					state = CJ125_PREHEAT;
+					startHeatingNt = prevNt = getTimeNowNt();
+					cjSetMode(CJ125_MODE_NORMAL_17);
+				}
 
-		if (state == CJ125_CALIBRATION) {
-			cjCalibrate();
-			// Start normal operation
-			state = CJ125_INIT;
-			cjSetMode(CJ125_MODE_NORMAL_17);
-		}
-		
-		diag = cjReadRegister(DIAG_REG_RD);
-
-		// check heater state
-		if (vUr > CJ125_UR_PREHEAT_THR || heaterDuty < CJ125_PREHEAT_MIN_DUTY) {
-			// Check if RPM>0 and it's time to start pre-heating
-			if (state == CJ125_INIT && !isStopped) {
-				// start preheating
-				state = CJ125_PREHEAT;
-				startHeatingNt = prevNt = getTimeNowNt();
+				break;
+			case CJ125_CALIBRATION:
+				cjCalibrate();
+				// Start normal operation
+				state = CJ125_INIT;
 				cjSetMode(CJ125_MODE_NORMAL_17);
-			}
-		} else if (vUr > CJ125_UR_GOOD_THR) {
-			state = CJ125_HEAT_UP;
-		} else if (vUr < CJ125_UR_OVERHEAT_THR) {
-			state = CJ125_OVERHEAT;
-		} else {
-			// This indicates that the heater temperature is optimal for UA measurement
-			state = CJ125_READY;
+				cjWriteRegister(INIT_REG2_WR, 0x00);
+
+				break;
+			case CJ125_PREHEAT:
+				// If the engine stopped, turn off the sensor!
+				if(isStopped) {
+					state = CJ125_INIT;
+					cjSetIdleHeater();
+				}
+				
+				// If the sensor is sufficiently warm for PID, switch to that
+				if(vUr < CJ125_UR_PREHEAT_THR) {
+					state = CJ125_READY;
+				}
+
+				break;
+			case CJ125_READY:
+				// If the engine stopped, turn off the sensor!
+				if(isStopped)
+				{
+					state = CJ125_INIT;
+					cjSetIdleHeater();
+				}
+
+				// If the sensor is very hot, turn it off because something's wrong
+				if(vUr < CJ125_UR_OVERHEAT_THR)	{
+					state = CJ125_OVERHEAT;
+				}
+
+				break;
+			case CJ125_OVERHEAT:
+				break;
+			case CJ125_ERROR:
+				chThdSleepMilliseconds(CJ125_IDLE_TICK_DELAY);
+				continue;
+			default: break;
 		}
 
-		if (isStopped && cjIsWorkingState()) {
-			state = CJ125_INIT;
-			cjSetIdleHeater();
-		}
+		diag = cjReadRegister(DIAG_REG_RD);
 
 #if 0
 		// Change amplification if AFR gets lean/rich for better accuracy
 		cjSetMode(lambda > 1.0f ? CJ125_MODE_NORMAL_17 : CJ125_MODE_NORMAL_8);
 #endif
 
-#if 0
+#if 1
 		// Update console output variables
 		cjPostState(&tsOutputChannels);
 #endif
@@ -514,7 +554,7 @@ static void cjSetInit2(int v) {
 
 float cjGetAfr(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	// todo: make configurable sensor LSU type
-	cj125_sensor_type_e sensorType = CJ125_LSU_42;
+	cj125_sensor_type_e sensorType = CJ125_LSU_49;
 	
 	// See CJ125 datasheet, page 6
 	float pumpCurrent = (vUa - vUaCal) * amplCoeff * (CJ125_PUMP_CURRENT_FACTOR / CJ125_PUMP_SHUNT_RESISTOR);
@@ -541,7 +581,7 @@ bool cjHasAfrSensor(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 void cjPostState(TunerStudioOutputChannels *tsOutputChannels) {
 	tsOutputChannels->debugFloatField1 = heaterDuty;
 	tsOutputChannels->debugFloatField2 = heaterPid.getIntegration();
-	tsOutputChannels->debugFloatField3 = heaterPid.getPrevError();
+	//tsOutputChannels->debugFloatField3 = heaterPid.getPrevError();
 	tsOutputChannels->debugFloatField4 = vUa;
 	tsOutputChannels->debugFloatField5 = vUr;
 	tsOutputChannels->debugFloatField6 = vUaCal;
@@ -571,10 +611,6 @@ void initCJ125(Logging *sharedLogger) {
 	cjStartHeaterControl();
 	cjStart();
 
-#if 1
-	state = CJ125_INIT;
-#endif
-	
 	addConsoleAction("cj125", cjStartTest);
 	addConsoleAction("cj125_calibrate", cjStartCalibration);
 #ifdef CJ125_DEBUG
