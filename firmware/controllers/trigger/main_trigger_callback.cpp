@@ -245,6 +245,13 @@ static ALWAYS_INLINE void handleFuelInjectionEvent(int injEventIndex, InjectionE
 		warning(CUSTOM_OBD_NEG_INJECTION, "Negative injection pulse %.2f", injectionDuration);
 		return;
 	}
+
+	// this is likely due to rev limit, or overrun fuel cut
+	if (injectionDuration < 0.001)
+	{
+		return;
+	}
+
 	floatus_t durationUs = MS2US(injectionDuration);
 
 
