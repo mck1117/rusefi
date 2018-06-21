@@ -246,8 +246,10 @@ static ALWAYS_INLINE void handleFuelInjectionEvent(int injEventIndex, InjectionE
 		return;
 	}
 
-	// this is likely due to rev limit, or overrun fuel cut
-	if (injectionDuration < 0.001)
+	// If somebody commanded an impossibly short injection, do nothing.
+	// Durations under 50us aren't safe for the scheduler
+	// as their order may be swapped, resulting in a stuck injector
+	if (injectionDuration < 0.050)
 	{
 		return;
 	}
