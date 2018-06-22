@@ -2131,6 +2131,7 @@ cmd_stop_engine              = "w\x00\x99\x00\x00"
 		field = "Cutoff Activation RPM High Limit",		coastingFuelCutRpmHigh, {coastingFuelCutEnabled == 1}
 		field = "Cutoff Deactivation RPM Low Limit",	coastingFuelCutRpmLow, {coastingFuelCutEnabled == 1}
 		field = "TPS Deactivation Threshold",			coastingFuelCutTps, {coastingFuelCutEnabled == 1}
+		field = "MAP Deactivation Threshold",			coastingFuelCutMap, {coastingFuelCutEnabled == 1}
 		field = "CLT Activation Threshold",				coastingFuelCutClt, {coastingFuelCutEnabled == 1}
 [Tools]
  ;addTool = toolName, PanelName
