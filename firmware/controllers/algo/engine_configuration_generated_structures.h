@@ -1,4 +1,4 @@
-// this section was generated automatically by ConfigDefinition.jar based on rusefi_config.txt Thu Apr 26 02:12:36 EDT 2018
+// this section was generated automatically by ConfigDefinition.jar based on rusefi_config.txt Fri Jun 22 00:24:41 CDT 2018
 // begin
 #ifndef ENGINE_CONFIGURATION_GENERATED_H_
 #define ENGINE_CONFIGURATION_GENERATED_H_
@@ -2122,9 +2122,10 @@ typedef struct {
 	 */
 	int16_t pidExtraForLowRpm;
 	/**
+	 *  maximum manifold pressure for fuel cut
 	 * offset 3386
 	 */
-	int16_t unusedInt16;
+	int16_t coastingFuelCutMap;
 	/**
 	 * CLT-based idle position for coasting (used in Auto-PID Idle mode)
 	 * offset 3388
@@ -2384,4 +2385,4 @@ typedef struct {
 
 #endif
 // end
-// this section was generated automatically by ConfigDefinition.jar based on rusefi_config.txt Thu Apr 26 02:12:36 EDT 2018
+// this section was generated automatically by ConfigDefinition.jar based on rusefi_config.txt Fri Jun 22 00:24:41 CDT 2018
