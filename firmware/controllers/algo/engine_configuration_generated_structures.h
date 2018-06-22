@@ -2234,7 +2234,7 @@ typedef struct {
 	float cltIdleCorr[CLT_CURVE_SIZE];
 	/**
 	 * kg/hour value.
-	 * By the way 2.081989116 kg/h = 1 ft�/m
+	 * By the way 2.081989116 kg/h = 1 ft³/m
 	 * offset 10784
 	 */
 	float mafDecoding[MAF_DECODING_COUNT];
