@@ -11,7 +11,7 @@
 
 #include <string.h>
 #include "histogram.h"
-#include "main.h"
+#include "global.h"
 
 #if EFI_HISTOGRAMS || EFI_UNIT_TEST
 
@@ -59,7 +59,7 @@ void initHistogramsModule(void) {
  * @brief This internal method is only public so that we can test it.
  */
 int histogramGetIndex(int64_t value) {
-	efiAssert(initialized, "histo initialized", 0);
+	efiAssert(CUSTOM_ERR_ASSERT, initialized, "histo initialized", 0);
 	if (value < 0)
 		return 0;
 	if (value < SBI_SIZE)
@@ -99,7 +99,7 @@ void hsAdd(histogram_s *h, int64_t value) {
 	int count = 1;
 	h->total_value += value;
 	h->total_count += count;
-	efiAssertVoid(index < BOUND_LENGTH, "histogram issue");
+	efiAssertVoid(CUSTOM_ERR_6670, index < BOUND_LENGTH, "histogram issue");
 
 	h->values[index] += count;
 }

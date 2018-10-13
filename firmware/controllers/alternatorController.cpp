@@ -7,7 +7,6 @@
  * @author Andrey Belomutskiy, (c) 2012-2018
  */
 
-#include "main.h"
 #include "engine.h"
 #include "rpm_calculator.h"
 #include "alternatorController.h"
@@ -127,8 +126,8 @@ void setAltPFactor(float p) {
 }
 
 static void applyAlternatorPinState(PwmConfig *state, int stateIndex) {
-	efiAssertVoid(stateIndex < PWM_PHASE_MAX_COUNT, "invalid stateIndex");
-	efiAssertVoid(state->multiWave.waveCount == 1, "invalid idle waveCount");
+	efiAssertVoid(CUSTOM_ERR_6643, stateIndex < PWM_PHASE_MAX_COUNT, "invalid stateIndex");
+	efiAssertVoid(CUSTOM_IDLE_WAVE_CNT, state->multiWave.waveCount == 1, "invalid idle waveCount");
 	OutputPin *output = state->outputPins[0];
 	int value = state->multiWave.waves[0].pinStates[stateIndex];
 	/**

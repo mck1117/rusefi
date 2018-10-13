@@ -1,7 +1,7 @@
 /**
  *  @author Matthew Kennedy, (c) 2017
  */
-#include "main.h"
+#include "global.h"
 #include "oil_pressure.h"
 #include "interpolation.h"
 #include "analog_input.h"
@@ -23,5 +23,5 @@ float getOilPressure(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 
     float volts = getVoltageDivided("oilp", sensor->hwChannel);
 
-    return interpolate(sensor->v1, sensor->value1, sensor->v2, sensor->value2, volts);
+    return interpolateMsg("oil", sensor->v1, sensor->value1, sensor->v2, sensor->value2, volts);
 }

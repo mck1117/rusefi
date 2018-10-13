@@ -3,6 +3,7 @@ package com.rusefi.core;
 import com.rusefi.config.FieldType;
 import com.rusefi.config.Fields;
 import eu.hansolo.steelseries.tools.BackgroundColor;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Collection;
 import java.util.Comparator;
@@ -30,7 +31,6 @@ public enum Sensor {
     MAF("MAF", SensorCategory.SENSOR_INPUTS, "Volts", 4),
     MAFR("MAFR", SensorCategory.SENSOR_INPUTS, "kg/hr", 4),
 
-    PPS("pedal", SensorCategory.SENSOR_INPUTS, "%", 100), // pedal position sensor
     knockCount("Knock", SensorCategory.SENSOR_INPUTS, "count", 30),
     KnockValue("Knock level", SensorCategory.SENSOR_INPUTS, "v", 6),
 
@@ -114,6 +114,8 @@ public enum Sensor {
     deltaTps(SensorCategory.FUEL, FieldType.FLOAT, 116, BackgroundColor.MUD),
     engineLoadAccelDelta(SensorCategory.FUEL, FieldType.FLOAT, 124, BackgroundColor.MUD),
     tpsAccelFuel(Fields.GAUGE_NAME_FUEL_TPS_EXTRA, SensorCategory.FUEL, FieldType.FLOAT, 128, BackgroundColor.MUD),
+    PPS("pedal", SensorCategory.SENSOR_INPUTS, FieldType.FLOAT, 136, BackgroundColor.MUD), // pedal position sensor
+
     injectorDutyCycle(Fields.GAUGE_NAME_FUEL_INJ_DUTY, SensorCategory.OPERATIONS, FieldType.FLOAT, 140, BackgroundColor.MUD),
     wallFuelAmount(SensorCategory.FUEL, FieldType.FLOAT, 160, BackgroundColor.MUD),
     iatCorrection(SensorCategory.FUEL, FieldType.FLOAT, 164, BackgroundColor.MUD, 0, 5),
@@ -147,6 +149,9 @@ public enum Sensor {
     debugFloatField7(GAUGE_NAME_DEBUG_F7, SensorCategory.OPERATIONS, FieldType.FLOAT, 260, BackgroundColor.MUD, 0, 5),
     coilDutyCycle(Fields.GAUGE_NAME_DWELL_DUTY, SensorCategory.OPERATIONS, FieldType.FLOAT, 272, BackgroundColor.MUD),
 
+    debugIntField4("debug i4", SensorCategory.OPERATIONS, FieldType.INT16, 292, BackgroundColor.MUD, 0, 5),
+    debugIntField5("debug i5", SensorCategory.OPERATIONS, FieldType.INT16, 294, BackgroundColor.MUD, 0, 5),
+
     INJ_1_2_DELTA("inj 1-2 delta", SensorCategory.SNIFFING),
     INJ_3_4_DELTA("inj 3-4 delta", SensorCategory.SNIFFING),
     ;
@@ -157,6 +162,7 @@ public enum Sensor {
     private final double minValue;
     private final double maxValue;
     private final BackgroundColor color;
+    @Nullable
     private final FieldType type;
     private final int offset;
 

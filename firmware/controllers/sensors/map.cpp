@@ -5,12 +5,11 @@
  *
  * @author Andrey Belomutskiy, (c) 2012-2018
  */
-#include "main.h"
+#include "global.h"
 #include "engine_configuration.h"
 #include "engine_math.h"
 #include "analog_input.h"
 #include "interpolation.h"
-#include "error_handling.h"
 #include "map.h"
 #include "engine_controller.h"
 
@@ -83,7 +82,7 @@ float decodePressure(float voltage, air_pressure_sensor_config_s * mapConfig DEC
 	switch (mapConfig->type) {
 	case MT_CUSTOM:
 		// todo: migrate to 'FastInterpolation customMap'
-		return interpolate(engineConfiguration->mapLowValueVoltage, mapConfig->lowValue,
+		return interpolateMsg("map", engineConfiguration->mapLowValueVoltage, mapConfig->lowValue,
 				engineConfiguration->mapHighValueVoltage, mapConfig->highValue, voltage);
 	case MT_DENSO183:
 	case MT_MPX4250:
@@ -146,7 +145,7 @@ float getMapByVoltage(float voltage DECLARE_ENGINE_PARAMETER_SUFFIX) {
  */
 float getRawMap(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	if (engineConfiguration->hasFrequencyReportingMapSensor) {
-		return interpolate(boardConfiguration->mapFrequency0Kpa, 0, boardConfiguration->mapFrequency100Kpa, 100, mapFreq);
+		return interpolateMsg("rmap", boardConfiguration->mapFrequency0Kpa, 0, boardConfiguration->mapFrequency100Kpa, 100, mapFreq);
 	}
 
 	float voltage = getVoltageDivided("map", engineConfiguration->map.sensor.hwChannel);

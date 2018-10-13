@@ -9,7 +9,7 @@
  * @author Andrey Belomutskiy, (c) 2012-2018
  */
 
-#include "main.h"
+#include "global.h"
 #include "pin_repository.h"
 #include "eficonsole.h"
 #include "memstreams.h"
@@ -37,7 +37,7 @@ PinRepository::PinRepository() {
 }
 
 static int getPortIndex(ioportid_t port) {
-	efiAssert(port != NULL, "null port", -1);
+	efiAssert(CUSTOM_ERR_ASSERT, port != NULL, "null port", -1);
 	if (port == GPIOA)
 		return 0;
 	if (port == GPIOB)

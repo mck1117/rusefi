@@ -85,6 +85,7 @@ typedef struct {
 	unsigned int hasFatalError : 1; // bit 6
 	unsigned int isWarnNow : 1; // bit 7
 	unsigned int isCltBroken : 1; // bit 8
+	unsigned int isKnockChipOk : 1; // bit 9
 	int tsConfigVersion; // 84
 	egt_values_s egtValues; // 88
 	float unusedOffset104; // 104
@@ -105,7 +106,7 @@ typedef struct {
 	float engineLoadAccelExtra; // offset 124
 	float tpsAccelFuel; // offset 128
 	float baroCorrection; // 132
-	float pedalPosition; // 138
+	float pedalPosition; // 136
 	/**
 	 * @see coilDutyCycle
 	 */
@@ -165,7 +166,10 @@ typedef struct {
 	int16_t accelerationY; // 278
 	float oilPressure;	// 280
 	float fuelConsumptionPerHour; // 284
-	int unused3[17];
+	float injectionOffset; // 288
+	int16_t debugIntField4; // 292
+	int16_t debugIntField5; // 294
+	int unused3[15];
 	/* see also [OutputChannels] in rusefi.input */
 } TunerStudioOutputChannels;
 

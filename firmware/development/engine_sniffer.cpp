@@ -24,7 +24,7 @@
  * If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "main.h"
+#include "global.h"
 #include "engine_sniffer.h"
 #include "adc_inputs.h"
 
@@ -141,7 +141,7 @@ WaveChart::WaveChart() {
 }
 
 void WaveChart::init() {
-	initLoggingExt(&logging, "wave chart", WAVE_LOGGING_BUFFER, sizeof(WAVE_LOGGING_BUFFER));
+	logging.initLoggingExt("wave chart", WAVE_LOGGING_BUFFER, sizeof(WAVE_LOGGING_BUFFER));
 	isInitialized = true;
 	reset();
 }
@@ -159,24 +159,23 @@ void WaveChart::publish() {
 	}
 }
 
-static char timeBuffer[10];
-
 /**
  * @brief	Register an event for digital sniffer
  */
 void WaveChart::addEvent3(const char *name, const char * msg) {
+#if EFI_TEXT_LOGGING || defined(__DOXYGEN__)
 	if (!ENGINE(isEngineChartEnabled)) {
 		return;
 	}
 	if (skipUntilEngineCycle != 0 && ENGINE(rpmCalculator.getRevolutionCounter()) < skipUntilEngineCycle)
 		return;
-	efiAssertVoid(name!=NULL, "WC: NULL name");
+	efiAssertVoid(CUSTOM_ERR_6651, name!=NULL, "WC: NULL name");
 
 #if EFI_PROD_CODE
-	efiAssertVoid(getRemainingStack(chThdGetSelfX()) > 32, "lowstck#2c");
+	efiAssertVoid(CUSTOM_ERR_6652, getRemainingStack(chThdGetSelfX()) > 32, "lowstck#2c");
 #endif
 
-	efiAssertVoid(isInitialized, "chart not initialized");
+	efiAssertVoid(CUSTOM_ERR_6653, isInitialized, "chart not initialized");
 #if DEBUG_WAVE
 	scheduleSimpleMsg(&debugLogging, "current", chart->counter);
 #endif
@@ -234,7 +233,7 @@ void WaveChart::addEvent3(const char *name, const char * msg) {
 		hsAdd(&engineSnifferHisto, diff);
 	}
 #endif /* EFI_HISTOGRAMS */
-
+#endif /* EFI_TEXT_LOGGING */
 }
 
 void showWaveChartHistogram(void) {

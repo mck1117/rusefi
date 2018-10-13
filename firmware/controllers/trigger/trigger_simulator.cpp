@@ -5,7 +5,7 @@
  * @author Andrey Belomutskiy, (c) 2012-2018
  */
 
-#include "main.h"
+#include "global.h"
 #include "engine.h"
 #include "trigger_simulator.h"
 #include "trigger_emulator_algo.h"
@@ -31,7 +31,7 @@ extern bool printTriggerDebug;
 
 void TriggerStimulatorHelper::feedSimulatedEvent(TriggerState *state, TriggerShape * shape, int i
 		DECLARE_ENGINE_PARAMETER_SUFFIX) {
-	efiAssertVoid(shape->getSize() > 0, "size not zero");
+	efiAssertVoid(CUSTOM_ERR_6593, shape->getSize() > 0, "size not zero");
 	int stateIndex = i % shape->getSize();
 	int prevIndex = (stateIndex + shape->getSize() - 1 ) % shape->getSize();
 

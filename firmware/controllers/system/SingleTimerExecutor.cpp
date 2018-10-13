@@ -41,7 +41,7 @@ uint32_t lastExecutionCount;
 
 static void executorCallback(void *arg) {
 	(void)arg;
-	efiAssertVoid(getRemainingStack(chThdGetSelfX()) > 256, "lowstck#2y");
+	efiAssertVoid(CUSTOM_ERR_6624, getRemainingStack(chThdGetSelfX()) > 256, "lowstck#2y");
 
 //	callbackTime = getTimeNowNt();
 //	if((callbackTime > nextEventTimeNt) && (callbackTime - nextEventTimeNt > US2NT(5000))) {
@@ -60,17 +60,12 @@ Executor::Executor() {
 	queue.setLateDelay(US2NT(100));
 }
 
+/**
+ * callback would be executed either on ISR thread or current thread if we would need to execute right away
+ */
 void Executor::scheduleByTimestamp(scheduling_s *scheduling, efitimeus_t timeUs, schfunc_t callback,
 		void *param) {
 	scheduleCounter++;
-//	if (delayUs < 0) {
-//		firmwareError(OBD_PCM_Processor_Fault, "Negative delayUs %s: %d", prefix, delayUs);
-//		return;
-//	}
-//	if (delayUs == 0) {
-//		callback(param);
-//		return;
-//	}
 	bool alreadyLocked = true;
 	if (!reentrantFlag) {
 		// this would guard the queue and disable interrupts
@@ -139,7 +134,7 @@ void Executor::scheduleTimerCallback() {
 	 */
 	efitick_t nowNt = getTimeNowNt();
 	nextEventTimeNt = queue.getNextEventTime(nowNt);
-	efiAssertVoid(nextEventTimeNt > nowNt, "setTimer constraint");
+	efiAssertVoid(CUSTOM_ERR_6625, nextEventTimeNt > nowNt, "setTimer constraint");
 	if (nextEventTimeNt == EMPTY_QUEUE)
 		return; // no pending events in the queue
 	int32_t hwAlarmTime = NT2US((int32_t)nextEventTimeNt - (int32_t)nowNt);

@@ -2,6 +2,7 @@ package com.rusefi.ui.widgets;
 
 import com.rusefi.FileLog;
 import com.rusefi.SensorSnifferCentral;
+import com.rusefi.TimeBasedBuffer;
 import com.rusefi.core.Sensor;
 import com.rusefi.core.SensorCentral;
 import com.rusefi.io.CommandQueue;
@@ -19,6 +20,8 @@ import java.util.concurrent.TimeUnit;
  * <p>
  * 11/16/2017
  * (c) Andrey Belomutskiy
+ *
+ * @see TimeBasedBuffer
  */
 public class EtbTestSequence {
     private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
@@ -38,8 +41,15 @@ public class EtbTestSequence {
 
     static {
         FIRST_STEP
-            .addNext(5 * SECOND, 30)
-            .addNext(10 * SECOND, 50);
+                .addNext(5 * SECOND, 10)
+                .addNext(10 * SECOND, 30)
+                .addNext(10 * SECOND, 50)
+                .addNext(10 * SECOND, 70)
+                .addNext(10 * SECOND, 100)
+                .addNext(10 * SECOND, 50)
+                .addNext(10 * SECOND, 70)
+                .addNext(10 * SECOND, 0)
+        ;
     }
 
     public EtbTestSequence() {

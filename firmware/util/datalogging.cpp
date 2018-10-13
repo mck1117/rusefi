@@ -2,7 +2,7 @@
  * @file    datalogging.cpp
  * @brief   Buffered console output stream code
  *
- * Here we have a memory buffer and method related to
+ * Here we have a memory buffer and methods related to
  * printing messages into this buffer. The purpose of the
  * buffer is to allow fast, non-blocking, thread-safe logging.
  *
@@ -31,7 +31,7 @@
  */
 
 #include <stdbool.h>
-#include "main.h"
+#include "global.h"
 
 #if ! EFI_UNIT_TEST || defined(__DOXYGEN__)
 #include "chprintf.h"
@@ -39,7 +39,6 @@
 #include "memstreams.h"
 #include "console_io.h"
 #include "rfiutil.h"
-#include "loggingcentral.h"
 
 static MemoryStream intermediateLoggingBuffer;
 static uint8_t intermediateLoggingBufferData[INTERMEDIATE_LOGGING_BUFFER_SIZE] CCM_OPTIONAL;
@@ -65,18 +64,23 @@ static ALWAYS_INLINE bool validateBuffer(Logging *logging, const char *text, uin
 	return false;
 }
 
-void append(Logging *logging, const char *text) {
-	efiAssertVoid(text != NULL, "append NULL");
+void Logging::append(const char *text) {
+	efiAssertVoid(CUSTOM_APPEND_NULL, text != NULL, "append NULL");
 	uint32_t extraLen = efiStrlen(text);
-	bool isCapacityProblem = validateBuffer(logging, text, extraLen);
+	bool isCapacityProblem = validateBuffer(this, text, extraLen);
 	if (isCapacityProblem) {
 		return;
 	}
-	strcpy(logging->linePointer, text);
+	strcpy(linePointer, text);
 	/**
 	 * And now we are pointing at the zero char at the end of the buffer again
 	 */
-	logging->linePointer += extraLen;
+	linePointer += extraLen;
+}
+
+// todo: inline
+void append(Logging *logging, const char *text) {
+	logging->append(text);
 }
 
 /**
@@ -92,8 +96,12 @@ void appendFast(Logging *logging, const char *text) {
 
 // todo: look into chsnprintf once on Chibios 3
 static void vappendPrintfI(Logging *logging, const char *fmt, va_list arg) {
+	if (!intermediateLoggingBufferInited) {
+		firmwareError(CUSTOM_ERR_BUFF_INIT_ERROR, "intermediateLoggingBufferInited not inited!");
+		return;
+	}
 	intermediateLoggingBuffer.eos = 0; // reset
-	efiAssertVoid(getRemainingStack(chThdGetSelfX()) > 128, "lowstck#1b");
+	efiAssertVoid(CUSTOM_ERR_6603, getRemainingStack(chThdGetSelfX()) > 128, "lowstck#1b");
 	chvprintf((BaseSequentialStream *) &intermediateLoggingBuffer, fmt, arg);
 	intermediateLoggingBuffer.buffer[intermediateLoggingBuffer.eos] = 0; // need to terminate explicitly
 	append(logging, (char *) intermediateLoggingBufferData);
@@ -102,33 +110,38 @@ static void vappendPrintfI(Logging *logging, const char *fmt, va_list arg) {
 /**
  * this method acquires system lock to guard the shared intermediateLoggingBuffer memory stream
  */
-static void vappendPrintf(Logging *logging, const char *fmt, va_list arg) {
-	efiAssertVoid(getRemainingStack(chThdGetSelfX()) > 128, "lowstck#5b");
-	if (!intermediateLoggingBufferInited) {
-		firmwareError(CUSTOM_ERR_BUFF_INIT_ERROR, "intermediateLoggingBufferInited not inited!");
-		return;
-	}
+void Logging::vappendPrintf(const char *fmt, va_list arg) {
+	efiAssertVoid(CUSTOM_ERR_6604, getRemainingStack(chThdGetSelfX()) > 128, "lowstck#5b");
 	int wasLocked = lockAnyContext();
-	vappendPrintfI(logging, fmt, arg);
+	vappendPrintfI(this, fmt, arg);
 	if (!wasLocked) {
 		unlockAnyContext();
 	}
 }
 
+// todo: replace with logging->appendPrintf
 void appendPrintf(Logging *logging, const char *fmt, ...) {
-	efiAssertVoid(getRemainingStack(chThdGetSelfX()) > 128, "lowstck#4");
+	efiAssertVoid(CUSTOM_APPEND_STACK, getRemainingStack(chThdGetSelfX()) > 128, "lowstck#4");
 	va_list ap;
 	va_start(ap, fmt);
-	vappendPrintf(logging, fmt, ap);
+	logging->vappendPrintf(fmt, ap);
 	va_end(ap);
 }
 
-void initLoggingExt(Logging *logging, const char *name, char *buffer, int bufferSize) {
-	logging->name = name;
-	logging->buffer = buffer;
-	logging->bufferSize = bufferSize;
-	resetLogging(logging);
-	logging->isInitialized = true;
+void Logging::appendPrintf(const char *fmt, ...) {
+	efiAssertVoid(CUSTOM_APPEND_STACK, getRemainingStack(chThdGetSelfX()) > 128, "lowstck#4");
+	va_list ap;
+	va_start(ap, fmt);
+	vappendPrintf(fmt, ap);
+	va_end(ap);
+}
+
+void Logging::initLoggingExt(const char *name, char *buffer, int bufferSize) {
+	this->name = name;
+	this->buffer = buffer;
+	this->bufferSize = bufferSize;
+	resetLogging(this);
+	this->isInitialized = true;
 }
 
 int isInitialized(Logging *logging) {
@@ -195,6 +208,8 @@ void printWithLength(char *line) {
 	 * When we work with actual hardware, it is faster to invoke 'chSequentialStreamWrite' for the
 	 * whole buffer then to invoke 'chSequentialStreamPut' once per character.
 	 */
+	// todo: if needed we can probably know line length without calculating it, but seems like this is done not
+	// under a lock so not a problem?
 	int len = efiStrlen(line);
 	strcpy(header, "line:");
 	char *p = header + efiStrlen(header);
@@ -236,43 +251,18 @@ void resetLogging(Logging *logging) {
  * This method should only be invoked on main thread because only the main thread can write to the console
  */
 void printMsg(Logging *logger, const char *fmt, ...) {
-	efiAssertVoid(getRemainingStack(chThdGetSelfX()) > 128, "lowstck#5o");
+	efiAssertVoid(CUSTOM_ERR_6605, getRemainingStack(chThdGetSelfX()) > 128, "lowstck#5o");
 //	resetLogging(logging); // I guess 'reset' is not needed here?
 	appendMsgPrefix(logger);
 
 	va_list ap;
 	va_start(ap, fmt);
-	vappendPrintf(logger, fmt, ap);
+	logger->vappendPrintf(fmt, ap);
 	va_end(ap);
 
 	append(logger, DELIMETER);
 	printWithLength(logger->buffer);
 	resetLogging(logger);
-}
-
-/**
- * this whole method is executed under syslock so that we can have multiple threads use the same shared buffer
- * in order to reduce memory usage
- */
-void scheduleMsg(Logging *logging, const char *fmt, ...) {
-	if (logging == NULL) {
-		warning(CUSTOM_ERR_LOGGING_NULL, "logging NULL");
-		return;
-	}
-	int wasLocked = lockAnyContext();
-	resetLogging(logging); // todo: is 'reset' really needed here?
-	appendMsgPrefix(logging);
-
-	va_list ap;
-	va_start(ap, fmt);
-	vappendPrintf(logging, fmt, ap);
-	va_end(ap);
-
-	appendMsgPostfix(logging);
-	scheduleLogging(logging);
-	if (!wasLocked) {
-		unlockAnyContext();
-	}
 }
 
 uint32_t remainingSize(Logging *logging) {
@@ -303,7 +293,7 @@ Logging::Logging() {
 Logging::Logging(char const *name, char *buffer, int bufferSize) {
 	baseConstructor();
 #if ! EFI_UNIT_TEST
-	initLoggingExt(this, name, buffer, bufferSize);
+	initLoggingExt(name, buffer, bufferSize);
 #endif /* ! EFI_UNIT_TEST */
 }
 

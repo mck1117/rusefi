@@ -2,10 +2,10 @@
  * @file	framework.cpp
  *
  * @date Sep 25, 2014
- * @author Andrey Belomutskiy, (c) 2012-2014
+ * @author Andrey Belomutskiy, (c) 2012-2018
  */
 
-#include "main.h"
+#include "global.h"
 #include "framework.h"
 
 efitick_t getTimeNowNt(void) {

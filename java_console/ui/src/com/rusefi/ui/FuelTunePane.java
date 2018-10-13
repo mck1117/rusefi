@@ -11,7 +11,7 @@ import com.rusefi.FileLog;
 import com.rusefi.UploadChanges;
 import com.rusefi.autotune.FuelAutoTune;
 import com.rusefi.autotune.Result;
-import com.rusefi.autotune.stDataOnline;
+import com.rusefi.autotune.AfrDataPoint;
 import com.rusefi.binaryprotocol.BinaryProtocol;
 import com.rusefi.binaryprotocol.BinaryProtocolHolder;
 import com.rusefi.config.Fields;
@@ -32,7 +32,7 @@ import java.util.Date;
 import java.util.List;
 
 /**
- * (c) Andrey Belomutskiy 2013-2017
+ * (c) Andrey Belomutskiy 2013-2018
  * 1/9/2016
  *
  * @see FuelAutoTune
@@ -45,8 +45,8 @@ public class FuelTunePane {
 
 
     private final List<FuelDataPoint> incomingDataPoints = new ArrayList<>();
-    private final float veLoadBins[] = new float[Fields.FUEL_LOAD_COUNT];
-    private final float veRpmBins[] = new float[Fields.FUEL_RPM_COUNT];
+    private final double veLoadBins[] = new double[Fields.FUEL_LOAD_COUNT];
+    private final double veRpmBins[] = new double[Fields.FUEL_RPM_COUNT];
     private final Table3D veTable = new Table3D();
     private final Table3D changeMap = new Table3D();
     private final JButton upload = new JButton("Upload");
@@ -189,11 +189,11 @@ public class FuelTunePane {
     }
 
     private void doJob() {
-        float veTable[][] = new float[Fields.FUEL_LOAD_COUNT][Fields.FUEL_RPM_COUNT];
+        double veTable[][] = new double[Fields.FUEL_LOAD_COUNT][Fields.FUEL_RPM_COUNT];
         loadMap(veTable, Fields.VETABLE.getOffset());
         logMap("source", veTable);
 
-        List<stDataOnline> data = new ArrayList<>();
+        List<AfrDataPoint> data = new ArrayList<>();
         synchronized (incomingDataPoints) {
             for (FuelDataPoint point : incomingDataPoints)
                 data.add(point.asDataOnline());
@@ -204,7 +204,7 @@ public class FuelTunePane {
         // todo: move this away from AWT thread
         Result a = FuelAutoTune.INSTANCE.process(false, data, 0.1, 14.7, veTable);
 
-        float[][] result = a.getKgbcRES();
+        double[][] result = a.getKgbcRES();
         logMap("result", result);
         newVeMap = toByteArray(result);
 
@@ -212,22 +212,22 @@ public class FuelTunePane {
         upload.setEnabled(true);
     }
 
-    private void writeDataPoints(List<stDataOnline> data) {
+    private void writeDataPoints(List<AfrDataPoint> data) {
         DataOutputStream dos = getTuneLogStream();
         if (dos == null)
             return;
         try {
             dos.writeBytes("Running with " + data.size() + " points\r\n");
-            dos.writeBytes("AFR\tRPM\tload\r\n");
-            for (stDataOnline point : data)
-                dos.writeBytes(point.AFR  +"\t" + point.getRpm() + "\t" + point.getEngineLoad() + "\r\n");
+            dos.writeBytes("afr\tRPM\tload\r\n");
+            for (AfrDataPoint point : data)
+                dos.writeBytes(point.getAfr() +"\t" + point.getRpm() + "\t" + point.getEngineLoad() + "\r\n");
 
         } catch (IOException e) {
             FileLog.MAIN.logLine("Error writing auto-tune log");
         }
     }
 
-    private void logMap(String msg, float[][] table) {
+    private void logMap(String msg, double[][] table) {
         DataOutputStream dos = getTuneLogStream();
         if (dos == null)
             return;
@@ -236,16 +236,16 @@ public class FuelTunePane {
 
             for (int rpmIndex = 0; rpmIndex < Fields.FUEL_RPM_COUNT; rpmIndex++) {
                 dos.writeChar('\t');
-                dos.writeBytes(Float.toString(veRpmBins[rpmIndex]));
+                dos.writeBytes(Double.toString(veRpmBins[rpmIndex]));
             }
             dos.writeBytes("\r\n");
 
             for (int loadIndex = 0; loadIndex < Fields.FUEL_LOAD_COUNT; loadIndex++) {
-                dos.writeBytes(Float.toString(veLoadBins[loadIndex]));
+                dos.writeBytes(Double.toString(veLoadBins[loadIndex]));
                 for (int rpmIndex = 0; rpmIndex < Fields.FUEL_RPM_COUNT; rpmIndex++) {
                     dos.writeChar('\t');
-                    float v = table[loadIndex][rpmIndex];
-                    dos.writeBytes(Float.toString(v));
+                    double v = table[loadIndex][rpmIndex];
+                    dos.writeBytes(Double.toString(v));
                 }
                 dos.writeBytes("\r\n");
             }
@@ -267,12 +267,12 @@ public class FuelTunePane {
         return dos;
     }
 
-    private byte[] toByteArray(float[][] output) {
+    private byte[] toByteArray(double[][] output) {
         try {
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             for (int loadIndex = 0; loadIndex < Fields.FUEL_LOAD_COUNT; loadIndex++) {
                 for (int rpmIndex = 0; rpmIndex < Fields.FUEL_RPM_COUNT; rpmIndex++) {
-                    byte[] b4 = RomAttributeParser.floatToByte(output[loadIndex][rpmIndex], Settings.ENDIAN_BIG);
+                    byte[] b4 = RomAttributeParser.floatToByte((float)output[loadIndex][rpmIndex], Settings.ENDIAN_BIG);
                     baos.write(b4);
                 }
             }
@@ -323,13 +323,13 @@ public class FuelTunePane {
         return content;
     }
 
-    private void loadMap(float[][] map, int offset) {
+    private void loadMap(double[][] map, int offset) {
         for (int engineLoadIndex = 0; engineLoadIndex < map.length; engineLoadIndex++) {
             loadArray(map[engineLoadIndex], offset + engineLoadIndex * 4 * Fields.FUEL_RPM_COUNT);
         }
     }
 
-    private void loadArray(float[] array, int offset) {
+    private void loadArray(double[] array, int offset) {
         BinaryProtocol bp = BinaryProtocolHolder.getInstance().get();
         if (bp == null) {
             FileLog.MAIN.logLine("bp not ready");
@@ -360,8 +360,8 @@ public class FuelTunePane {
             engineLoadIndex = Math.max(0, BinarySearch.binarySearch(engineLoad, veLoadBins));
         }
 
-        public stDataOnline asDataOnline() {
-            return new stDataOnline(afr, rpmIndex, engineLoadIndex, rpm, engineLoad);
+        public AfrDataPoint asDataOnline() {
+            return new AfrDataPoint(afr, rpmIndex, engineLoadIndex, rpm, engineLoad);
         }
     }
 }

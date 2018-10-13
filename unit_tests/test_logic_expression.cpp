@@ -4,10 +4,10 @@
  * https://sourceforge.net/p/rusefi/tickets/102/
  *
  * @date Oct 3, 2014
- * @author Andrey Belomutskiy, (c) 2012-2014
+ * @author Andrey Belomutskiy, (c) 2012-2018
  */
 
-#include "main.h"
+#include "global.h"
 #include "test_logic_expression.h"
 #include "fsio_impl.h"
 #include "cli_registry.h"

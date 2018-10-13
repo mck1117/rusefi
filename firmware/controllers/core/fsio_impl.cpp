@@ -9,7 +9,7 @@
  * @author Andrey Belomutskiy, (c) 2012-2018
  */
 
-#include "main.h"
+#include "global.h"
 
 #if EFI_FSIO || defined(__DOXYGEN__)
 
@@ -25,6 +25,8 @@
 #define NO_PWM 0
 
 
+// see useFSIO15ForIdleRpmAdjustment
+#define MAGIC_OFFSET_FOR_IDLE_TARGET_RPM 14
 // see useFSIO16ForTimingAdjustment
 #define MAGIC_OFFSET_FOR_TIMING_FSIO 15
 
@@ -52,7 +54,8 @@ static LENameOrdinalPair leFanOffSetting(LE_METHOD_FAN_OFF_SETTING, "fan_off_set
 static LENameOrdinalPair leTimeSinceBoot(LE_METHOD_TIME_SINCE_BOOT, "time_since_boot");
 static LENameOrdinalPair leFsioSetting(LE_METHOD_FSIO_SETTING, "fsio_setting");
 static LENameOrdinalPair leFsioTable(LE_METHOD_FSIO_TABLE, "fsio_table");
-static LENameOrdinalPair leFsioAnalogInput(LE_METHOD_FSIO_ANALOG_INPUT, "fsio_input");
+static LENameOrdinalPair leFsioAnalogInput(LE_METHOD_FSIO_ANALOG_INPUT, "fsio_analog_input");
+static LENameOrdinalPair leFsioDigitalInput(LE_METHOD_FSIO_DIGITAL_INPUT, "fsio_digital_input");
 static LENameOrdinalPair leKnock(LE_METHOD_KNOCK, "knock");
 static LENameOrdinalPair leIntakeVVT(LE_METHOD_INTAKE_VVT, "ivvt");
 static LENameOrdinalPair leExhaustVVT(LE_METHOD_EXHAUST_VVT, "evvt");
@@ -94,7 +97,7 @@ EXTERN_ENGINE
 static Logging *logger;
 
 float getEngineValue(le_action_e action DECLARE_ENGINE_PARAMETER_SUFFIX) {
-	efiAssert(engine!=NULL, "getLEValue", NAN);
+	efiAssert(CUSTOM_ERR_ASSERT, engine!=NULL, "getLEValue", NAN);
 	switch (action) {
 	case LE_METHOD_FAN:
 		return enginePins.fanRelay.getLogicValue();
@@ -144,7 +147,25 @@ float getEngineValue(le_action_e action DECLARE_ENGINE_PARAMETER_SUFFIX) {
 // todo: that's about bench test mode, wrong header for sure!
 #include "injector_central.h"
 
-static void setFsioInputPin(const char *indexStr, const char *pinName) {
+static void setFsioAnalogInputPin(const char *indexStr, const char *pinName) {
+// todo: reduce code duplication between all "set pin methods"
+	int index = atoi(indexStr) - 1;
+	if (index < 0 || index >= FSIO_COMMAND_COUNT) {
+		scheduleMsg(logger, "invalid FSIO index: %d", index);
+		return;
+	}
+	brain_pin_e pin = parseBrainPin(pinName);
+	// todo: extract method - code duplication with other 'set_xxx_pin' methods?
+	if (pin == GPIO_INVALID) {
+		scheduleMsg(logger, "invalid pin name [%s]", pinName);
+		return;
+	}
+	engineConfiguration->fsioAdc[index] = (adc_channel_e) pin;
+	scheduleMsg(logger, "FSIO analog input pin #%d [%s]", (index + 1), hwPortname(pin));
+}
+
+static void setFsioDigitalInputPin(const char *indexStr, const char *pinName) {
+	// todo: reduce code duplication between all "set pin methods"
 	int index = atoi(indexStr) - 1;
 	if (index < 0 || index >= FSIO_COMMAND_COUNT) {
 		scheduleMsg(logger, "invalid FSIO index: %d", index);
@@ -157,7 +178,7 @@ static void setFsioInputPin(const char *indexStr, const char *pinName) {
 		return;
 	}
 	boardConfiguration->fsioDigitalInputs[index] = pin;
-	scheduleMsg(logger, "FSIO input pin #%d [%s]", (index + 1), hwPortname(pin));
+	scheduleMsg(logger, "FSIO digital input pin #%d [%s]", (index + 1), hwPortname(pin));
 }
 
 static void setFsioPidOutputPin(const char *indexStr, const char *pinName) {
@@ -192,6 +213,7 @@ static void setFsioOutputPin(const char *indexStr, const char *pinName) {
 	}
 	boardConfiguration->fsioOutputPins[index] = pin;
 	scheduleMsg(logger, "FSIO output pin #%d [%s]", (index + 1), hwPortname(pin));
+	scheduleMsg(logger, "please writeconfig and reboot for pin to take effect");
 	showFsioInfo();
 }
 #endif /* EFI_PROD_CODE */
@@ -436,6 +458,16 @@ void runFsio(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	if (boardConfiguration->fanPin != GPIO_UNASSIGNED) {
 		setPinState("fan", &enginePins.fanRelay, radiatorFanLogic);
 	}
+
+	if (engineConfiguration->useFSIO15ForIdleRpmAdjustment) {
+		LEElement * element = fsioLogics[MAGIC_OFFSET_FOR_IDLE_TARGET_RPM];
+		if (element == NULL) {
+			warning(CUSTOM_FSIO_INVALID_EXPRESSION, "invalid expression for %s", "RPM targer");
+		} else {
+			engine->fsioIdleTargetRPMAdjustment = calc.getValue2(engine->fsioIdleTargetRPMAdjustment, element PASS_ENGINE_PARAMETER_SUFFIX);
+		}
+
+	}
 	if (engineConfiguration->useFSIO16ForTimingAdjustment) {
 		LEElement * element = fsioLogics[MAGIC_OFFSET_FOR_TIMING_FSIO];
 
@@ -622,7 +654,8 @@ void initFsioImpl(Logging *sharedLogger DECLARE_ENGINE_PARAMETER_SUFFIX) {
 	addConsoleActionSS("set_fsio_pid_output_pin", (VoidCharPtrCharPtr) setFsioPidOutputPin);
 	addConsoleActionSS("set_fsio_output_pin", (VoidCharPtrCharPtr) setFsioOutputPin);
 	addConsoleActionII("set_fsio_output_frequency", (VoidIntInt) setFsioFrequency);
-	addConsoleActionSS("set_fsio_input_pin", (VoidCharPtrCharPtr) setFsioInputPin);
+	addConsoleActionSS("set_fsio_digital_input_pin", (VoidCharPtrCharPtr) setFsioDigitalInputPin);
+	addConsoleActionSS("set_fsio_analog_input_pin", (VoidCharPtrCharPtr) setFsioAnalogInputPin);
 
 #endif /* EFI_PROD_CODE */
 

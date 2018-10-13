@@ -6,7 +6,7 @@
  * @author Andrey Belomutskiy, (c) 2012-2018
  */
 
-#include "main.h"
+#include "global.h"
 
 #if EFI_MCP_3208 || defined(__DOXYGEN__)
 #include "mcp3208.h"
@@ -68,7 +68,7 @@ MCP3208_CS_PIN,
 		};
 
 static void createRequest(McpAdcState *state, int channel) {
-	efiAssertVoid(channel < 8, "Invalid ADC channel");
+	efiAssertVoid(CUSTOM_ERR_6680, channel < 8, "Invalid ADC channel");
 
 	state->requestedChannel = channel;
 

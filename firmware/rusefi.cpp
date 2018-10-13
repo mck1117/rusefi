@@ -104,13 +104,12 @@
  *
  */
 
-#include "main.h"
+#include "global.h"
 #include "trigger_structure.h"
 #include "hardware.h"
 #include "engine_controller.h"
 #include "efiGpio.h"
 
-#include "global.h"
 #include "rfi_perftest.h"
 #include "rusefi.h"
 #include "memstreams.h"
@@ -162,7 +161,7 @@ static void scheduleReboot(void) {
 }
 
 void runRusEfi(void) {
-	efiAssertVoid(getRemainingStack(chThdGetSelfX()) > 512, "init s");
+	efiAssertVoid(CUSTOM_RM_STACK_1, getRemainingStack(chThdGetSelfX()) > 512, "init s");
 	assertEngineReference();
 	initIntermediateLoggingBuffer();
 	initErrorHandling();
@@ -234,7 +233,7 @@ void runRusEfi(void) {
 	 * control is around main_trigger_callback
 	 */
 	while (true) {
-		efiAssertVoid(getRemainingStack(chThdGetSelfX()) > 128, "stack#1");
+		efiAssertVoid(CUSTOM_RM_STACK, getRemainingStack(chThdGetSelfX()) > 128, "stack#1");
 
 #if (EFI_CLI_SUPPORT && !EFI_UART_ECHO_TEST_MODE) || defined(__DOXYGEN__)
 		// sensor state + all pending messages for our own dev console

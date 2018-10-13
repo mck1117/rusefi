@@ -89,7 +89,7 @@
 
 #define	CJ125_DIAG_NORM					0xFF // no errors
 
-#define	CJ125_IDENT						0x60
+#define	CJ125_IDENT						0x60 // 96
 #define	CJ125_IDENT_MASK 				0xF8
 
 #define CJ125_CALIBRATION_DELAY 		1000 	// 1 sec
@@ -133,6 +133,9 @@
 #define CJ125_PID_LSU42_P				(80.0f / 16.0f * 5.0f / 1024.0f)
 #define CJ125_PID_LSU42_I				(25.0f / 16.0f * 5.0f / 1024.0f)
 
+#define CJ125_PID_LSU49_P               (8.0f)
+#define CJ125_PID_LSU49_I               (0.003f)
+
 // Returned if there's no valid measurement
 #define CJ125_AFR_NAN					0.0f
 
@@ -149,9 +152,11 @@ typedef enum {
 } cj125_state_e;
 
 typedef enum {
-	CJ125_ERROR_NONE,
-	CJ125_ERROR_HEATER_MALFUNCTION,
-	CJ125_ERROR_OVERHEAT,
+	CJ125_ERROR_NONE = 0,
+	CJ125_ERROR_HEATER_MALFUNCTION = 1,
+	CJ125_ERROR_OVERHEAT = 2,
+	CJ125_ERROR_WRONG_IDENT = 3,
+	CJ125_ERROR_WRONG_INIT = 4,
 
 } cj125_error_e;
 
@@ -173,5 +178,6 @@ void initCJ125(Logging *shared);
 void cjPostState(TunerStudioOutputChannels *tsOutputChannels);
 float cjGetAfr(DECLARE_ENGINE_PARAMETER_SIGNATURE);
 bool cjHasAfrSensor(DECLARE_ENGINE_PARAMETER_SIGNATURE);
+void cj125defaultPinout();
 
 #endif /* HW_LAYER_SENSORS_CJ125_H_ */

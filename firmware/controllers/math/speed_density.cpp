@@ -7,7 +7,7 @@
  * @author Andrey Belomutskiy, (c) 2012-2018
  */
 
-#include "main.h"
+#include "global.h"
 #include "speed_density.h"
 #include "interpolation.h"
 #include "rpm_calculator.h"
@@ -41,6 +41,9 @@ static float tChargeMathK(float airTempC, float coolantTempC, float charge_xfer_
  */
 #define GAS_R 0.28705
 
+/**
+ * @return air mass in grams
+ */
 float getCycleAirMass(engine_configuration_s *engineConfiguration, float VE, float MAP, float tempK) {
 	// todo: pre-calculate cylinder displacement to save one division
 	float cylinderDisplacement = engineConfiguration->specs.displacement;
@@ -80,7 +83,7 @@ float sdChargeTemp = 0;
  */
 floatms_t getSpeedDensityFuel(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	float map = getMap();
-	efiAssert(!cisnan(map), "NaN map", 0);
+	efiAssert(CUSTOM_ERR_ASSERT, !cisnan(map), "NaN map", 0);
 
 	float adjustedMap = map + engine->engineLoadAccelEnrichment.getEngineLoadEnrichment(PASS_ENGINE_PARAMETER_SIGNATURE);
 	efiAssert(!cisnan(adjustedMap), "NaN adjustedMap", 0);

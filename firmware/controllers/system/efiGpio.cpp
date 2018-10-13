@@ -6,7 +6,7 @@
  * @author Andrey Belomutskiy, (c) 2012-2018
  */
 
-#include "main.h"
+#include "global.h"
 #include "engine.h"
 #include "efiGpio.h"
 
@@ -210,18 +210,10 @@ void NamedOutputPin::setHigh() {
 	// turn the output level ACTIVE
 	setValue(true);
 
-	// sleep for the needed duration
 #if EFI_ENGINE_SNIFFER || defined(__DOXYGEN__)
-	// explicit check here is a performance optimization to speed up no-chart mode
-	if (ENGINE(isEngineChartEnabled)) {
-		// this is a performance optimization - array index is cheaper then invoking a method with 'switch'
-		const char *pinName = name;
-//	dbgDurr = hal_lld_get_counter_value() - dbgStart;
 
-		addEngineSniffferEvent(pinName, WC_UP);
-	}
+	addEngineSnifferEvent(name, WC_UP);
 #endif /* EFI_ENGINE_SNIFFER */
-//	dbgDurr = hal_lld_get_counter_value() - dbgStart;
 }
 
 void NamedOutputPin::setLow() {
@@ -235,12 +227,7 @@ void NamedOutputPin::setLow() {
 #endif /* EFI_DEFAILED_LOGGING */
 
 #if EFI_ENGINE_SNIFFER || defined(__DOXYGEN__)
-	if (ENGINE(isEngineChartEnabled)) {
-		// this is a performance optimization - array index is cheaper then invoking a method with 'switch'
-		const char *pinName = name;
-
-		addEngineSniffferEvent(pinName, WC_DOWN);
-	}
+	addEngineSnifferEvent(name, WC_DOWN);
 #endif /* EFI_ENGINE_SNIFFER */
 }
 
@@ -301,9 +288,9 @@ void OutputPin::toggle() {
 void OutputPin::setValue(int logicValue) {
 #if EFI_PROD_CODE
 	if (port != GPIO_NULL) {
-		efiAssertVoid(modePtr!=NULL, "pin mode not initialized");
+		efiAssertVoid(CUSTOM_ERR_6621, modePtr!=NULL, "pin mode not initialized");
 		pin_output_mode_e mode = *modePtr;
-		efiAssertVoid(mode <= OM_OPENDRAIN_INVERTED, "invalid pin_output_mode_e");
+		efiAssertVoid(CUSTOM_ERR_6622, mode <= OM_OPENDRAIN_INVERTED, "invalid pin_output_mode_e");
 		int eValue = getElectricalValue(logicValue, mode);
 		setPinValue(this, eValue, logicValue);
 	}

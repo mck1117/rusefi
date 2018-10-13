@@ -21,11 +21,13 @@
  */
 
 #include "event_registry.h"
-#include "main.h"
+#include "global.h"
 #include "engine_math.h"
 
 InjectionEvent::InjectionEvent() {
 	isSimultanious = false;
+	isOverlapping = false;
+	ownIndex = 0;
 	memset(outputs, 0, sizeof(outputs));
 }
 

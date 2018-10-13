@@ -6,7 +6,7 @@
  * @author Andrey Belomutskiy, (c) 2012-2018
  */
 
-#include "main.h"
+#include "global.h"
 #include "settings.h"
 #include "eficonsole.h"
 #include "engine_configuration.h"
@@ -1162,6 +1162,7 @@ command_f_s commandsF[] = {{"mock_iat_voltage", setMockIatVoltage},
 		{"idle_d", setIdleDFactor},
 		{"etb_p", setEtbPFactor},
 		{"etb_i", setEtbIFactor},
+		{"etb_d", setEtbDFactor},
 #endif /* EFI_PROD_CODE */
 
 		//		{"", },

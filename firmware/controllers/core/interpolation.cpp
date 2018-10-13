@@ -2,17 +2,15 @@
  * @file    interpolation.cpp
  * @brief	Linear interpolation algorithms
  *
+ * See test_interpolation_3d.cpp
+ *
+ *
  * @date Oct 17, 2013
  * @author Andrey Belomutskiy, (c) 2012-2018
  * @author Dmitry Sidin, (c) 2015
  */
 
-#include "main.h"
-#if DEBUG_FUEL
-#include <stdio.h>
-#endif
-
-#include <math.h>
+#include "global.h"
 
 #include "efilib2.h"
 #include "interpolation.h"
@@ -100,7 +98,7 @@ float FastInterpolation::getValue(float x) {
  * @param	y2 value of the second point
  * @param	X key to be interpolated
  *
- * @note	For example, "interpolate(engineConfiguration.tpsMin, 0, engineConfiguration.tpsMax, 100, adc);"
+ * @note	For example, "interpolateMsg("", engineConfiguration.tpsMin, 0, engineConfiguration.tpsMax, 100, adc);"
  */
 float interpolateMsg(const char *msg, float x1, float y1, float x2, float y2, float x) {
 	// todo: double comparison using EPS
@@ -114,7 +112,7 @@ float interpolateMsg(const char *msg, float x1, float y1, float x2, float y2, fl
 
 	// a*x1 + b = y1
 	// a*x2 + b = y2
-//	efiAssertVoid(x1 != x2, "no way we can interpolate");
+//	efiAssertVoid(CUSTOM_ERR_ASSERT_VOID, x1 != x2, "no way we can interpolate");
 	float a = INTERPOLATION_A(x1, y1, x2, y2);
 	float b = y1 - a * x1;
 	float result = a * x + b;
@@ -123,10 +121,6 @@ float interpolateMsg(const char *msg, float x1, float y1, float x2, float y2, fl
 	printf("a=%.2f b=%.2f result=%.2f\r\n", a, b, result);
 #endif
 	return result;
-}
-
-float interpolate(float x1, float y1, float x2, float y2, float x) {
-	return interpolateMsg("", x1, y1, x2, y2, x);
 }
 
 float interpolateClamped(float x1, float y1, float x2, float y2, float x) {
@@ -144,15 +138,15 @@ float interpolateClamped(float x1, float y1, float x2, float y2, float x) {
  * Another implementation, which one is faster?
  */
 int findIndex2(const float array[], unsigned size, float value) {
-	efiAssert(!cisnan(value), "NaN in findIndex2", 0);
-	efiAssert(size > 1, "size in findIndex", 0);
+	efiAssert(CUSTOM_ERR_ASSERT, !cisnan(value), "NaN in findIndex2", 0);
+	efiAssert(CUSTOM_ERR_ASSERT, size > 1, "size in findIndex", 0);
 //	if (size <= 1)
 //		return size && *array <= value ? 0 : -1;
 
 	signed i = 0;
 	//unsigned b = 1 << int(log(float(size) - 1) / 0.69314718055994530942);
 	unsigned b = size >> 1; // in our case size is always a power of 2
-	efiAssert(b + b == size, "Size not power of 2", -1);
+	efiAssert(CUSTOM_ERR_ASSERT, b + b == size, "Size not power of 2", -1);
 	for (; b; b >>= 1) {
 		unsigned j = i | b;
 		/**
@@ -160,7 +154,7 @@ int findIndex2(const float array[], unsigned size, float value) {
 		 * "if (j < size && array[j] <= value)"
 		 * but in our case size is always power of 2 thus size is always more then j
 		 */
-		// efiAssert(j < size, "size", 0);
+		// efiAssert(CUSTOM_ERR_ASSERT, j < size, "size", 0);
 		if (array[j] <= value)
 			i = j;
 	}
@@ -203,7 +197,7 @@ int findIndexMsg(const char *msg, const float array[], int size, float value) {
 #if 0
 		// that's an assertion to make sure we do not loop here
 		size--;
-		efiAssert(size > 0, "Unexpected state in binary search", 0);
+		efiAssert(CUSTOM_ERR_ASSERT, size > 0, "Unexpected state in binary search", 0);
 #endif
 
 		// todo: compare current implementation with
@@ -218,9 +212,9 @@ int findIndexMsg(const char *msg, const float array[], int size, float value) {
 
 		if (middle != 0 && array[middle - 1] > array[middle]) {
 #if EFI_UNIT_TEST || defined(__DOXYGEN__)
-			firmwareError(CUSTOM_ERR_6147, "%s: out of order %.2f %.2f", msg, array[middle - 1], array[middle]);
+			firmwareError(CUSTOM_ERR_6610, "%s: out of order %.2f %.2f", msg, array[middle - 1], array[middle]);
 #else
-			warning(CUSTOM_ERR_6147, "%s: out of order %.2f %.2f", msg, array[middle - 1], array[middle]);
+			warning(CUSTOM_ERR_OUT_OF_ORDER, "%s: out of order %.2f %.2f", msg, array[middle - 1], array[middle]);
 
 #endif /* EFI_UNIT_TEST */
 		}

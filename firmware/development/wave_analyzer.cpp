@@ -11,7 +11,7 @@
  * @author Andrey Belomutskiy, (c) 2012-2018
  */
 
-#include "main.h"
+#include "global.h"
 #include "wave_analyzer.h"
 #include "eficonsole.h"
 #include "data_buffer.h"
@@ -51,7 +51,7 @@ static THD_WORKING_AREA(waThreadStack, UTILITY_THREAD_STACK_SIZE);
 static Logging * logger;
 
 static void ensureInitialized(WaveReader *reader) {
-	efiAssertVoid(reader->hw->started, "wave analyzer NOT INITIALIZED");
+	efiAssertVoid(CUSTOM_ERR_6654, reader->hw->started, "wave analyzer NOT INITIALIZED");
 }
 
 #if EFI_WAVE_ANALYZER || defined(__DOXYGEN__)
@@ -60,7 +60,8 @@ static void waAnaWidthCallback(WaveReader *reader) {
 	efitick_t nowUs = getTimeNowUs();
 	reader->riseEventCounter++;
 	reader->lastActivityTimeUs = nowUs;
-	addEngineSniffferEvent(reader->name, WC_UP);
+	assertIsrContext(CUSTOM_ERR_6670);
+	addEngineSnifferEvent(reader->name, WC_UP);
 
 	uint32_t width = nowUs - reader->periodEventTimeUs;
 	reader->last_wave_low_widthUs = width;
@@ -73,7 +74,8 @@ void WaveReader::onFallEvent() {
 	efitick_t nowUs = getTimeNowUs();
 	fallEventCounter++;
 	lastActivityTimeUs = nowUs;
-	addEngineSniffferEvent(name, WC_DOWN);
+	assertIsrContext(CUSTOM_ERR_6670);
+	addEngineSnifferEvent(name, WC_DOWN);
 
 	efitick_t width = nowUs - widthEventTimeUs;
 	last_wave_high_widthUs = width;
@@ -120,7 +122,7 @@ static void initWave(const char *name, int index) {
 	bool mode = boardConfiguration->logicAnalyzerMode[index];
 
 	waveReaderCount++;
-	efiAssertVoid(index < MAX_ICU_COUNT, "too many ICUs");
+	efiAssertVoid(CUSTOM_ERR_6655, index < MAX_ICU_COUNT, "too many ICUs");
 	WaveReader *reader = &readers[index];
 	reader->name = name;
 
@@ -245,7 +247,7 @@ static void reportWave(Logging *logging, int index) {
 
 			appendPrintf(logging, "advance%d%s", index, DELIMETER);
 			float angle = (offsetUs / oneDegreeUs) - tdcPosition();
-			fixAngle(angle, "waveAn");
+			fixAngle(angle, "waveAn", CUSTOM_ERR_6564);
 			appendFloat(logging, angle, 3);
 			appendPrintf(logging, "%s", DELIMETER);
 		}

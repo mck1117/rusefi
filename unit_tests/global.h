@@ -1,6 +1,8 @@
 /*
  * @file	global.h
  *
+ * Global header file for unit tests
+ *
  * @date Nov 28, 2013
  * @author Andrey Belomutskiy, (c) 2012-2017
  */
@@ -10,12 +12,39 @@
 
 #define DEFAULT_ENGINE_TYPE CUSTOM_ENGINE
 
-#include <time.h>
-#include <string.h>
 #include <stdbool.h>
+#include <stdio.h>
+#include <time.h>
 
-#include "efitime.h"
-#include "auto_generated_enums.h"
+#include "common_headers.h"
+
+#include "boards.h"
+
+#ifdef __cplusplus
+
+
+extern "C"
+{
+#endif
+
+#define CH_FREQUENCY 1000
+
+typedef int bool_t;
+typedef uint32_t systime_t;
+
+void chDbgAssert(int c, char *msg, void *arg);
+
+void print(const char *fmt, ...);
+
+#define TICKS_IN_MS 100
+
+#define chDbgCheck(x, y) chDbgAssert(x, y, NULL)
+
+#ifdef __cplusplus
+}
+#endif
+
+
 
 #define US_TO_NT_MULTIPLIER 100
 
@@ -49,12 +78,22 @@ class Engine;
 #define PASS_ENGINE_PARAMETER_SIGNATURE engine, engineConfiguration, config, boardConfiguration
 #define PASS_ENGINE_PARAMETER_SUFFIX , engine, engineConfiguration, config, boardConfiguration
 
-#define EXPAND_Engine engine_configuration_s *engineConfiguration = engine->engineConfiguration; \
+
+/**
+ * this macro is a work-around for uint tests to get all needed pointers only
+ * if engine is in scope
+ */
+#define EXPAND_Engine \
+	    engine_configuration_s *engineConfiguration = engine->engineConfiguration; \
 		persistent_config_s *config = engine->config; \
 		board_configuration_s *boardConfiguration = &engineConfiguration->bc;
 
 
-#define EXPAND_EngineTestHelper Engine *engine = &eth.engine; \
+/**
+ * this macro provides references to engine from EngineTestHelper
+ */
+#define EXPAND_EngineTestHelper \
+	    Engine *engine = &eth.engine; \
 		EXPAND_Engine
 
 #define CONFIG(x) engineConfiguration->x

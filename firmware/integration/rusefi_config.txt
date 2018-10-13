@@ -89,6 +89,7 @@ struct_no_prefix engine_configuration_s
 #define CRANKING_CURVE_SIZE 8
 
 #define IGN_LOAD_COUNT 16
+#define IGN_TPS_COUNT 16
 #define IGN_RPM_COUNT 16
 
 #define INJECTION_PIN_COUNT 12
@@ -132,6 +133,7 @@ custom baro_corr_table_t 64 array,   F32,   @OFFSET@, [@@BARO_CORR_SIZE@@x@@BARO
 
 ! please note that 1024 here is 4 * IGN_LOAD_COUNT * IGN_RPM_COUNT  
 custom ignition_table_t	1024 array,   F32,   @OFFSET@, [16x16],"deg",	   1,     0,     -20, 90,    2
+custom ignition_tps_table_t	512 array,   S16,   @OFFSET@, [16x16],"deg",	   0.01,     0,     -20, 90,    2
 
 custom angle_table_t	1024 array,   F32,   @OFFSET@, [16x16],"deg",	   1,     0,     -720,  720,    2
 
@@ -151,7 +153,7 @@ float baseFuel;+Fuel squirt duration while cranking\nA number of curves adjust t
 int16_t rpm;+Cranking mode threshold. Special cranking logic controls fuel and spark while RPM is below this threshold\nset cranking_rpm X;"RPM",      1,     0,    0, 3000,      0
 end_struct
 
-#define debug_mode_e_enum "Alternator_PID", "TPS accel enrich", "Warmup PID", "IDLE", "EL accl enrich", "Trigger Counters", "FSIO_ADC", "AUX_PID_1", "VVT PID", "Cranking", "Timing", "Closed-loop fuel corr PID", "VSS", "SD card", "sr5", "Knock", "Trigger Sync", "Electronic Throttle", "Executor", "Bench Test", "Aux Valves", "ADC", "INSTANT_RPM", "FSIO_EXPRESSION", "Status", "CJ125", "CAN", "MAP", "mode28", "mode29"
+#define debug_mode_e_enum "Alternator_PID", "TPS accel enrich", "Warmup PID", "IDLE", "EL accl enrich", "Trigger Counters", "FSIO_ADC", "AUX_PID_1", "VVT input", "Cranking", "Timing", "Closed-loop fuel corr PID", "VSS", "SD card", "sr5", "Knock", "Trigger Sync", "Electronic Throttle", "Executor", "Bench Test", "Aux Valves", "ADC", "INSTANT_RPM", "FSIO_EXPRESSION", "Status", "CJ125", "CAN", "MAP", "mode28", "mode29"
 custom debug_mode_e 4 bits,    U32,   @OFFSET@, [0:4], @@debug_mode_e_enum@@
 
 #define vvt_mode_e_enum "First half", "Second half", "2GZ", "Miata NB2", "mode4", "mode5", "mode6", "mode7"
@@ -255,8 +257,8 @@ bit isVerboseAuxPid3;
 bit activateAuxPid4;
 bit isVerboseAuxPid4;
 bit useBiQuadAnalogFiltering;
-bit issue_294_10;
-bit issue_294_11;
+bit cj125isUaDivided;
+bit cj125isLsu49;
 bit issue_294_12;
 bit issue_294_13;
 bit issue_294_14;
@@ -279,8 +281,8 @@ bit issue_294_29;
 int16_t tpsMin;Closed throttle. todo: extract these two fields into a structure\ntodo: we need two sets of TPS parameters - modern ETBs have two sensors;"ADC",      1,     0,    0, 1023,      0
 int16_t tpsMax;Full throtle. tpsMax value as 10 bit ADC value. Not Voltage!;"ADC",      1,     0,    0, 1023,      0
 
-int16_t tpsErrorDetectionTooLow;TPS error detection, what TPS % value is unrealistically low;"%",       1,     0,    -40, 200,     0
-int16_t tpsErrorDetectionTooHigh;;"%",       1,     0,    -40, 200,     0
+int16_t tpsErrorDetectionTooLow;+TPS error detection, what TPS % value is unrealistically low;"%",       1,     0,    -40, 200,     0
+int16_t tpsErrorDetectionTooHigh;+TPS error detection, what TPS % value is unrealistically high;"%",       1,     0,    -40, 200,     0
 
 cranking_parameters_s cranking
 float primingSquirtDurationMs;;"*C",       1,     0,    -40, 200,     1
@@ -297,7 +299,7 @@ ThermistorConf iat;
 	int step1rpm;A secondary Rev limit engaged by the driver to help launch the vehicle faster;"rpm",    1,      0,       0, 20000.0,        2
 	int step1timing;;"deg",    1,      0,       -180, 180,        2
 	int hip9011PrescalerAndSDO;6=8MHz todo solit two bit fields;"integer", 1, 0.0, 0.0, 32, 0
-	float knockBandCustom;+kHz knock band override;"kHz", 1, 0.0, 0.0, 10.0, 2
+	float knockBandCustom;+We calculate knock band based of cylinderBore\n Use this to override - kHz knock band override;"kHz", 1, 0.0, 0.0, 10.0, 2
 
 
 float[DWELL_CURVE_SIZE] sparkDwellRpmBins;On single-coil or wasted spark setups you have to lower dwell at high RPM;"RPM",     1,   0.0,      0.0,  18000,   2
@@ -524,7 +526,7 @@ custom adc_channel_mode_e 4 bits,    U32,   @OFFSET@, [0:1], "Off", "Slow", "Fas
 	brain_pin_e[TRIGGER_SIMULATOR_PIN_COUNT iterate] triggerSimulatorPins;
 	pin_output_mode_e[TRIGGER_SIMULATOR_PIN_COUNT iterate] triggerSimulatorPinModes;
 
-	brain_pin_e o2heaterPin;
+	brain_pin_e o2heaterPin;Narrow band o2 heater, not used for CJ125. See wboHeaterPin
 	pin_output_mode_e o2heaterPinModeTodO;
 
 bit is_enabled_spi_1
@@ -639,7 +641,7 @@ custom le_formula_t 200 string, ASCII, @OFFSET@, 200
 board_configuration_s bc;
 bit vvtDisplayInverted
 	bit fuelClosedLoopCorrectionEnabled
-	bit isVerboseIAC
+	bit isVerboseIAC;+Print details into rusEfi console
 	bit isVerboseETB;enable verbose_etb
 	bit useConstantDwellDuringCranking 
 	bit isEngineChartEnabled;This options enables data for 'engine sniffer' tab in console, which comes at some CPU price 
@@ -664,7 +666,7 @@ bit hasFrequencyReportingMapSensor;
 	bit useFSIO10ForServo3
 	bit useFSIO11ForServo4
 	bit useFSIO12ForServo5
-bit unused_bit_1472_26;
+bit useFSIO15ForIdleRpmAdjustment;
 bit unused_bit_1472_27;
 	adc_channel_e hipOutputChannel;
 
@@ -690,7 +692,7 @@ custom idle_mode_e 4 bits,    U32,   @OFFSET@, [0:0], "Automatic", "Manual"
 bit useFixedBaroCorrFromMap
 bit useSeparateAdvanceForCranking
 bit useAdvanceCorrectionsForCranking
-bit unused_1484_bit_19
+bit useTPSAdvanceTable
 bit unused_1484_bit_20
 bit unused_1484_bit_21
 
@@ -760,8 +762,8 @@ custom pin_mode_e 4 bits,    U32,   @OFFSET@, [0:5], @@pin_mode_e_enum@@
 	int step1RpmWindow;RPMs prior to step1rpm point where ignition advance is retarded;"rpm",    1,      0,       0, 3000.0,        2
 	pid_s idleRpmPid;See cltIdleRpmBins
 	float addedToWallCoef;;"%",        1,     0,    0.0,    300.0,  2
-	brain_pin_e communicationPin;blue LED on discovery by default	
-	brain_pin_e runningPin;green LED on discovery by default
+	brain_pin_e communicationLedPin;blue LED on discovery by default	
+	brain_pin_e runningLedPin;green LED on discovery by default
 	brain_pin_e binarySerialTxPin;	
 	brain_pin_e binarySerialRxPin;	
 	brain_pin_e consoleSerialTxPin;	todo: finish pin migration from hard-coded to configurable?
@@ -801,7 +803,7 @@ custom pin_mode_e 4 bits,    U32,   @OFFSET@, [0:5], @@pin_mode_e_enum@@
 
 
 	brain_pin_e fatalErrorPin;RED led on Discovery by default. TODO: start using this property
-	brain_pin_e warninigPin;TODO: start using this property
+	brain_pin_e warninigLedPin;TODO: start using this property
 	brain_pin_e configResetPin;
 	uint32_t uartConsoleSerialSpeed;;"BPs",      1,      0,       0,1000000,      0
 	float tpsDecelEnleanmentThreshold;;"roc",        1,     0,    0, 200,     3
@@ -860,11 +862,11 @@ float[MAP_ACCEL_TAPER] mapAccelTaperMult;;"mult",      1,     0,   0.0,    300, 
 	pid_s fuelClosedLoopPid;
 	float fuelClosedLoopAfrHighThreshold;;"ratio",        1,     0,  0,    100,  1
 	pin_mode_e stepperEnablePinMode;
-	adc_channel_e cj125ua;lampda input
+	adc_channel_e cj125ua;lambda input
 	adc_channel_e cj125ur;heater input
 	
 	custom cfg_float_t_1f 4 scalar,  F32,   @OFFSET@, 		"Val",	   1,	   0,       -20000000, 20000000,	  1
-	cfg_float_t_1f[IGNITION_PIN_COUNT iterate] timing_offset_cylinder;
+	cfg_float_t_1f[IGNITION_PIN_COUNT iterate] timing_offset_cylinder;per-cylinder timing correction
 
 	pin_input_mode_e brakePedalPinMode;
 	float idlePidActivationTime;;"seconds",        1,     0,  0,    60,  1
@@ -908,8 +910,21 @@ float[CRANKING_ADVANCE_CURVE_SIZE] crankingAdvance    ;Optional timing advance t
 	
 float[CLT_CURVE_SIZE] iacCoastingBins;CLT-based idle position for coasting (used in Auto-PID Idle mode);"C",        1,     0,   -100.0,    250.0,  2
 float[CLT_CURVE_SIZE] iacCoasting;    CLT-based idle position for coasting (used in Auto-PID Idle mode);"%",      1,     0,      0.0,    100.0,   2
+
+ignition_tps_table_t ignitionTpsTable;
+float[IGN_TPS_COUNT] ignitionTpsBins;;"TPS",   1,   0.0,        0,  100.0,   2
+
+float tChargeAirCoefMin;;"Min tCharge Coeff.",        1,     0,  0.0,    1.0,  4
+float tChargeAirCoefMax;;"Max tCharge Coeff.",        1,     0,  0.0,    1.0,  4
+float tChargeAirFlowMax;;"Max Air Flow, kg/h",        1,     0,  0.0,    1000.0,  1
+float tChargeAirIncrLimit;;"tChange Increment Limit, deg/sec",        1,     0,  0.0,    100.0,  1
+float tChargeAirDecrLimit;;"tChange Decrement Limit, deg/sec",        1,     0,  0.0,    100.0,  1
+
+#define tChargeMode_e_enum "RPM+TPS (Default)", "Air Mass Interpolation"
+custom tChargeMode_e 4 bits,    U32,   @OFFSET@, [0:0], @@tChargeMode_e_enum@@
+tChargeMode_e tChargeMode;
 	
-	int[741] unusedEnd;
+	int[591] unusedEnd;
 	
 
 end_struct

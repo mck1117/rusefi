@@ -8,7 +8,6 @@
 #define H_ENGINE_H_
 
 #include "global.h"
-#include "main.h"
 #include "pid.h"
 #include "engine_configuration.h"
 #include "rpm_calculator.h"
@@ -44,7 +43,7 @@ public:
 	 * this method schedules all fuel events for an engine cycle
 	 */
 	void addFuelEvents(DECLARE_ENGINE_PARAMETER_SIGNATURE);
-	bool addFuelEventsForCylinder(int i DECLARE_ENGINE_PARAMETER_SUFFIX);
+	bool addFuelEventsForCylinder(int cylinderIndex DECLARE_ENGINE_PARAMETER_SUFFIX);
 
 	InjectionEvent elements[MAX_INJECTION_OUTPUT_COUNT];
 	bool isReady;
@@ -131,6 +130,7 @@ public:
 	EngineState();
 	void periodicFastCallback(DECLARE_ENGINE_PARAMETER_SIGNATURE);
 	void updateSlowSensors(DECLARE_ENGINE_PARAMETER_SIGNATURE);
+	void updateTChargeK(int rpm, float tps DECLARE_ENGINE_PARAMETER_SUFFIX);
 
 	FuelConsumptionState fuelConsumption;
 
@@ -142,9 +142,13 @@ public:
 	efitimesec_t timeOfPreviousWarning;
 
 	/**
-	 * speed-density logic, calculated air mass in gramms
+	 * speed-density logic, calculated air mass in grams
 	 */
 	float airMass;
+	/**
+	 * speed-density logic, calculated air flow in kg/h for tCharge Air-Interp. method
+	 */
+	float airFlow;
 
 	float engineNoiseHipLevel;
 
@@ -166,6 +170,7 @@ public:
 
 	/**
 	 * ignition dwell duration as crankshaft angle
+	 * NAN if engine is stopped
 	 */
 	angle_t dwellAngle;
 
@@ -194,7 +199,10 @@ public:
 	float baroCorrection;
 
 	// speed density
-	float tChargeK;
+	// Rate-of-change limiter is applied to degrees, so we store both Kelvin and degrees.
+	float tCharge, tChargeK;
+	efitick_t timeSinceLastTChargeK;
+
 	float currentVE;
 	float targetAFR;
 
@@ -379,6 +387,7 @@ public:
 	bool isRunningPwmTest;
 
 	float fsioTimingAdjustment;
+	float fsioIdleTargetRPMAdjustment;
 
 	float servoValues[SERVO_COUNT];
 
@@ -412,9 +421,8 @@ public:
 	/**
 	 * pre-calculated offset for given sequence index within engine cycle
 	 * (not cylinder ID)
-	 * todo: better name?
 	 */
-	angle_t angleExtra[IGNITION_PIN_COUNT];
+	angle_t ignitionPositionWithinEngineCycle[IGNITION_PIN_COUNT];
 	/**
 	 * pre-calculated reference to which output pin should be used for
 	 * given sequence index within engine cycle

@@ -2,16 +2,13 @@
  * @file main.cpp
  * @file First step towards unit-testing rusEfi algorithms
  *
- * @author Andrey Belomutskiy (c) 2012-2014
+ * @author Andrey Belomutskiy (c) 2012-2018
  */
 
-#include <stdio.h>
+
 #include <stdlib.h>
-#include <math.h>
 
-
-#include "main.h"
-#include "error_handling.h"
+#include "global.h"
 #include "test_accel_enrichment.h"
 #include "test_interpolation_3d.h"
 #include "test_find_index.h"

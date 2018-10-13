@@ -11,7 +11,7 @@
  * @author Andrey Belomutskiy, (c) 2012-2018
  */
 
-#include "main.h"
+#include "global.h"
 #include "microsecond_timer.h"
 #include "scheduler.h"
 #include "rfiutil.h"
@@ -64,15 +64,19 @@ void setHardwareUsTimer(int32_t timeUs) {
 	}
 	if (timeUs < 2)
 		timeUs = 2; // for some reason '1' does not really work
-	efiAssertVoid(timeUs > 0, "not positive timeUs");
+	efiAssertVoid(CUSTOM_ERR_6681, timeUs > 0, "not positive timeUs");
 	if (timeUs >= 10 * US_PER_SECOND) {
 		firmwareError(CUSTOM_ERR_TIMER_OVERFLOW, "setHardwareUsTimer() too long: %d", timeUs);
 		return;
 	}
 
-	if (GPTDEVICE.state == GPT_ONESHOT)
+	if (GPTDEVICE.state == GPT_ONESHOT) {
 		gptStopTimerI(&GPTDEVICE);
-	efiAssertVoid(GPTDEVICE.state == GPT_READY, "hw timer");
+	}
+	if (GPTDEVICE.state != GPT_READY) {
+		firmwareError(CUSTOM_HW_TIMER, "HW timer state %d", GPTDEVICE.state);
+		return;
+	}
 	if (hasFirmwareError())
 		return;
 	gptStartOneShotI(&GPTDEVICE, timeUs);
@@ -119,7 +123,7 @@ static void usTimerWatchDog(void) {
 
 	msg = isTimerPending ? "No_cb too long" : "Timer not awhile";
 	// 2 seconds of inactivity would not look right
-	efiAssertVoid(getTimeNowNt() < lastSetTimerTimeNt + 2 * CORE_CLOCK, msg);
+	efiAssertVoid(CUSTOM_ERR_6682, getTimeNowNt() < lastSetTimerTimeNt + 2 * CORE_CLOCK, msg);
 
 }
 

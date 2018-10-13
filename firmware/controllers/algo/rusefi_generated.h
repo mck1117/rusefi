@@ -37,6 +37,7 @@
 #define DWELL_CURVE_SIZE 8
 #define CRANKING_CURVE_SIZE 8
 #define IGN_LOAD_COUNT 16
+#define IGN_TPS_COUNT 16
 #define IGN_RPM_COUNT 16
 #define INJECTION_PIN_COUNT 12
 #define IGNITION_PIN_COUNT 12
@@ -56,7 +57,7 @@
 #define MAP_ACCEL_TAPER 8
 #define BARO_CORR_SIZE 4
 #define MAF_DECODING_COUNT 256
-#define debug_mode_e_enum "Alternator_PID", "TPS accel enrich", "Warmup PID", "IDLE", "EL accl enrich", "Trigger Counters", "FSIO_ADC", "AUX_PID_1", "VVT PID", "Cranking", "Timing", "Closed-loop fuel corr PID", "VSS", "SD card", "sr5", "Knock", "Trigger Sync", "Electronic Throttle", "Executor", "Bench Test", "Aux Valves", "ADC", "INSTANT_RPM", "FSIO_EXPRESSION", "Status", "CJ125", "CAN", "MAP", "mode28", "mode29"
+#define debug_mode_e_enum "Alternator_PID", "TPS accel enrich", "Warmup PID", "IDLE", "EL accl enrich", "Trigger Counters", "FSIO_ADC", "AUX_PID_1", "VVT input", "Cranking", "Timing", "Closed-loop fuel corr PID", "VSS", "SD card", "sr5", "Knock", "Trigger Sync", "Electronic Throttle", "Executor", "Bench Test", "Aux Valves", "ADC", "INSTANT_RPM", "FSIO_EXPRESSION", "Status", "CJ125", "CAN", "MAP", "mode28", "mode29"
 #define vvt_mode_e_enum "First half", "Second half", "2GZ", "Miata NB2", "mode4", "mode5", "mode6", "mode7"
 #define mass_storage_e_enum "Auto", "Always", "Never"
 #define brain_input_pin_e_enum "INVALID", "PA1", "PA2", "PA3", "INVALID", "PA5", "PA6", "PA7", "PA8", "PA9", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "PA15", "INVALID", "INVALID", "INVALID", "PB3", "PB4", "PB5", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "PC6", "PC7", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "PE5", "PE6", "INVALID", "INVALID", "PE9", "INVALID", "PE11", "INVALID", "INVALID", "INVALID", "INVALID", "NONE", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID"
@@ -68,6 +69,7 @@
 #define sensor_chart_e_enum "none", "trigger", "MAP", "RPM ACCEL", "DETAILED RPM", "INVALID"
 #define ego_sensor_e_enum "BPSX", "Innovate", "14Point7", "Narrow", "PLX", "Custom"
 #define pin_mode_e_enum "default", "INVALID", "INVALID", "INVALID", "opendrain", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "mode12", "mode13", "mode14", "mode15", "mode16", "mode17", "mode18", "mode19", "mode20", "mode21", "mode22", "mode23", "mode24", "mode25", "mode26", "mode27", "mode28", "mode29", "mode30", "mode31", "PULLUP", "mode33", "mode34", "mode35"
+#define tChargeMode_e_enum "RPM+TPS (Default)", "Air Mass Interpolation"
 #define engineConfiguration_offset 0
 #define engineConfiguration_offset_hex 0
 #define engineType_offset 0
@@ -102,10 +104,10 @@
 #define isVerboseAuxPid4_offset_hex 4c
 #define useBiQuadAnalogFiltering_offset 76
 #define useBiQuadAnalogFiltering_offset_hex 4c
-#define issue_294_10_offset 76
-#define issue_294_10_offset_hex 4c
-#define issue_294_11_offset 76
-#define issue_294_11_offset_hex 4c
+#define cj125isUaDivided_offset 76
+#define cj125isUaDivided_offset_hex 4c
+#define cj125isLsu49_offset 76
+#define cj125isLsu49_offset_hex 4c
 #define issue_294_12_offset 76
 #define issue_294_12_offset_hex 4c
 #define issue_294_13_offset 76
@@ -918,8 +920,8 @@
 #define useFSIO11ForServo4_offset_hex 5c0
 #define useFSIO12ForServo5_offset 1472
 #define useFSIO12ForServo5_offset_hex 5c0
-#define unused_bit_1472_26_offset 1472
-#define unused_bit_1472_26_offset_hex 5c0
+#define useFSIO15ForIdleRpmAdjustment_offset 1472
+#define useFSIO15ForIdleRpmAdjustment_offset_hex 5c0
 #define unused_bit_1472_27_offset 1472
 #define unused_bit_1472_27_offset_hex 5c0
 #define hipOutputChannel_offset 1476
@@ -964,8 +966,8 @@
 #define useSeparateAdvanceForCranking_offset_hex 5cc
 #define useAdvanceCorrectionsForCranking_offset 1484
 #define useAdvanceCorrectionsForCranking_offset_hex 5cc
-#define unused_1484_bit_19_offset 1484
-#define unused_1484_bit_19_offset_hex 5cc
+#define useTPSAdvanceTable_offset 1484
+#define useTPSAdvanceTable_offset_hex 5cc
 #define unused_1484_bit_20_offset 1484
 #define unused_1484_bit_20_offset_hex 5cc
 #define unused_1484_bit_21_offset 1484
@@ -1136,10 +1138,10 @@
 #define idleRpmPid_maxValue_offset_hex 76e
 #define addedToWallCoef_offset 1904
 #define addedToWallCoef_offset_hex 770
-#define communicationPin_offset 1908
-#define communicationPin_offset_hex 774
-#define runningPin_offset 1912
-#define runningPin_offset_hex 778
+#define communicationLedPin_offset 1908
+#define communicationLedPin_offset_hex 774
+#define runningLedPin_offset 1912
+#define runningLedPin_offset_hex 778
 #define binarySerialTxPin_offset 1916
 #define binarySerialTxPin_offset_hex 77c
 #define binarySerialRxPin_offset 1920
@@ -1196,8 +1198,8 @@
 #define engineLoadAccelEnrichmentMultiplier_offset_hex 88c
 #define fatalErrorPin_offset 2192
 #define fatalErrorPin_offset_hex 890
-#define warninigPin_offset 2196
-#define warninigPin_offset_hex 894
+#define warninigLedPin_offset 2196
+#define warninigLedPin_offset_hex 894
 #define configResetPin_offset 2200
 #define configResetPin_offset_hex 898
 #define uartConsoleSerialSpeed_offset 2204
@@ -1568,8 +1570,24 @@
 #define iacCoastingBins_offset_hex d3c
 #define iacCoasting_offset 3452
 #define iacCoasting_offset_hex d7c
-#define unusedEnd_offset 3516
-#define unusedEnd_offset_hex dbc
+#define ignitionTpsTable_offset 3516
+#define ignitionTpsTable_offset_hex dbc
+#define ignitionTpsBins_offset 4028
+#define ignitionTpsBins_offset_hex fbc
+#define tChargeAirCoefMin_offset 4092
+#define tChargeAirCoefMin_offset_hex ffc
+#define tChargeAirCoefMax_offset 4096
+#define tChargeAirCoefMax_offset_hex 1000
+#define tChargeAirFlowMax_offset 4100
+#define tChargeAirFlowMax_offset_hex 1004
+#define tChargeAirIncrLimit_offset 4104
+#define tChargeAirIncrLimit_offset_hex 1008
+#define tChargeAirDecrLimit_offset 4108
+#define tChargeAirDecrLimit_offset_hex 100c
+#define tChargeMode_offset 4112
+#define tChargeMode_offset_hex 1010
+#define unusedEnd_offset 4116
+#define unusedEnd_offset_hex 1014
 #define cltCrankingCorrBins_offset 6480
 #define cltCrankingCorrBins_offset_hex 1950
 #define cltCrankingCorr_offset 6512

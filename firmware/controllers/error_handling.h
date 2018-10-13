@@ -15,7 +15,6 @@ extern "C"
 
 #include "global.h"
 #include "obd_error_codes.h"
-#include "efifeatures.h"
 #include "stdbool.h"
 #include "rusefi_types.h"
 
@@ -55,11 +54,11 @@ int getRusEfiVersion(void);
  * is stopped. Please use firmwareWarning() instead
  */
 #if EFI_ENABLE_ASSERTS
-  #define efiAssert(condition, message, result) { if (!(condition)) { firmwareError(CUSTOM_ERR_ASSERT, message); return result; } }
-  #define efiAssertVoid(condition, message) { if (!(condition)) { firmwareError(CUSTOM_ERR_ASSERT_VOID, message); return; } }
+  #define efiAssert(code, condition, message, result) { if (!(condition)) { firmwareError(code, message); return result; } }
+  #define efiAssertVoid(code, condition, message) { if (!(condition)) { firmwareError(code, message); return; } }
 #else /* EFI_ENABLE_ASSERTS */
-  #define efiAssert(condition, message, result) { }
-  #define efiAssertVoid(condition, message) { }
+  #define efiAssert(code, condition, message, result) { }
+  #define efiAssertVoid(code, condition, message) { }
 #endif /* EFI_ENABLE_ASSERTS */
 
 #ifdef __cplusplus

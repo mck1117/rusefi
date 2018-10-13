@@ -9,7 +9,7 @@
 #ifndef FL_STACK_H_
 #define FL_STACK_H_
 
-#include "main.h"
+#include "global.h"
 #include "error_handling.h"
 
 template<typename T, int MAXSIZE>
@@ -79,7 +79,7 @@ T FLStack<T, MAXSIZE>::pop() {
  */
 template<typename T, int MAXSIZE>
 T FLStack<T, MAXSIZE>::get(int index) {
-	efiAssert(index >= 0 && index < MAXSIZE, "FLget", values[0]);
+	efiAssert(CUSTOM_ERR_ASSERT, index >= 0 && index < MAXSIZE, "FLget", values[0]);
 	return values[index];
 }
 
@@ -107,7 +107,7 @@ ArrayList<Type, Dimention>::ArrayList(void) {
 
 template<class Type, int Dimention>
 void ArrayList<Type, Dimention>::removeAt(int index) {
-	efiAssertVoid(index < size, "index greater then size");
+	efiAssertVoid(CUSTOM_ERR_6572, index < size, "index greater then size");
 	memcpy(&elements[index], &elements[size - 1], sizeof(Type));
 	memset(&elements[size - 1], 0, sizeof(Type));
 	size--;
@@ -120,7 +120,7 @@ void ArrayList<Type, Dimention>::reset(void) {
 
 template<class Type, int Dimention>
 Type * ArrayList<Type, Dimention>::add(void) {
-	efiAssert(size < Dimention, "add() too many elements", (Type *)NULL);
+	efiAssert(CUSTOM_ERR_ASSERT, size < Dimention, "add() too many elements", (Type *)NULL);
 	return &elements[size++];
 }
 

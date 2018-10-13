@@ -10,7 +10,7 @@
  * @author Andrey Belomutskiy, (c) 2012-2018
  */
 
-#include "main.h"
+#include "global.h"
 #include "rpm_calculator.h"
 
 #if EFI_SHAFT_POSITION_INPUT || defined(__DOXYGEN__)
@@ -244,7 +244,7 @@ void rpmShaftPositionCallback(trigger_event_e ckpSignalType,
 		uint32_t index DECLARE_ENGINE_PARAMETER_SUFFIX) {
 	efitick_t nowNt = getTimeNowNt();
 #if EFI_PROD_CODE
-	efiAssertVoid(getRemainingStack(chThdGetSelfX()) > 256, "lowstckRCL");
+	efiAssertVoid(CUSTOM_ERR_6632, getRemainingStack(chThdGetSelfX()) > 256, "lowstckRCL");
 #endif
 
 	RpmCalculator *rpmState = &engine->rpmCalculator;
@@ -311,7 +311,7 @@ static char rpmBuffer[_MAX_FILLER];
  */
 static void onTdcCallback(void) {
 	itoa10(rpmBuffer, getRpmE(engine));
-	addEngineSniffferEvent(TOP_DEAD_CENTER_MESSAGE, (char* ) rpmBuffer);
+	addEngineSnifferEvent(TOP_DEAD_CENTER_MESSAGE, (char* ) rpmBuffer);
 }
 
 /**
@@ -324,7 +324,7 @@ static void tdcMarkCallback(trigger_event_e ckpSignalType,
 	if (isTriggerSynchronizationPoint && ENGINE(isEngineChartEnabled)) {
 		int revIndex2 = engine->rpmCalculator.getRevolutionCounter() % 2;
 		int rpm = ENGINE(rpmCalculator.getRpm(PASS_ENGINE_PARAMETER_SIGNATURE));
-		// todo: use event-based scheduling, not just time-based scheduling
+		// todo: use tooth event-based scheduling, not just time-based scheduling
 		if (isValidRpm(rpm)) {
 			scheduleByAngle(rpm, &tdcScheduler[revIndex2], tdcPosition(),
 					(schfunc_t) onTdcCallback, NULL, &engine->rpmCalculator);
@@ -362,8 +362,6 @@ void initRpmCalculator(Logging *sharedLogger, Engine *engine) {
 	}
 #if (EFI_PROD_CODE || EFI_SIMULATOR) || defined(__DOXYGEN__)
 
-//	tdcScheduler[0].name = "tdc0";
-//	tdcScheduler[1].name = "tdc1";
 	addTriggerEventListener(tdcMarkCallback, "chart TDC mark", engine);
 #endif
 
@@ -378,10 +376,10 @@ void initRpmCalculator(Logging *sharedLogger, Engine *engine) {
  */
 void scheduleByAngle(int rpm, scheduling_s *timer, angle_t angle,
 		schfunc_t callback, void *param, RpmCalculator *calc) {
-	efiAssertVoid(!cisnan(angle), "NaN angle?");
-	efiAssertVoid(isValidRpm(rpm), "RPM check expected");
+	efiAssertVoid(CUSTOM_ANGLE_NAN, !cisnan(angle), "NaN angle?");
+	efiAssertVoid(CUSTOM_ERR_6634, isValidRpm(rpm), "RPM check expected");
 	float delayUs = calc->oneDegreeUs * angle;
-	efiAssertVoid(!cisnan(delayUs), "NaN delay?");
+	efiAssertVoid(CUSTOM_ERR_6635, !cisnan(delayUs), "NaN delay?");
 	scheduleForLater(timer, (int) delayUs, callback, param);
 }
 #endif

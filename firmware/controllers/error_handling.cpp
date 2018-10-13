@@ -5,11 +5,9 @@
  * @author Andrey Belomutskiy, (c) 2012-2018
  */
 
-#include "main.h"
-#include "error_handling.h"
+#include "engine.h"
 #include "io_pins.h"
 #include "efilib2.h"
-#include "engine.h"
 
 #if EFI_SIMULATOR || EFI_PROD_CODE
 //todo: move into simulator global
@@ -102,11 +100,11 @@ static void printWarning(const char *fmt, va_list ap) {
 	resetLogging(&logger); // todo: is 'reset' really needed here?
 	appendMsgPrefix(&logger);
 
-	append(&logger, WARNING_PREFIX);
+	logger.append(WARNING_PREFIX);
 
 	printToStream(&warningStream, fmt, ap);
 
-	append(&logger, warningBuffer);
+	logger.append(warningBuffer);
 	append(&logger, DELIMETER);
 	scheduleLogging(&logger);
 }

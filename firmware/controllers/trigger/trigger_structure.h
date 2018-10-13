@@ -8,7 +8,7 @@
 #ifndef TRIGGER_STRUCTURE_H_
 #define TRIGGER_STRUCTURE_H_
 
-#include "main.h"
+#include "global.h"
 
 #include "rusefi_enums.h"
 #include "EfiWave.h"
@@ -227,8 +227,6 @@ private:
 	angle_t getCycleDuration() const;
 	void calculateTriggerSynchPoint(TriggerState *state DECLARE_ENGINE_PARAMETER_SUFFIX);
 };
-
-void setVwConfiguration(TriggerShape *s DECLARE_ENGINE_PARAMETER_SUFFIX);
 
 void setToothedWheelConfiguration(TriggerShape *s, int total, int skipped, operation_mode_e operationMode DECLARE_ENGINE_PARAMETER_SUFFIX);
 

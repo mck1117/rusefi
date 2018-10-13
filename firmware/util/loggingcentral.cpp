@@ -5,7 +5,7 @@
  * @author Andrey Belomutskiy, (c) 2012-2018
  */
 
-#include "main.h"
+#include "global.h"
 #include "efilib.h"
 
 #if ! EFI_UNIT_TEST || defined(__DOXYGEN__)
@@ -41,6 +41,7 @@ static char * outputBuffer;
  * of logging content
  */
 void scheduleLogging(Logging *logging) {
+#if EFI_TEXT_LOGGING || defined(__DOXYGEN__)
 	// this could be done without locking
 	int newLength = efiStrlen(logging->buffer);
 
@@ -63,6 +64,7 @@ void scheduleLogging(Logging *logging) {
 		unlockOutputBuffer();
 	}
 	resetLogging(logging);
+#endif /* EFI_TEXT_LOGGING */
 }
 
 /**
@@ -112,12 +114,14 @@ char * swapOutputBuffers(int *actualOutputBufferSize) {
  * actual data to console in order to avoid concurrent access to serial hardware.
  */
 void printPending(void) {
+#if EFI_TEXT_LOGGING || defined(__DOXYGEN__)
 	int actualOutputBufferSize;
 	char *output = swapOutputBuffers(&actualOutputBufferSize);
 
 	if (actualOutputBufferSize > 0) {
 		printWithLength(output);
 	}
+#endif /* EFI_TEXT_LOGGING */
 }
 
 void initLoggingCentral(void) {
@@ -127,5 +131,33 @@ void initLoggingCentral(void) {
 	outputBuffer = pendingBuffers1;
 	accumulatedSize = 0;
 }
+
+/**
+ * this whole method is executed under syslock so that we can have multiple threads use the same shared buffer
+ * in order to reduce memory usage
+ */
+void scheduleMsg(Logging *logging, const char *fmt, ...) {
+#if EFI_TEXT_LOGGING || defined(__DOXYGEN__)
+	if (logging == NULL) {
+		warning(CUSTOM_ERR_LOGGING_NULL, "logging NULL");
+		return;
+	}
+	int wasLocked = lockAnyContext();
+	resetLogging(logging); // todo: is 'reset' really needed here?
+	appendMsgPrefix(logging);
+
+	va_list ap;
+	va_start(ap, fmt);
+	logging->vappendPrintf(fmt, ap);
+	va_end(ap);
+
+	appendMsgPostfix(logging);
+	scheduleLogging(logging);
+	if (!wasLocked) {
+		unlockAnyContext();
+	}
+#endif /* EFI_TEXT_LOGGING */
+}
+
 
 #endif /* EFI_UNIT_TEST */

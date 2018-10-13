@@ -10,14 +10,14 @@
 #define IO_PINS_H_
 
 #include "rusefi_enums.h"
-#include "main.h"
+#include "global.h"
 
 #define INITIAL_PIN_STATE -1
 #define GPIO_NULL NULL
 
 // mode >= 0  is always true since that's an unsigned
 #define assertOMode(mode) { \
-	efiAssertVoid(mode <= OM_OPENDRAIN_INVERTED, "invalid pin_output_mode_e"); \
+	efiAssertVoid(CUSTOM_ERR_6578, mode <= OM_OPENDRAIN_INVERTED, "invalid pin_output_mode_e"); \
  }
 
 

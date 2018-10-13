@@ -24,7 +24,7 @@
  *
  */
 
-#include "main.h"
+#include "global.h"
 #include "status_loop.h"
 
 #include "adc_inputs.h"
@@ -94,6 +94,8 @@ extern TunerStudioOutputChannels tsOutputChannels;
 
 extern bool hasFirmwareErrorFlag;
 extern tunerstudio_counters_s tsState;
+extern int maxTriggerReentraint;
+extern uint32_t maxLockedDuration;
 #define FULL_LOGGING_KEY "fl"
 
 static char LOGGING_BUFFER[1800] CCM_OPTIONAL;
@@ -112,9 +114,9 @@ static Logging fileLogger("file logger", FILE_LOGGER, sizeof(FILE_LOGGER));
 static int logFileLineIndex = 0;
 #define TAB "\t"
 
-static void reportSensorF(Logging *log, bool fileFormat, const char *caption, const char *units, float value,
+static void reportSensorF(Logging *log, bool isLogFileFormatting, const char *caption, const char *units, float value,
 		int precision) {
-	if (!fileFormat) {
+	if (!isLogFileFormatting) {
 #if (EFI_PROD_CODE || EFI_SIMULATOR) || defined(__DOXYGEN__)
 		debugFloat(log, caption, value, precision);
 #endif /* EFI_PROD_CODE || EFI_SIMULATOR */
@@ -506,7 +508,7 @@ static void showFuelInfo2(float rpm, float engineLoad) {
 	scheduleMsg(&logger2, "algo=%s/pump=%s", getEngine_load_mode_e(engineConfiguration->fuelAlgorithm),
 			boolToString(enginePins.fuelPumpRelay.getLogicValue()));
 
-	scheduleMsg(&logger2, "injection phase=%.2f/global fuel correction=%.2f", getinjectionOffset(rpm), engineConfiguration->globalFuelCorrection);
+	scheduleMsg(&logger2, "injection phase=%.2f/global fuel correction=%.2f", getInjectionOffset(rpm), engineConfiguration->globalFuelCorrection);
 
 	scheduleMsg(&logger2, "baro correction=%.2f", engine->engineState.baroCorrection);
 
@@ -544,18 +546,18 @@ static THD_WORKING_AREA(lcdThreadStack, UTILITY_THREAD_STACK_SIZE);
  */
 static THD_WORKING_AREA(blinkingStack, 128);
 
-static OutputPin *leds[] = { &enginePins.warningPin, &enginePins.runningPin, &enginePins.checkEnginePin,
-		&enginePins.errorLedPin, &enginePins.communicationPin, &enginePins.checkEnginePin };
+static OutputPin *leds[] = { &enginePins.warningLedPin, &enginePins.runningLedPin, &enginePins.checkEnginePin,
+		&enginePins.errorLedPin, &enginePins.communicationLedPin, &enginePins.checkEnginePin };
 
 static void initStatusLeds(void) {
-	enginePins.communicationPin.initPin("led: comm status", engineConfiguration->communicationPin);
+	enginePins.communicationLedPin.initPin("led: comm status", engineConfiguration->communicationLedPin);
 	// we initialize this here so that we can blink it on start-up
 	enginePins.checkEnginePin.initPin("MalfunctionIndicator", boardConfiguration->malfunctionIndicatorPin, &boardConfiguration->malfunctionIndicatorPinMode);
 
 
 #if EFI_WARNING_LED || defined(__DOXYGEN__)
-	enginePins.warningPin.initPin("led: warning status", LED_WARNING_BRAIN_PIN);
-	enginePins.runningPin.initPin("led: running status", engineConfiguration->runningPin);
+	enginePins.warningLedPin.initPin("led: warning status", LED_WARNING_BRAIN_PIN);
+	enginePins.runningLedPin.initPin("led: running status", engineConfiguration->runningLedPin);
 #endif /* EFI_WARNING_LED */
 }
 
@@ -619,16 +621,16 @@ static void blinkingThread(void *arg) {
 #endif
 
 		if (!hasFirmwareError() && !hasFirmwareErrorFlag) {
-			enginePins.communicationPin.setValue(0);
+			enginePins.communicationLedPin.setValue(0);
 		}
-		enginePins.warningPin.setValue(0);
+		enginePins.warningLedPin.setValue(0);
 		chThdSleepMilliseconds(delayMs);
 
-		enginePins.communicationPin.setValue(1);
+		enginePins.communicationLedPin.setValue(1);
 #if EFI_ENGINE_CONTROL || defined(__DOXYGEN__)
 		if (isTriggerErrorNow() || isIgnitionTimingError() || consoleByteArrived) {
 			consoleByteArrived = false;
-			enginePins.warningPin.setValue(1);
+			enginePins.warningLedPin.setValue(1);
 		}
 #endif
 		chThdSleepMilliseconds(delayMs);
@@ -653,7 +655,7 @@ static void lcdThread(void *arg) {
 
 #if EFI_HIP_9011 || defined(__DOXYGEN__)
 extern int correctResponsesCount;
-extern int invalidResponsesCount;
+extern int invalidHip9011ResponsesCount;
 #endif /* EFI_HIP_9011 */
 
 #if EFI_TUNER_STUDIO || defined(__DOXYGEN__)
@@ -687,8 +689,11 @@ void updateTunerStudioState(TunerStudioOutputChannels *tsOutputChannels DECLARE_
 	tsOutputChannels->intakeAirTemperature = intake;
 	tsOutputChannels->throttlePositon = tps;
 	tsOutputChannels->massAirFlowVoltage = hasMafSensor() ? getMaf(PASS_ENGINE_PARAMETER_SIGNATURE) : 0;
-    tsOutputChannels->massAirFlow = hasMafSensor() ? getRealMaf(PASS_ENGINE_PARAMETER_SIGNATURE) : 0;
+	// For air-interpolated tCharge mode, we calculate a decent massAirFlow approximation, so we can show it to users even without MAF sensor!
+    tsOutputChannels->massAirFlow = hasMafSensor() ? getRealMaf(PASS_ENGINE_PARAMETER_SIGNATURE) : engine->engineState.airFlow;
     tsOutputChannels->oilPressure = engine->sensors.oilPressure;
+
+    tsOutputChannels->injectionOffset = engine->engineState.injectionOffset;
 
     tsOutputChannels->accelerationX = engine->sensors.accelerometer.x;
     tsOutputChannels->accelerationY = engine->sensors.accelerometer.y;
@@ -737,11 +742,20 @@ void updateTunerStudioState(TunerStudioOutputChannels *tsOutputChannels DECLARE_
 
 	tsOutputChannels->isWarnNow = isWarningNow(now, true);
 	tsOutputChannels->isCltBroken = engine->isCltBroken;
+#if EFI_HIP_9011 || defined(__DOXYGEN__)
+	tsOutputChannels->isKnockChipOk = (invalidHip9011ResponsesCount == 0);
+#endif /* EFI_HIP_9011 */
 
 	switch (engineConfiguration->debugMode)	{
 	case DBG_STATUS:
 		tsOutputChannels->debugFloatField1 = getTimeNowSeconds();
 		tsOutputChannels->debugIntField1 = atoi(VCS_VERSION);
+		break;
+	case DBG_METRICS:
+#if EFI_CLOCK_LOCKS || defined(__DOXYGEN__)
+		tsOutputChannels->debugIntField1 = maxLockedDuration;
+		tsOutputChannels->debugIntField2 = maxTriggerReentraint;
+#endif /* EFI_CLOCK_LOCKS */
 		break;
 	case DBG_TPS_ACCEL:
 		tsOutputChannels->debugIntField1 = engine->tpsAccelEnrichment.cb.getSize();
@@ -797,7 +811,7 @@ void updateTunerStudioState(TunerStudioOutputChannels *tsOutputChannels DECLARE_
 #if EFI_HIP_9011 || defined(__DOXYGEN__)
 	case DBG_KNOCK:
 		tsOutputChannels->debugIntField1 = correctResponsesCount;
-		tsOutputChannels->debugIntField2 = invalidResponsesCount;
+		tsOutputChannels->debugIntField2 = invalidHip9011ResponsesCount;
 		break;
 #endif /* EFI_HIP_9011 */
 #if EFI_CJ125 || defined(__DOXYGEN__)
@@ -828,7 +842,7 @@ void updateTunerStudioState(TunerStudioOutputChannels *tsOutputChannels DECLARE_
 		{
 			float instantRpm = engine->triggerCentral.triggerState.instantRpm;
 			tsOutputChannels->debugFloatField1 = instantRpm;
-			tsOutputChannels->debugFloatField2 = instantRpm / engine->rpmCalculator.rpmValue;
+			tsOutputChannels->debugFloatField2 = instantRpm / GET_RPM();
 		}
 		break;
 	default:

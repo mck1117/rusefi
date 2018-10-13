@@ -20,7 +20,7 @@
  *
  */
 
-#include "main.h"
+#include "global.h"
 #include "engine_configuration.h"
 #include "fsio_impl.h"
 #include "allsensors.h"
@@ -53,8 +53,9 @@
 #include "GY6_139QMB.h"
 
 #include "mazda_miata.h"
-#include "mazda_miata_nb.h"
 #include "mazda_miata_1_6.h"
+#include "mazda_miata_na8.h"
+#include "mazda_miata_nb.h"
 #include "mazda_miata_vvt.h"
 #include "mazda_323.h"
 #include "mazda_626.h"
@@ -382,7 +383,7 @@ void prepareVoidConfiguration(engine_configuration_s *engineConfiguration) {
 
 void setDefaultBasePins(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	engineConfiguration->fatalErrorPin = GPIOD_14;
-	engineConfiguration->warninigPin = GPIOD_13;
+	engineConfiguration->warninigLedPin = GPIOD_13;
 	engineConfiguration->configResetPin = GPIOB_1;
 #if EFI_PROD_CODE || defined(__DOXYGEN__)
 	// call overrided board-specific serial configuration setup, if needed (for custom boards only)
@@ -755,6 +756,12 @@ void setDefaultConfiguration(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	engineConfiguration->tChargeMinRpmMaxTps = 0.25;
 	engineConfiguration->tChargeMaxRpmMinTps = 0.25;
 	engineConfiguration->tChargeMaxRpmMaxTps = 0.9;
+	engineConfiguration->tChargeMode = TCHARGE_MODE_RPM_TPS;
+	engineConfiguration->tChargeAirCoefMin = 0.098f;
+	engineConfiguration->tChargeAirCoefMax = 0.902f;
+	engineConfiguration->tChargeAirFlowMax = 153.6f;
+	engineConfiguration->tChargeAirIncrLimit = 1.0f;
+	engineConfiguration->tChargeAirDecrLimit = 12.5f;
 
 	engineConfiguration->noAccelAfterHardLimitPeriodSecs = 3;
 
@@ -951,8 +958,8 @@ void setDefaultConfiguration(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 
 	engineConfiguration->alternatorPwmFrequency = 300;
 
-	engineConfiguration->communicationPin = GPIOD_15; // blue LED on discovery
-	engineConfiguration->runningPin = GPIOD_12; // greeb LED on discovery
+	engineConfiguration->communicationLedPin = GPIOD_15; // blue LED on discovery
+	engineConfiguration->runningLedPin = GPIOD_12; // greeb LED on discovery
 	setDefaultBasePins(PASS_ENGINE_PARAMETER_SIGNATURE);
 	
 	setDefaultSerialParameters(PASS_ENGINE_PARAMETER_SIGNATURE);
@@ -971,6 +978,8 @@ void setDefaultConfiguration(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 
 	engineConfiguration->hip9011SpiDevice = SPI_DEVICE_2;
 	engineConfiguration->cj125SpiDevice = SPI_DEVICE_2;
+
+	engineConfiguration->cj125isUaDivided = true;
 
 	engineConfiguration->isAlternatorControlEnabled = true;
 
@@ -1132,8 +1141,10 @@ void resetConfigurationExt(Logging * logger, engine_type_e engineType DECLARE_EN
 		setZil130(PASS_ENGINE_PARAMETER_SIGNATURE);
 		break;
 	case MIATA_NA_1_6:
-	case MAZDA_MIATA_NA8:
 		setMiataNA_1_6_Configuration(PASS_ENGINE_PARAMETER_SIGNATURE);
+		break;
+	case MAZDA_MIATA_NA8:
+		setMazdaMiataNA8Configuration(PASS_ENGINE_PARAMETER_SIGNATURE);
 		break;
 	case TEST_CIVIC_4_0_BOTH:
 		setHondaCivic4_0_both(PASS_ENGINE_PARAMETER_SIGNATURE);
@@ -1301,14 +1312,14 @@ void validateConfiguration(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 
 void applyNonPersistentConfiguration(Logging * logger DECLARE_ENGINE_PARAMETER_SUFFIX) {
 #if EFI_PROD_CODE || defined(__DOXYGEN__)
-	efiAssertVoid(getRemainingStack(chThdGetSelfX()) > 256, "apply c");
+	efiAssertVoid(CUSTOM_APPLY_STACK, getRemainingStack(chThdGetSelfX()) > 256, "apply c");
 	scheduleMsg(logger, "applyNonPersistentConfiguration()");
 #endif
 
 	assertEngineReference();
 
 #if EFI_ENGINE_CONTROL || defined(__DOXYGEN__)
-	engine->triggerCentral.triggerShape.initializeTriggerShape(logger PASS_ENGINE_PARAMETER_SUFFIX);
+	TRIGGER_SHAPE(initializeTriggerShape(logger PASS_ENGINE_PARAMETER_SUFFIX));
 #endif
 
 #if EFI_FSIO || defined(__DOXYGEN__)

@@ -2,15 +2,11 @@
  * @file test_idle_controller.cpp
  *
  * @date Oct 17, 2013
- * @author Andrey Belomutskiy, (c) 2012-2014
+ * @author Andrey Belomutskiy, (c) 2012-2018
  */
 
-#include <stdio.h>
-
-#include "efitime.h"
 #include "engine_test_helper.h"
 #include "pid.h"
-
 
 void testPidController(void) {
 	print("******************************************* testPidController\r\n");

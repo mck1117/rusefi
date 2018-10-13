@@ -22,7 +22,7 @@
  */
 
 #include "sensor_chart.h"
-#include "main.h"
+#include "global.h"
 #include "engine_configuration.h"
 #include "trigger_central.h"
 #include "engine_controller.h"
@@ -104,13 +104,13 @@ static msg_t csThread(void) {
 		bool is_running = ENGINE(rpmCalculator).isRunning(PASS_ENGINE_PARAMETER_SIGNATURE);
 		if (is_running) {
 			// blinking while running
-			enginePins.runningPin.setValue(0);
+			enginePins.runningLedPin.setValue(0);
 			chThdSleepMilliseconds(50);
-			enginePins.runningPin.setValue(1);
+			enginePins.runningLedPin.setValue(1);
 			chThdSleepMilliseconds(50);
 		} else {
 			// constant on while cranking and off if engine is stopped
-			enginePins.runningPin.setValue(is_cranking);
+			enginePins.runningLedPin.setValue(is_cranking);
 			chThdSleepMilliseconds(100);
 		}
 	}
@@ -244,7 +244,7 @@ static void resetAccel(void) {
 }
 
 static void periodicSlowCallback(Engine *engine) {
-	efiAssertVoid(getRemainingStack(chThdGetSelfX()) > 64, "lowStckOnEv");
+	efiAssertVoid(CUSTOM_ERR_6661, getRemainingStack(chThdGetSelfX()) > 64, "lowStckOnEv");
 #if EFI_PROD_CODE
 	/**
 	 * We need to push current value into the 64 bit counter often enough so that we do not miss an overflow
@@ -733,5 +733,5 @@ int getRusEfiVersion(void) {
 	if (initBootloader() != 0)
 		return 123;
 #endif /* EFI_BOOTLOADER_INCLUDE_CODE */
-	return 20180401;
+	return 20180924;
 }

@@ -1,28 +1,33 @@
+/*
+ * @file global.h
+ *
+ * Global header file for win32 or posix simulator
+ *
+ * @date May 27, 2013
+ * @author Andrey Belomutskiy, (c) 2012-2017
+ */
+
+#ifndef GLOBAL_H_
+#define GLOBAL_H_
 
 #define DEFAULT_ENGINE_TYPE FORD_ESCORT_GT
 
 #include <ch.h>
 #include <hal.h>
+
+#include <stdlib.h>
 #include <time.h>
-#include <math.h>
 #include <float.h>
 
-#include "efifeatures.h"
-
-#if EFI_SIMULATOR
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#endif
-
-#include "rusefi_enums.h"
-#include "auto_generated_enums.h"
-#include "obd_error_codes.h"
-#include "error_handling.h"
+#include "common_headers.h"
 
 #include "boards.h"
-#include "efilib.h"
-#include "efitime.h"
+
+#ifdef __cplusplus
+#include "chprintf.h"
+#include "cli_registry.h"
+#include "eficonsole.h"
+#endif /* __cplusplus */
 
 #define EFI_UNIT_TEST FALSE
 
@@ -40,16 +45,11 @@
 
 #define MY_US2ST(x) ((x) / 10)
 
-#ifndef GLOBAL_FT_H_
-#define GLOBAL_FT_H_
-
 #define EFI_ERROR_CODE 0xffffffff
 
 #define DL_OUTPUT_BUFFER 9000
 
 #define CCM_OPTIONAL
-
-#include "rusefi_enums.h"
 
 #define EFI_CUSTOM_PANIC_METHOD 1
 
@@ -69,17 +69,13 @@ typedef struct {
 
 extern TestStream testStream;
 
-//##define TRUE 1
-//#define FALSE 0
-#endif /* GLOBAL_FT_H_ */
-
 #ifdef __cplusplus
 extern "C"
 {
 #endif /* __cplusplus */
 
 void printToWin32Console(char *p);
-int systicks2ms(int systicks);
+
 int getRemainingStack(thread_t *otp);
 
 // todo: move somewhere else?
@@ -114,3 +110,7 @@ void applyNewConfiguration(void);
 #define CONFIG(x) persistentState.persistentConfiguration.engineConfiguration.x
 #define ENGINE(x) engine->x
 #define TRIGGER_SHAPE(x) engine->triggerCentral.triggerShape.x
+
+#endif /* GLOBAL_H_ */
+
+

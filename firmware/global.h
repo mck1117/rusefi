@@ -1,6 +1,8 @@
 /*
  * @file global.h
  *
+ * Global header file for firmware
+ *
  * @date May 27, 2013
  * @author Andrey Belomutskiy, (c) 2012-2017
  */
@@ -16,7 +18,7 @@ extern "C"
 #include <ch.h>
 #include <hal.h>
     
-#include <string.h>
+#include <float.h>
 
 #ifndef DEFAULT_ENGINE_TYPE
 #define DEFAULT_ENGINE_TYPE CUSTOM_ENGINE
@@ -34,15 +36,17 @@ typedef unsigned int time_t;
 #define ALWAYS_INLINE INLINE
 #endif
 
-#include "efifeatures.h"
-#include "rusefi_types.h"
-#include "rusefi_enums.h"
-#if EFI_PROD_CODE
+#include "common_headers.h"
+
 #include "io_pins.h"
-#endif
-#include "auto_generated_enums.h"
-#include "obd_error_codes.h"
-#include "error_handling.h"
+
+#ifdef __cplusplus
+#include "cli_registry.h"
+
+#include "eficonsole.h"
+#endif /* __cplusplus */
+
+#include "chprintf.h"
 
 /* definition to expand macro then apply to pragma message */
 #define VALUE_TO_STRING(x) #x
@@ -131,7 +135,7 @@ typedef unsigned int time_t;
 #define ON_FATAL_ERROR() \
 		palWritePad(LED_ERROR_PORT, LED_ERROR_PIN, 1); \
 		turnAllPinsOff(); \
-		enginePins.communicationPin.setValue(1);
+		enginePins.communicationLedPin.setValue(1);
 
 /*
  * Stack debugging
@@ -142,4 +146,34 @@ int getRemainingStack(thread_t *otp);
 }
 #endif /* __cplusplus */
 
+// todo: access some existing configuration field
+#define CORE_CLOCK 168000000
+
+// 168 ticks in microsecond
+#define US_TO_NT_MULTIPLIER 168
+
+/**
+ * converts efitimeus_t to efitick_t
+ */
+#define US2NT(us) (((efitime_t)(us))*US_TO_NT_MULTIPLIER)
+
+/**
+ * converts efitick_t to efitimeus_t
+ */
+#define NT2US(nt) ((nt) / US_TO_NT_MULTIPLIER)
+
+#define Delay(ms) chThdSleepMilliseconds(ms)
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
+bool lockAnyContext(void);
+void unlockAnyContext(void);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif /* GLOBAL_H_ */
+

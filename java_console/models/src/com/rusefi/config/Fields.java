@@ -1,6 +1,6 @@
 package com.rusefi.config;
 
-// this file was generated automatically by ConfigDefinition.jar based on rusefi_config.txt Fri Jun 22 01:13:18 CDT 2018
+// this file was generated automatically by ConfigDefinition.jar based on rusefi_config.txt Fri Oct 12 22:17:49 PDT 2018
 public class Fields {
 	public static final int LE_COMMAND_LENGTH = 200;
 	public static final int BLOCKING_FACTOR = 400;
@@ -26,6 +26,7 @@ public class Fields {
 	public static final int DWELL_CURVE_SIZE = 8;
 	public static final int CRANKING_CURVE_SIZE = 8;
 	public static final int IGN_LOAD_COUNT = 16;
+	public static final int IGN_TPS_COUNT = 16;
 	public static final int IGN_RPM_COUNT = 16;
 	public static final int INJECTION_PIN_COUNT = 12;
 	public static final int IGNITION_PIN_COUNT = 12;
@@ -67,8 +68,8 @@ public class Fields {
 	public static final int activateAuxPid4_offset = 76;
 	public static final int isVerboseAuxPid4_offset = 76;
 	public static final int useBiQuadAnalogFiltering_offset = 76;
-	public static final int issue_294_10_offset = 76;
-	public static final int issue_294_11_offset = 76;
+	public static final int cj125isUaDivided_offset = 76;
+	public static final int cj125isLsu49_offset = 76;
 	public static final int issue_294_12_offset = 76;
 	public static final int issue_294_13_offset = 76;
 	public static final int issue_294_14_offset = 76;
@@ -629,7 +630,7 @@ public class Fields {
 	public static final int useFSIO10ForServo3_offset = 1472;
 	public static final int useFSIO11ForServo4_offset = 1472;
 	public static final int useFSIO12ForServo5_offset = 1472;
-	public static final int unused_bit_1472_26_offset = 1472;
+	public static final int useFSIO15ForIdleRpmAdjustment_offset = 1472;
 	public static final int unused_bit_1472_27_offset = 1472;
 	public static final int hipOutputChannel_offset = 1476;
 	public static final int idleMode_offset = 1480;
@@ -652,7 +653,7 @@ public class Fields {
 	public static final int useFixedBaroCorrFromMap_offset = 1484;
 	public static final int useSeparateAdvanceForCranking_offset = 1484;
 	public static final int useAdvanceCorrectionsForCranking_offset = 1484;
-	public static final int unused_1484_bit_19_offset = 1484;
+	public static final int useTPSAdvanceTable_offset = 1484;
 	public static final int unused_1484_bit_20_offset = 1484;
 	public static final int unused_1484_bit_21_offset = 1484;
 	public static final int engineChartSize_offset = 1488;
@@ -779,10 +780,10 @@ public class Fields {
 	public static final int idleRpmPid_maxValue_offset = 1902;
 	public static final int addedToWallCoef_offset = 1904;
 	public static final int addedToWallCoef_offset_hex = 770;
-	public static final int communicationPin_offset = 1908;
-	public static final int communicationPin_offset_hex = 774;
-	public static final int runningPin_offset = 1912;
-	public static final int runningPin_offset_hex = 778;
+	public static final int communicationLedPin_offset = 1908;
+	public static final int communicationLedPin_offset_hex = 774;
+	public static final int runningLedPin_offset = 1912;
+	public static final int runningLedPin_offset_hex = 778;
 	public static final int binarySerialTxPin_offset = 1916;
 	public static final int binarySerialRxPin_offset = 1920;
 	public static final int binarySerialRxPin_offset_hex = 780;
@@ -824,8 +825,8 @@ public class Fields {
 	public static final int engineLoadAccelEnrichmentMultiplier_offset = 2188;
 	public static final int fatalErrorPin_offset = 2192;
 	public static final int fatalErrorPin_offset_hex = 890;
-	public static final int warninigPin_offset = 2196;
-	public static final int warninigPin_offset_hex = 894;
+	public static final int warninigLedPin_offset = 2196;
+	public static final int warninigLedPin_offset_hex = 894;
 	public static final int configResetPin_offset = 2200;
 	public static final int configResetPin_offset_hex = 898;
 	public static final int uartConsoleSerialSpeed_offset = 2204;
@@ -1036,7 +1037,20 @@ public class Fields {
 	public static final int coastingFuelCutMap_offset = 3386;
 	public static final int iacCoastingBins_offset = 3388;
 	public static final int iacCoasting_offset = 3452;
-	public static final int unusedEnd_offset = 3516;
+	public static final int ignitionTpsTable_offset = 3516;
+	public static final int ignitionTpsBins_offset = 4028;
+	public static final int tChargeAirCoefMin_offset = 4092;
+	public static final int tChargeAirCoefMax_offset = 4096;
+	public static final int tChargeAirCoefMax_offset_hex = 1000;
+	public static final int tChargeAirFlowMax_offset = 4100;
+	public static final int tChargeAirFlowMax_offset_hex = 1004;
+	public static final int tChargeAirIncrLimit_offset = 4104;
+	public static final int tChargeAirIncrLimit_offset_hex = 1008;
+	public static final int tChargeAirDecrLimit_offset = 4108;
+	public static final int tChargeMode_offset = 4112;
+	public static final int tChargeMode_offset_hex = 1010;
+	public static final int unusedEnd_offset = 4116;
+	public static final int unusedEnd_offset_hex = 1014;
 	public static final int cltCrankingCorrBins_offset = 6480;
 	public static final int cltCrankingCorrBins_offset_hex = 1950;
 	public static final int cltCrankingCorr_offset = 6512;
@@ -1186,8 +1200,8 @@ public class Fields {
 	public static final Field ACTIVATEAUXPID4 = Field.create("ACTIVATEAUXPID4", 76, FieldType.BIT, 7);
 	public static final Field ISVERBOSEAUXPID4 = Field.create("ISVERBOSEAUXPID4", 76, FieldType.BIT, 8);
 	public static final Field USEBIQUADANALOGFILTERING = Field.create("USEBIQUADANALOGFILTERING", 76, FieldType.BIT, 9);
-	public static final Field ISSUE_294_10 = Field.create("ISSUE_294_10", 76, FieldType.BIT, 10);
-	public static final Field ISSUE_294_11 = Field.create("ISSUE_294_11", 76, FieldType.BIT, 11);
+	public static final Field CJ125ISUADIVIDED = Field.create("CJ125ISUADIVIDED", 76, FieldType.BIT, 10);
+	public static final Field CJ125ISLSU49 = Field.create("CJ125ISLSU49", 76, FieldType.BIT, 11);
 	public static final Field ISSUE_294_12 = Field.create("ISSUE_294_12", 76, FieldType.BIT, 12);
 	public static final Field ISSUE_294_13 = Field.create("ISSUE_294_13", 76, FieldType.BIT, 13);
 	public static final Field ISSUE_294_14 = Field.create("ISSUE_294_14", 76, FieldType.BIT, 14);
@@ -1581,7 +1595,7 @@ public class Fields {
 	public static final Field USEFSIO10FORSERVO3 = Field.create("USEFSIO10FORSERVO3", 1472, FieldType.BIT, 23);
 	public static final Field USEFSIO11FORSERVO4 = Field.create("USEFSIO11FORSERVO4", 1472, FieldType.BIT, 24);
 	public static final Field USEFSIO12FORSERVO5 = Field.create("USEFSIO12FORSERVO5", 1472, FieldType.BIT, 25);
-	public static final Field UNUSED_BIT_1472_26 = Field.create("UNUSED_BIT_1472_26", 1472, FieldType.BIT, 26);
+	public static final Field USEFSIO15FORIDLERPMADJUSTMENT = Field.create("USEFSIO15FORIDLERPMADJUSTMENT", 1472, FieldType.BIT, 26);
 	public static final Field UNUSED_BIT_1472_27 = Field.create("UNUSED_BIT_1472_27", 1472, FieldType.BIT, 27);
 	public static final Field HIPOUTPUTCHANNEL = Field.create("HIPOUTPUTCHANNEL", 1476, FieldType.INT, adc_channel_e);
 	public static final Field IDLEMODE = Field.create("IDLEMODE", 1480, FieldType.INT);
@@ -1604,7 +1618,7 @@ public class Fields {
 	public static final Field USEFIXEDBAROCORRFROMMAP = Field.create("USEFIXEDBAROCORRFROMMAP", 1484, FieldType.BIT, 16);
 	public static final Field USESEPARATEADVANCEFORCRANKING = Field.create("USESEPARATEADVANCEFORCRANKING", 1484, FieldType.BIT, 17);
 	public static final Field USEADVANCECORRECTIONSFORCRANKING = Field.create("USEADVANCECORRECTIONSFORCRANKING", 1484, FieldType.BIT, 18);
-	public static final Field UNUSED_1484_BIT_19 = Field.create("UNUSED_1484_BIT_19", 1484, FieldType.BIT, 19);
+	public static final Field USETPSADVANCETABLE = Field.create("USETPSADVANCETABLE", 1484, FieldType.BIT, 19);
 	public static final Field UNUSED_1484_BIT_20 = Field.create("UNUSED_1484_BIT_20", 1484, FieldType.BIT, 20);
 	public static final Field UNUSED_1484_BIT_21 = Field.create("UNUSED_1484_BIT_21", 1484, FieldType.BIT, 21);
 	public static final Field ENGINECHARTSIZE = Field.create("ENGINECHARTSIZE", 1488, FieldType.INT);
@@ -1682,8 +1696,8 @@ public class Fields {
 	public static final Field IDLERPMPID_MINVALUE = Field.create("IDLERPMPID_MINVALUE", 1900, FieldType.INT);
 	public static final Field IDLERPMPID_MAXVALUE = Field.create("IDLERPMPID_MAXVALUE", 1902, FieldType.INT);
 	public static final Field ADDEDTOWALLCOEF = Field.create("ADDEDTOWALLCOEF", 1904, FieldType.FLOAT);
-	public static final Field COMMUNICATIONPIN = Field.create("COMMUNICATIONPIN", 1908, FieldType.INT, brain_pin_e);
-	public static final Field RUNNINGPIN = Field.create("RUNNINGPIN", 1912, FieldType.INT, brain_pin_e);
+	public static final Field COMMUNICATIONLEDPIN = Field.create("COMMUNICATIONLEDPIN", 1908, FieldType.INT, brain_pin_e);
+	public static final Field RUNNINGLEDPIN = Field.create("RUNNINGLEDPIN", 1912, FieldType.INT, brain_pin_e);
 	public static final Field BINARYSERIALTXPIN = Field.create("BINARYSERIALTXPIN", 1916, FieldType.INT, brain_pin_e);
 	public static final Field BINARYSERIALRXPIN = Field.create("BINARYSERIALRXPIN", 1920, FieldType.INT, brain_pin_e);
 	public static final Field CONSOLESERIALTXPIN = Field.create("CONSOLESERIALTXPIN", 1924, FieldType.INT, brain_pin_e);
@@ -1708,13 +1722,13 @@ public class Fields {
 	public static final Field ENGINELOADACCELENRICHMENTTHRESHOLD = Field.create("ENGINELOADACCELENRICHMENTTHRESHOLD", 2184, FieldType.FLOAT);
 	public static final Field ENGINELOADACCELENRICHMENTMULTIPLIER = Field.create("ENGINELOADACCELENRICHMENTMULTIPLIER", 2188, FieldType.FLOAT);
 	public static final Field FATALERRORPIN = Field.create("FATALERRORPIN", 2192, FieldType.INT, brain_pin_e);
-	public static final Field WARNINIGPIN = Field.create("WARNINIGPIN", 2196, FieldType.INT, brain_pin_e);
+	public static final Field WARNINIGLEDPIN = Field.create("WARNINIGLEDPIN", 2196, FieldType.INT, brain_pin_e);
 	public static final Field CONFIGRESETPIN = Field.create("CONFIGRESETPIN", 2200, FieldType.INT, brain_pin_e);
 	public static final Field UARTCONSOLESERIALSPEED = Field.create("UARTCONSOLESERIALSPEED", 2204, FieldType.INT);
 	public static final Field TPSDECELENLEANMENTTHRESHOLD = Field.create("TPSDECELENLEANMENTTHRESHOLD", 2208, FieldType.FLOAT);
 	public static final Field TPSDECELENLEANMENTMULTIPLIER = Field.create("TPSDECELENLEANMENTMULTIPLIER", 2212, FieldType.FLOAT);
 	public static final Field SLOWADCALPHA = Field.create("SLOWADCALPHA", 2216, FieldType.FLOAT);
-	public static final String[] debug_mode_e = {"Alternator_PID", "TPS accel enrich", "Warmup PID", "IDLE", "EL accl enrich", "Trigger Counters", "FSIO_ADC", "AUX_PID_1", "VVT PID", "Cranking", "Timing", "Closed-loop fuel corr PID", "VSS", "SD card", "sr5", "Knock", "Trigger Sync", "Electronic Throttle", "Executor", "Bench Test", "Aux Valves", "ADC", "INSTANT_RPM", "FSIO_EXPRESSION", "Status", "CJ125", "CAN", "MAP", "mode28", "mode29"};
+	public static final String[] debug_mode_e = {"Alternator_PID", "TPS accel enrich", "Warmup PID", "IDLE", "EL accl enrich", "Trigger Counters", "FSIO_ADC", "AUX_PID_1", "VVT input", "Cranking", "Timing", "Closed-loop fuel corr PID", "VSS", "SD card", "sr5", "Knock", "Trigger Sync", "Electronic Throttle", "Executor", "Bench Test", "Aux Valves", "ADC", "INSTANT_RPM", "FSIO_EXPRESSION", "Status", "CJ125", "CAN", "MAP", "mode28", "mode29"};
 	public static final Field DEBUGMODE = Field.create("DEBUGMODE", 2220, FieldType.INT, debug_mode_e);
 	public static final Field AUXVALVES1 = Field.create("AUXVALVES1", 2224, FieldType.INT, brain_pin_e);
 	public static final Field AUXVALVES2 = Field.create("AUXVALVES2", 2228, FieldType.INT, brain_pin_e);
@@ -1866,6 +1880,14 @@ public class Fields {
 	public static final Field COASTINGFUELCUTCLT = Field.create("COASTINGFUELCUTCLT", 3382, FieldType.INT);
 	public static final Field PIDEXTRAFORLOWRPM = Field.create("PIDEXTRAFORLOWRPM", 3384, FieldType.INT);
 	public static final Field COASTINGFUELCUTMAP = Field.create("COASTINGFUELCUTMAP", 3386, FieldType.INT);
+	public static final Field IGNITIONTPSTABLE = Field.create("IGNITIONTPSTABLE", 3516, FieldType.INT);
+	public static final Field TCHARGEAIRCOEFMIN = Field.create("TCHARGEAIRCOEFMIN", 4092, FieldType.FLOAT);
+	public static final Field TCHARGEAIRCOEFMAX = Field.create("TCHARGEAIRCOEFMAX", 4096, FieldType.FLOAT);
+	public static final Field TCHARGEAIRFLOWMAX = Field.create("TCHARGEAIRFLOWMAX", 4100, FieldType.FLOAT);
+	public static final Field TCHARGEAIRINCRLIMIT = Field.create("TCHARGEAIRINCRLIMIT", 4104, FieldType.FLOAT);
+	public static final Field TCHARGEAIRDECRLIMIT = Field.create("TCHARGEAIRDECRLIMIT", 4108, FieldType.FLOAT);
+	public static final String[] tChargeMode_e = {"RPM+TPS (Default)", "Air Mass Interpolation"};
+	public static final Field TCHARGEMODE = Field.create("TCHARGEMODE", 4112, FieldType.INT, tChargeMode_e);
 	public static final Field FSIOFORMULAS1 = Field.create("FSIOFORMULAS1", 6672, FieldType.INT);
 	public static final Field FSIOFORMULAS2 = Field.create("FSIOFORMULAS2", 6872, FieldType.INT);
 	public static final Field FSIOFORMULAS3 = Field.create("FSIOFORMULAS3", 7072, FieldType.INT);

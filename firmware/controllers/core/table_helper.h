@@ -87,7 +87,7 @@ void Map3D<RPM_BIN_SIZE, LOAD_BIN_SIZE, vType>::init(vType table[RPM_BIN_SIZE][L
 
 template<int RPM_BIN_SIZE, int LOAD_BIN_SIZE, typename vType>
 float Map3D<RPM_BIN_SIZE, LOAD_BIN_SIZE, vType>::getValue(float xRpm, float y) {
-	efiAssert(initialized, "map not initialized", NAN);
+	efiAssert(CUSTOM_ERR_ASSERT, initialized, "map not initialized", NAN);
 	if (cisnan(y)) {
 		warning(CUSTOM_PARAM_RANGE, "%s: y is NaN", name);
 		return NAN;
@@ -118,7 +118,7 @@ void Map3D<RPM_BIN_SIZE, LOAD_BIN_SIZE, vType>::create(const char *name, float m
 
 template<int RPM_BIN_SIZE, int LOAD_BIN_SIZE, typename vType>
 void Map3D<RPM_BIN_SIZE, LOAD_BIN_SIZE, vType>::setAll(vType value) {
-	efiAssertVoid(initialized, "map not initialized");
+	efiAssertVoid(CUSTOM_ERR_6573, initialized, "map not initialized");
 	for (int l = 0; l < LOAD_BIN_SIZE; l++) {
 		for (int r = 0; r < RPM_BIN_SIZE; r++) {
 			pointers[l][r] = value / multiplier;
@@ -139,9 +139,14 @@ void copy2DTable(const vType source[LOAD_BIN_SIZE][RPM_BIN_SIZE], vType destinat
  * AFR value is packed into uint8_t with a multiplier of 10
  */
 #define AFR_STORAGE_MULT 10
+/**
+ * TPS-based Advance value is packed into int16_t with a multiplier of 100
+ */
+#define ADVANCE_TPS_STORAGE_MULT 100
 
 typedef Map3D<FUEL_RPM_COUNT, FUEL_LOAD_COUNT, uint8_t> afr_Map3D_t;
 typedef Map3D<IGN_RPM_COUNT, IGN_LOAD_COUNT, float> ign_Map3D_t;
+typedef Map3D<IGN_RPM_COUNT, IGN_LOAD_COUNT, int16_t> ign_tps_Map3D_t;
 typedef Map3D<FUEL_RPM_COUNT, FUEL_LOAD_COUNT, float> fuel_Map3D_t;
 typedef Map3D<BARO_CORR_SIZE, BARO_CORR_SIZE, float> baroCorr_Map3D_t;
 

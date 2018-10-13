@@ -10,7 +10,6 @@
 
 #include "global.h"
 #include "engine_configuration_generated_structures.h"
-#include "datalogging.h"
 
 #if EFI_PROD_CODE || EFI_SIMULATOR
 #include "tunerstudio_configuration.h"
@@ -25,7 +24,7 @@ class Pid {
 public:
 	Pid();
 	Pid(pid_s *pid);
-	void init(pid_s *pid);
+	void initPidClass(pid_s *pid);
 	bool isSame(pid_s *pid);
 
 	float getValue(float target, float input);

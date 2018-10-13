@@ -34,7 +34,7 @@ float efiFloor(float value, float precision) {
  * @param precision for example '0.1' for one digit fractional part
  */
 float efiRound(float value, float precision) {
-	efiAssert(precision != 0, "zero precision", NAN);
+	efiAssert(CUSTOM_ERR_ASSERT, precision != 0, "zero precision", NAN);
 	float a = rintf (value / precision);
 	return a * precision;
 }
@@ -306,3 +306,8 @@ void printHistogram(Logging *logging, histogram_s *histogram) {
 #endif /* EFI_HISTOGRAMS */
 }
 
+float limitRateOfChange(float newValue, float oldValue, float incrLimitPerSec, float decrLimitPerSec, float secsPassed) {
+	if (newValue >= oldValue)
+		return (incrLimitPerSec <= 0.0f) ? newValue : oldValue + minF(newValue - oldValue, incrLimitPerSec * secsPassed);
+	return (decrLimitPerSec <= 0.0f) ? newValue : oldValue - minF(oldValue - newValue, decrLimitPerSec * secsPassed);
+}

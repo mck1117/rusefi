@@ -67,7 +67,9 @@ enable2ndByteCanID = false
 ; this section will be generated automatically by ConfigDefinition.jar based on rusefi_config.txt
 
 ; CONFIG_DEFINITION_END
-
+	idleRpmPid_offset = "Constant base value"
+	idleRpmPid_period = "PID recalculation period"
+	
 
 [Tuning]
    spotDepth       =   2 ; 0 = no indicators, 1 = Z only, 2 = XYZ indicators.
@@ -113,7 +115,7 @@ enable2ndByteCanID = false
        ; filter =  Name,        "DisplayName", outputChannel, operator, defaultVal, userAdjustable
         filter = minRPMFilter, "Minimum RPM", RPMValue,           <       , 500,      , true
 
-#if CELSIUS          
+#if CELSIUS
          filter = minCltFilter, "Minimum CLT", coolant,       <       , 60,       , true
 #else
          filter = minCltFilter, "Minimum CLT", coolant,       <       , 160,      , true
@@ -255,8 +257,13 @@ fileVersion = { 20171101 }
       coilDutyCycle        = scalar,  F32,     272,              "perc",           1,         0
       accelerationX        = scalar,  S16,     276,              "G",           0.01,         0
       accelerationY        = scalar,  S16,     276,              "G",           0.01,         0
-	  oilPressure		   = scalar,  F32,     280,				 "kPa",			1, 0.0
-      fuelConsumptionPerHour=scalar,  F32,     284,				 "kPa",			1, 0.0
+      oilPressure	   = scalar,  F32,     280,		 "kPa",			1, 0.0
+      fuelConsumptionPerHour=scalar,  F32,     284,		 "kPa",			1, 0.0
+      injectionOffset       = scalar, F32,     288,              "deg",                 1,     0;
+      debugIntField4    = scalar,  S16,  292, "val",          1,       0.0;
+      debugIntField5    = scalar,  S16,  294, "val",          1,       0.0;
+
+
 ;
 ; see TunerStudioOutputChannels struct
 ;
@@ -377,7 +384,11 @@ fileVersion = { 20171101 }
 
    curve = iatFuelCorrCurve, "Intake air temperature fuel Multiplier"
       columnLabel = "Coolant", "Multiplier"
+#if CELSIUS
       xAxis       =  -40, 120, 10
+#else
+      xAxis       =  -40, 250, 10
+#endif
       yAxis       =  0,  5, 10
       xBins       = iatFuelCorrBins, intake
       yBins       = iatFuelCorr
@@ -385,7 +396,11 @@ fileVersion = { 20171101 }
 	
 	curve = cltTimingCorrCurve, "Warmup timing correction"
       columnLabel = "Coolant", "Extra"
+#if CELSIUS
       xAxis       =  -40, 120, 10
+#else
+      xAxis       =  -40, 250, 10
+#endif
       yAxis       =  0,  50, 10
       xBins       = cltTimingBins, coolant
       yBins       = cltTimingExtra
@@ -393,7 +408,11 @@ fileVersion = { 20171101 }
 
 	curve = cltFuelCorrCurve, "Warmup fuel manual Multiplier"
       columnLabel = "Coolant", "Multiplier"
+#if CELSIUS
       xAxis       =  -40, 120, 10
+#else
+      xAxis       =  -40, 250, 10
+#endif
       yAxis       =  0,  50, 10
       xBins       = cltFuelCorrBins, coolant
       yBins       = cltFuelCorr
@@ -401,7 +420,11 @@ fileVersion = { 20171101 }
 
 	curve = crankingCltCurve, "Cranking Coolant Temperature multiplier"
       columnLabel = "Coolant", "Multiplier"
+#if CELSIUS
       xAxis       =  -40, 120, 10
+#else
+      xAxis       =  -40, 250, 10
+#endif
       yAxis       =  0,  5, 10
       xBins       = crankingFuelBins, coolant
       yBins       = crankingFuelCoef
@@ -409,7 +432,7 @@ fileVersion = { 20171101 }
 
 	curve = crankingTpsCurve, "Cranking TPS Multiplier"
       columnLabel = "TPS", "Multiplier"
-      xAxis       =  -40, 120, 10
+      xAxis       =  0, 100, 10
       yAxis       =  0,  5, 10
       xBins       = crankingTpsBins, TPSValue
       yBins       = crankingTpsCoef
@@ -425,7 +448,11 @@ fileVersion = { 20171101 }
 
 	curve = cltIdleCurve, "Warmup Idle multiplier"
       columnLabel = "Coolant", "Multiplier"
+#if CELSIUS
       xAxis       = -40, 120, 10
+#else
+      xAxis       =  -40, 250, 10
+#endif
       yAxis       =  0,  50, 10
       xBins       = cltIdleCorrBins, coolant
       yBins       = cltIdleCorr
@@ -433,7 +460,11 @@ fileVersion = { 20171101 }
 
 	curve = iacCoastingCurve, "Coasting IAC Position for Auto-Idle"
       columnLabel = "Coolant", "Multiplier"
+#if CELSIUS
       xAxis       = -40, 120, 10
+#else
+      xAxis       =  -40, 250, 10
+#endif
       yAxis       =  0,  100, 10
       xBins       = iacCoastingBins, coolant
       yBins       = iacCoasting
@@ -441,7 +472,11 @@ fileVersion = { 20171101 }
 
 	curve = cltCrankingCurve, "Cranking IAC multiplier"
       columnLabel = "Coolant", "Multiplier"
+#if CELSIUS
       xAxis       = -40, 120, 10
+#else
+      xAxis       =  -40, 250, 10
+#endif
       yAxis       =  0,  50, 10
       xBins       = cltCrankingCorrBins, coolant
       yBins       = cltCrankingCorr
@@ -449,7 +484,11 @@ fileVersion = { 20171101 }
 
 	curve = cltIdleRPMCurve, "Idle Target RPM"
       columnLabel = "Coolant", "RPM"
+#if CELSIUS
       xAxis       = -40, 120, 10
+#else
+      xAxis       =  -40, 250, 10
+#endif
       yAxis       =  0, 8000, 10
       xBins       = cltIdleRpmBins, coolant
       yBins       = cltIdleRpm, RPMValue
@@ -481,7 +520,11 @@ fileVersion = { 20171101 }
 
 	curve = warmupTargetAfrCurve, "CLT-based target AFR"
       columnLabel = "Coolant", "Correction"
+#if CELSIUS
       xAxis       = -40, 120, 10
+#else
+      xAxis       =  -40, 250, 10
+#endif
       yAxis       =  0,  50, 10
       xBins       = warmupTargetAfrBins, coolant
       yBins       = warmupTargetAfr
@@ -489,7 +532,11 @@ fileVersion = { 20171101 }
 
     curve = wueAfrTargetOffsetCurve, "AFR Target Temperature Adjustment"
       columnLabel = "Coolant", "AFR Offset"
+#if CELSIUS
       xAxis       = -40, 200, 9
+#else
+      xAxis       = -40, 400, 9
+#endif
       yAxis       =   -3,  1, 5
       xBins       = cltFuelCorrBins, coolant
       yBins       = wueAfrTargetOffset
@@ -497,7 +544,11 @@ fileVersion = { 20171101 }
 
     curve = wueAnalyzer_warmup_curve, "Warmup Enrichment"
       columnLabel = "Coolant", "Current WUE", "Coolant", "Corrected"
+#if CELSIUS
       xAxis       = -40, 200, 9
+#else
+      xAxis       = -40, 400, 9
+#endif
       yAxis       =   90,  500, 6
       xBins       = cltFuelCorrBins, coolant
       yBins       = cltFuelCorr
@@ -589,6 +640,16 @@ fileVersion = { 20171101 }
       gridOrient  = 250,   0, 340 ; Space 123 rotation of grid in degrees.
       upDownLabel = "(RICHER)", "(LEANER)"
 	
+   table = ignitionTpsTableTbl,  ignitionTableMap,  "Ignition TPS Table",   1
+      ;       constant, variable
+      ; Currently we share ignitionRpmBins between two advance tables... Is it ok?
+      xBins       = ignitionRpmBins,  RPMValue
+      yBins       = ignitionTpsBins,  TPSValue
+
+      zBins       = ignitionTpsTable
+      gridOrient  = 250,   0, 340 ; Space 123 rotation of grid in degrees.
+      upDownLabel = "(RICHER)", "(LEANER)"
+	
    table = ignitionIatCorrTableTbl,  ignitionIatCorrTableMap,  "Ignition Intake Air Temp correction",   1
       ;       constant, variable
       xBins       = ignitionIatCorrRpmBins,  RPMValue
@@ -656,7 +717,7 @@ fileVersion = { 20171101 }
    triggerErrorsCounterGauge = triggerErrorsCounter, "trg err", "count",     0,   15000,     0,    0,    6000,  6000,   0,   0
    
    
-   idleAirValvePositionGauge = idleAirValvePosition, "idle position", "%",     0,   100,     0,    0,    100,  100,   0,   0
+   idleAirValvePositionGauge = idleAirValvePosition, "idle position", "%",     0,   100,     0,    0,    100,  100,   1,   1
 
    speedToRpmRatioGauge = speedToRpmRatio, "speed2rpm", "",     0,   100,     0,    0,    100,  100,   4,   4
    warningCounterGauge = warningCounter, "warn", "",     0,   100,     0,    0,    100,  100,   0,   0
@@ -820,10 +881,12 @@ gaugeCategory = Fuel Data
    entry = engineLoad,	    @@GAUGE_NAME_ENGINE_LOAD@@, 	   float,  "%.1f"
    entry = ignitionAdvance,	@@GAUGE_NAME_TIMING_ADVANCE@@,	   float,  "%.2f"
    entry = knockLevel,	    @@GAUGE_NAME_KNOCK_LEVEL@@, 	   float,  "%.2f"
+   entry = knockCount,		@@GAUGE_NAME_KNOCK_COUNTER@@,	   int,    "%d"
    entry = vehicleSpeedKph,	@@GAUGE_NAME_VVS@@,	   float,  "%.2f"
    entry = speedToRpmRatio, "s2rpm",	   float,  "%.3f"
    entry = rpmAcceleration, "dRPM",        float,  "%.3f"
-   entry = massAirFlowValue,"airMass",     float,  "%.3f"
+   entry = massAirFlowValue,"air flow",    float,  "%.3f"
+   entry = chargeAirMass,   "air mass",    float,  "%.3f"
    entry = pedalPosition,   "pedal",       float,  "%.3f"
    entry = triggerErrorsCounter, "trg err",int,    "%d"
    entry = idleAirValvePosition, @@GAUGE_NAME_IAC@@, float,  "%.3f"
@@ -841,6 +904,14 @@ gaugeCategory = Fuel Data
 
    entry = accelerationX,	@@GAUGE_NAME_ACCEL_X@@,	float,"%.2f"
    entry = accelerationY,	@@GAUGE_NAME_ACCEL_Y@@,	float,"%.2f"
+   entry = egt1,	        "EGT1",	float,"%.1f"
+   entry = egt2,	        "EGT2",	float,"%.1f"
+   entry = egt3,	        "EGT3",	float,"%.1f"
+   entry = egt4,	        "EGT4",	float,"%.1f"
+   entry = egt5,	        "EGT5",	float,"%.1f"
+   entry = egt6,	        "EGT6",	float,"%.1f"
+   entry = egt7,	        "EGT7",	float,"%.1f"
+   entry = egt8,	        "EGT8",	float,"%.1f"
 
    entry = engineLoadAccelExtra, @@GAUGE_NAME_FUEL_EL_EXTRA@@,float,  "%.3f"
    entry = engineLoadDelta, "fuel: load change",float,  "%.3f"
@@ -857,6 +928,7 @@ gaugeCategory = Fuel Data
 
    entry = sparkDwellValue,	@@GAUGE_COIL_DWELL_TIME@@, float,"%.3f"
    entry = vvtPosition, @@GAUGE_NAME_VVT@@, float,"%.2f"
+   entry = injectionOffset, "injOffset"  , float, "%.2F"
 
 ; is there a way to log parameter?   entry = debugMode,   "debugMode",int,"%d"
 ; Alternator_PID: alternator duty cycle
@@ -951,7 +1023,8 @@ menuDialog = main
 		subMenu = dwellSettings,			"Dwell time"
 		subMenu = ignitionCylExtra,			"Ignition Cylinder Extra"
 		subMenu = std_separator
-		subMenu = ignitionTableTbl,			"Ignition Advance Table"
+		subMenu = ignitionTableTbl,			"Ignition Advance Table", 0, {useTPSAdvanceTable == 0}
+		subMenu = ignitionTpsTableTbl,		"Ignition Advance TPS-based Table", 0, {useTPSAdvanceTable == 1}
 		subMenu = std_separator
 		subMenu = cltTimingCorrCurve,		"Warmup timing correction"
 		subMenu = ignitionIatCorrTableTbl,	"Ignition IAT correction Table"
@@ -1123,13 +1196,29 @@ cmd_stop_engine              = "w\x00\x99\x00\x00"
 		panel = fuelTableGaugesPanel
 		panel = fuelTableRight
 
-	dialog = tChargeSettings, "tCharge Settings"
+	dialog = tChargeRpmTpsSettings, "RPM+TPS Mode Settings"
 	    field = "We use these coefficients to approximate air/fuel charge temperate"
 	    field = "based on CLT and IAT, depending on RPM and TPM"
 		field = "minRPM minTPS", tChargeMinRpmMinTps
 		field = "minRPM maxTPS", tChargeMinRpmMaxTps
 		field = "maxRPM minTPS", tChargeMaxRpmMinTps
 		field = "maxRPM maxTPS", tChargeMaxRpmMaxTps
+
+	dialog = tChargeGeneralSettings, ""
+		field = "tCharge Mode", tChargeMode
+		field = "tChange Increment Limit, deg/sec", tChargeAirIncrLimit
+		field = "tChange Decrement Limit, deg/sec", tChargeAirDecrLimit
+	    field = ""
+
+	dialog = tChargeAirInterpSettings, "Air Interpolation Mode Settings"
+		field = "Min tCharge Coeff.", tChargeAirCoefMin
+		field = "Max tCharge Coeff.", tChargeAirCoefMax
+		field = "Max Air Flow, kg/h", tChargeAirFlowMax
+		
+	dialog = tChargeSettings, "tCharge Settings"
+		panel = tChargeGeneralSettings
+		panel = tChargeRpmTpsSettings, { tChargeMode == 0}
+		panel = tChargeAirInterpSettings, { tChargeMode == 1}
 
 	dialog = baseInjection, "General"
 		field = "Enabled",						isInjectionEnabled
@@ -1143,6 +1232,7 @@ cmd_stop_engine              = "w\x00\x99\x00\x00"
 		field = "#Wasted spark with individual coils"
 		field = "Two wire wasted",				twoWireBatchIgnition, {isIgnitionEnabled == 1 && ignitionMode == 2}
 		field = "Timing Mode",					timingMode, {isIgnitionEnabled == 1}
+		field = "Use TPS-based Advance Table",	useTPSAdvanceTable, {isIgnitionEnabled == 1 && fuelAlgorithm == LM_SPEED_DENSITY}
 		field = "#Use fixed timing while validating with a timing gun"
 		field = "Fixed Timinig",				fixedTiming, {isIgnitionEnabled == 1 && timingMode == 1}
 
@@ -1157,7 +1247,7 @@ cmd_stop_engine              = "w\x00\x99\x00\x00"
 ;			Engine->Trigger configuration
 	dialog = triggerConfiguration_settings,	"Settings Trigger"
 		field = "Trigger type",							trigger_type
-		field = "Operation mode",						operationMode
+		field = "Operation mode / speed",				operationMode
 		field = "With VR sensors only rising edge has reliable position"
 		field = "use only rising edge",					useOnlyRisingEdgeForTrigger    
 	    field = "!Reminder that 4-stroke cycle is 720 degrees"
@@ -1167,6 +1257,7 @@ cmd_stop_engine              = "w\x00\x99\x00\x00"
 		field = "skipped Tooth Count",					trigger_customSkippedToothCount, {trigger_type == 0}
 
 	dialog = triggerConfiguration_IO,	"Settings I/O"
+	    field = "!https://rusefi.com/wiki/index.php?title=Manual:Software:VVT"
 	    field = "VVT mode",								vvtMode, {trigger_type != 80}
 	    field = "VVT use rise front",					vvtCamSensorUseRise, {trigger_type != 80}
 	    field = "VVT position display offset",			vvtOffset
@@ -1211,7 +1302,7 @@ cmd_stop_engine              = "w\x00\x99\x00\x00"
 	dialog = injectionDeadTime,	"", yAxis
 		panel = injectorsDeadTime,		East
 
-	dialog = ignitionCylExtra, "Ignition Cylinder Extra"
+	dialog = ignitionCylExtra, "Ignition Cylinder Extra Timing"
 		field = "Extra cyl #1",                       timing_offset_cylinder1
 		field = "Extra cyl #2",                       timing_offset_cylinder2, {cylindersCount > 1}
 		field = "Extra cyl #3",                       timing_offset_cylinder3, {cylindersCount > 2}
@@ -1431,6 +1522,18 @@ cmd_stop_engine              = "w\x00\x99\x00\x00"
 		field = "aux valve #1", 						auxValves1
 		field = "aux valve #2", 						auxValves2
 
+	dialog = allPins5
+		field = "SPI1 MOSI",							spi1mosiPin, {is_enabled_spi_1 == 1}
+		field = "SPI1 MISO",							spi1misoPin, {is_enabled_spi_1 == 1}
+		field = "SPI1 SCK",								spi1sckPin, {is_enabled_spi_1 == 1}
+		field = "SPI2 MOSI",							spi2mosiPin, {is_enabled_spi_2 == 1}
+		field = "SPI2 MISO",							spi2misoPin, {is_enabled_spi_2 == 1}
+		field = "SPI2 SCK",								spi2sckPin, {is_enabled_spi_2 == 1}
+		field = "SPI3 MOSI",							spi3mosiPin, {is_enabled_spi_3 == 1}
+		field = "SPI3 MISO",							spi3misoPin, {is_enabled_spi_3 == 1}
+		field = "SPI3 SCK",								spi3sckPin, {is_enabled_spi_3 == 1}
+		field = "hip9011CsPin",							hip9011CsPin
+		field = "LIS302DLCsPin",						LIS302DLCsPin
 
 
 	dialog = allPins1_2, "", xAxis
@@ -1444,6 +1547,7 @@ cmd_stop_engine              = "w\x00\x99\x00\x00"
 	dialog = allPins, "All Pins", xAxis
 		panel = allPins1_2
 		panel = allPins3_4
+		panel = allPins5
 
 ;			Sensors->CLT Sensor Settings
 	dialog = clt_thermistor, "CLT Sensor Settings"
@@ -1514,6 +1618,9 @@ cmd_stop_engine              = "w\x00\x99\x00\x00"
 	    field = "frequency-based MAP",				hasFrequencyReportingMapSensor
 	    
 	dialog = mapSwitchAndSettings, "", yAxis
+		field = "Low value threshold", mapErrorDetectionTooLow
+		field = "High value threshold", mapErrorDetectionTooHigh
+		
 		panel = mapSwitch
 		panel = mapSensorVDlg
 		panel = mapSensorFDlg
@@ -1602,7 +1709,7 @@ cmd_stop_engine              = "w\x00\x99\x00\x00"
 		field = "TPS deactivation threshold",			idlePidDeactivationTpsThreshold
 		panel = idlePidSettings, { idleMode == 0}
 		field = "Extra IAC if Throttle Pressed",						iacByTpsTaper;
-		field = "verbose",								isVerboseIAC
+		field = "verbose status",						isVerboseIAC
 		field = "#See Warmup idle multiplier"
 		slider = "Manual IAC Position",				manIdlePosition, horizontal
 
@@ -1638,17 +1745,18 @@ cmd_stop_engine              = "w\x00\x99\x00\x00"
 		field = "ChipSelect mode",						hip9011CsPinMode, {isHip9011Enabled == 1}
 		field = "hip Output/stm input",					hipOutputChannel, {isHip9011Enabled == 1}
 		field = "prescaler & SDO",						hip9011PrescalerAndSDO, {isHip9011Enabled == 1}
+		field = "cylinder bore (mm)",					cylinderBore, {isHip9011Enabled == 1}
 		field = "Band Freq override",					knockBandCustom, {isHip9011Enabled == 1}
 		field = "SPI device",							hip9011SpiDevice, {isHip9011Enabled == 1}
-		field = "SPI1sck",								spi1SckMode, {isHip9011Enabled == 1}
-		field = "SPI1mosi",								spi1MosiMode, {isHip9011Enabled == 1}
-		field = "SPI1miso",								spi1MisoMode, {isHip9011Enabled == 1}
-		field = "SPI2sck",								spi2SckMode, {isHip9011Enabled == 1}
-		field = "SPI2mosi",								spi2MosiMode, {isHip9011Enabled == 1}
-		field = "SPI2miso",								spi2MisoMode, {isHip9011Enabled == 1}
-		field = "SPI3sck",								spi3SckMode, {isHip9011Enabled == 1}
-		field = "SPI3mosi",								spi3MosiMode, {isHip9011Enabled == 1}
-		field = "SPI3miso",								spi3MisoMode, {isHip9011Enabled == 1}
+		field = "SPI1sck mode",							spi1SckMode, {isHip9011Enabled == 1}
+		field = "SPI1mosi mode",						spi1MosiMode, {isHip9011Enabled == 1}
+		field = "SPI1miso mode",						spi1MisoMode, {isHip9011Enabled == 1}
+		field = "SPI2sck mode",							spi2SckMode, {isHip9011Enabled == 1}
+		field = "SPI2mosi mode",						spi2MosiMode, {isHip9011Enabled == 1}
+		field = "SPI2miso mode",						spi2MisoMode, {isHip9011Enabled == 1}
+		field = "SPI3sck mode",							spi3SckMode, {isHip9011Enabled == 1}
+		field = "SPI3mosi mode",						spi3MosiMode, {isHip9011Enabled == 1}
+		field = "SPI3miso mode",						spi3MisoMode, {isHip9011Enabled == 1}
 		panel = knockThresholdCurve
 		
 ;			Engine->cj125 Settings
@@ -1657,10 +1765,12 @@ cmd_stop_engine              = "w\x00\x99\x00\x00"
 		field = "!ECU reboot needed to apply these settings"
 		field = "ChipSelect pin",						cj125CsPin, {isCJ125Enabled == 1}
 		field = "ChipSelect mode",						cj125CsPinMode, {isCJ125Enabled == 1}
+		field = "!See also 'Controller-SPI setting'"
 		field = "SPI device",							cj125SpiDevice
 		field = "Heater pin",							wboHeaterPin, {isCJ125Enabled == 1}
 		field = "UA input",								cj125ua, {isCJ125Enabled == 1}
 		field = "UR input",								cj125ur, {isCJ125Enabled == 1}
+		field = "Is UA input divided?"					cj125isUaDivided, {isCJ125Enabled == 1}
 		
 	dialog = spiFunction, "SPI settings"
 		field = "!ECU reboot needed to apply these settings"
@@ -1676,7 +1786,7 @@ cmd_stop_engine              = "w\x00\x99\x00\x00"
 		field = "SPI3 MOSI",							spi3mosiPin, {is_enabled_spi_3 == 1}
 		field = "SPI3 MISO",							spi3misoPin, {is_enabled_spi_3 == 1}
 		field = "SPI3 SCK",								spi3sckPin, {is_enabled_spi_3 == 1}
-		field = "LIS302DLCsPin",						LIS302DLCsPin, {is_enabled_spi_1 == 1}
+		field = "LIS302DLCsPin",						LIS302DLCsPin
 
 	dialog = fuelClosedLoopDialog, "Fuel short-term closed-loop correction"
 		field = "#This is just the cherry on the cake once you have good VE table"
@@ -1856,8 +1966,8 @@ cmd_stop_engine              = "w\x00\x99\x00\x00"
 		field = "Global fuel correction", 				globalFuelCorrection
 		field = "Ignition Math Logic @",				ignMathCalculateAtIndex
 		field = "MAP Averaging Logic @",				mapAveragingSchedulingAtIndex
-		field = "comm status pin",						communicationPin
-		field = "running status",						runningPin
+		field = "comm status light",					communicationLedPin
+		field = "running status light",					runningLedPin
 		
 ;			Engine->Base Engine Settings
 	dialog = engineChars, "Base Engine Settings"
@@ -2019,6 +2129,7 @@ cmd_stop_engine              = "w\x00\x99\x00\x00"
 		field = "#12",									fsioFormulas12
 		field = "#13",									fsioFormulas13
 		field = "#14",									fsioFormulas14
+		field = "use FSIO #15 for idle RPM adjustment",	useFSIO15ForIdleRpmAdjustment
 		field = "#15",									fsioFormulas15
 		field = "use FSIO #16 for timing adjustment",	useFSIO16ForTimingAdjustment
 		field = "#16",									fsioFormulas16
@@ -2133,6 +2244,7 @@ cmd_stop_engine              = "w\x00\x99\x00\x00"
 		field = "TPS Deactivation Threshold",			coastingFuelCutTps, {coastingFuelCutEnabled == 1}
 		field = "MAP Deactivation Threshold",			coastingFuelCutMap, {coastingFuelCutEnabled == 1}
 		field = "CLT Activation Threshold",				coastingFuelCutClt, {coastingFuelCutEnabled == 1}
+		field = "MAP Deactivation Threshold",      coastingFuelCutMap, {coastingFuelCutEnabled == 1}
 [Tools]
  ;addTool = toolName, PanelName
  addTool = veTableGenerator, "VE Table Generator", veTableTbl

@@ -11,7 +11,7 @@
  * @author Andrey Belomutskiy, (c) 2012-2018
  */
 
-#include "main.h"
+#include "global.h"
 #include "event_queue.h"
 #include "efitime.h"
 #include "efilib2.h"
@@ -42,7 +42,7 @@ bool EventQueue::insertTask(scheduling_s *scheduling, efitime_t timeX, schfunc_t
 #if EFI_UNIT_TEST || defined(__DOXYGEN__)
 	assertListIsSorted();
 #endif /* EFI_UNIT_TEST */
-	efiAssert(callback != NULL, "NULL callback", false);
+	efiAssert(CUSTOM_ERR_ASSERT, callback != NULL, "NULL callback", false);
 
 // please note that simulator does not use this code at all - simulator uses signal_executor_sleep
 
@@ -129,14 +129,14 @@ int EventQueue::executeAll(efitime_t now) {
 	// we need safe iteration because we are removing elements inside the loop
 	LL_FOREACH_SAFE(head, current, tmp)
 	{
-		efiAssert(current->callback != NULL, "callback==null1", 0);
+		efiAssert(CUSTOM_ERR_ASSERT, current->callback != NULL, "callback==null1", 0);
 		if (++listIterationCounter > QUEUE_LENGTH_LIMIT) {
 			firmwareError(CUSTOM_LIST_LOOP, "Is this list looped?");
 			return false;
 		}
 		if (current->momentX <= now) {
 			executionCounter++;
-			efiAssert(head == current, "removing from head", -1);
+			efiAssert(CUSTOM_ERR_ASSERT, head == current, "removing from head", -1);
 			//LL_DELETE(head, current);
 			head = head->next;
 			if (executionList == NULL) {
@@ -164,7 +164,7 @@ int EventQueue::executeAll(efitime_t now) {
 	 */
 	LL_FOREACH_SAFE(executionList, current, tmp)
 	{
-		efiAssert(current->callback != NULL, "callback==null2", 0);
+		efiAssert(CUSTOM_ERR_ASSERT, current->callback != NULL, "callback==null2", 0);
 		uint32_t before = GET_TIMESTAMP();
 		current->isScheduled = false;
 		uint32_t howFarOff = now - current->momentX;
@@ -196,7 +196,7 @@ int EventQueue::size(void) {
 void EventQueue::assertListIsSorted() {
 	scheduling_s *current = head;
 	while (current != NULL && current->next != NULL) {
-		efiAssertVoid(current->momentX <= current->next->momentX, "list order");
+		efiAssertVoid(CUSTOM_ERR_6623, current->momentX <= current->next->momentX, "list order");
 		current = current->next;
 	}
 }

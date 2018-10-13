@@ -5,7 +5,7 @@
  * @author Andrey Belomutskiy, (c) 2012-2018
  */
 
-#include "main.h"
+#include "global.h"
 #include "tunerstudio_io.h"
 #include "console_io.h"
 #include "engine.h"
@@ -155,7 +155,7 @@ bool stopTsPort(ts_channel_s *tsChannel) {
 }
 
 void sr5WriteData(ts_channel_s *tsChannel, const uint8_t * buffer, int size) {
-        efiAssertVoid(getRemainingStack(chThdGetSelfX()) > 64, "tunerStudioWriteData");
+        efiAssertVoid(CUSTOM_ERR_6570, getRemainingStack(chThdGetSelfX()) > 64, "tunerStudioWriteData");
 #if EFI_SIMULATOR || defined(__DOXYGEN__)
 			logMsg("chSequentialStreamWrite [%d]\r\n", size);
 #endif

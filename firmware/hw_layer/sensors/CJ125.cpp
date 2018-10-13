@@ -23,7 +23,7 @@
 #include "backup_ram.h"
 
 
-#define CJ125_DEBUG
+//#define CJ125_DEBUG
 //#define CJ125_DEBUG_SPI
 
 EXTERN_ENGINE;
@@ -135,8 +135,14 @@ static float getUr() {
 }
 
 static float getUa() {
-	if (CONFIG(cj125ua) != EFI_ADC_NONE)
-		return getVoltage("cj125ua", CONFIG(cj125ua));
+	if (CONFIG(cj125ua) != EFI_ADC_NONE) {
+		if (engineConfiguration->cj125isUaDivided) {
+			return getVoltageDivided("cj125ua", CONFIG(cj125ua));
+		} else {
+			return getVoltage("cj125ua", CONFIG(cj125ua));
+		}
+	}
+
 	return 0.0f;
 }
 
@@ -165,6 +171,12 @@ static void cjPrintErrorCode(cj125_error_e errCode) {
 		break;
 	case CJ125_ERROR_NONE:
 		errString = "N/A";
+		break;
+	case CJ125_ERROR_WRONG_IDENT:
+		errString = "W_IDENT";
+		break;
+	case CJ125_ERROR_WRONG_INIT:
+		errString = "W_INIT";
 		break;
 	}
 	scheduleMsg(logger, "cj125 ERROR: %s.", errString);
@@ -245,7 +257,11 @@ static void cjCalibrate(void) {
 	for (int i = 0; i < CJ125_CALIBRATE_NUM_SAMPLES; i++) {
 		cjUpdateAnalogValues();
 		cjPrintData();
-		cjPostState(&tsOutputChannels);
+
+		if (engineConfiguration->debugMode == DBG_CJ125) {
+			cjPostState(&tsOutputChannels);
+		}
+
 		vUaCal += vUa;
 		vUrCal += vUr;
 	}
@@ -366,9 +382,13 @@ static bool cjIsWorkingState(void) {
 }
 
 static void cjInitPid(void) {
-	// todo: these values are valid only for LSU 4.2
-	heaterPidConfig.pFactor = 8.0f;
-	heaterPidConfig.iFactor = 0.003f;
+	if(engineConfiguration->cj125isLsu49) {
+		heaterPidConfig.pFactor = CJ125_PID_LSU49_P;
+		heaterPidConfig.iFactor = CJ125_PID_LSU49_I;
+	} else {
+		heaterPidConfig.pFactor = CJ125_PID_LSU42_P;
+		heaterPidConfig.iFactor = CJ125_PID_LSU42_I;
+	}
 	heaterPidConfig.dFactor = 0.0f;
 	heaterPidConfig.minValue = 0;
 	heaterPidConfig.maxValue = 1;
@@ -376,6 +396,28 @@ static void cjInitPid(void) {
 	// todo: period?
 	heaterPidConfig.period = 1.0f;
 	heaterPid.reset();
+}
+
+//	engineConfiguration->spi2SckMode = PAL_STM32_OTYPE_OPENDRAIN; // 4
+//	engineConfiguration->spi2MosiMode = PAL_STM32_OTYPE_OPENDRAIN; // 4
+//	engineConfiguration->spi2MisoMode = PAL_STM32_PUDR_PULLUP; // 32
+//	boardConfiguration->cj125CsPin = GPIOA_15;
+//	engineConfiguration->cj125CsPinMode = OM_OPENDRAIN;
+
+void cj125defaultPinout() {
+	engineConfiguration->cj125ua = EFI_ADC_13; // PC3
+	engineConfiguration->cj125ur = EFI_ADC_4; // PA4
+	boardConfiguration->wboHeaterPin = GPIOC_13;
+
+	boardConfiguration->isCJ125Enabled = false;
+
+	boardConfiguration->spi2mosiPin = GPIOB_15;
+	boardConfiguration->spi2misoPin = GPIOB_14;
+	boardConfiguration->spi2sckPin = GPIOB_13;
+
+	boardConfiguration->cj125CsPin = GPIOB_0;
+	boardConfiguration->isCJ125Enabled = true;
+	boardConfiguration->is_enabled_spi_2 = true;
 }
 
 static void cjStartSpi(void) {
@@ -492,6 +534,10 @@ static msg_t cjThread(void) {
 		case CJ125_READY:
 			// use PID for normal heater control
 			if (nowNt - prevNt >= CJ125_HEATER_CONTROL_PERIOD) {
+				/* PID doesn't care about the target or the input, it knows only the
+				 * error value as the difference of (target - input). and if we swap them we'll just get a sign inversion. If target=vUrCal, and input=vUr, then error=vUrCal-vUr, i.e. if vUr<vUrCal then the error will cause the heater to increase it's duty cycle. But it's not exactly what we want! Lesser vUr means HOTTER cell. That's why we even have this safety check for overheating: (vUr < CJ125_UR_OVERHEAT_THR)...
+				 * So the simple trick is to inverse the error by swapping the target and input values.
+				 */
 				float duty = heaterPid.getValue(vUr, vUrCal);
 				heaterPid.showPidStatus(logger, "cj");
 				cjSetHeater(duty);
@@ -524,7 +570,7 @@ static bool cjCheckConfig(void) {
 static void cjStartCalibration(void) {
 	if (!cjCheckConfig())
 		return;
-	if (state != CJ125_IDLE) {
+	if (cjIsWorkingState()) {
 		// todo: change this later for the normal thread operation (auto pre-heating)
 		scheduleMsg(logger, "cj125: Cannot start calibration. Please restart the board and make sure that your sensor is not heating");
 		return;
@@ -553,8 +599,12 @@ static void cjSetInit2(int v) {
 #endif /* CJ125_DEBUG */
 
 float cjGetAfr(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
-	// todo: make configurable sensor LSU type
-	cj125_sensor_type_e sensorType = CJ125_LSU_49;
+	cj125_sensor_type_e sensorType;
+	if (engineConfiguration->cj125isLsu49) {
+		sensorType = CJ125_LSU_49;
+	} else {
+		sensorType = CJ125_LSU_42;
+	}
 	
 	// See CJ125 datasheet, page 6
 	float pumpCurrent = (vUa - vUaCal) * amplCoeff * (CJ125_PUMP_CURRENT_FACTOR / CJ125_PUMP_SHUNT_RESISTOR);
@@ -578,6 +628,7 @@ bool cjHasAfrSensor(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	return true;
 }
 
+// used by DBG_CJ125
 void cjPostState(TunerStudioOutputChannels *tsOutputChannels) {
 	tsOutputChannels->debugFloatField1 = heaterDuty;
 	tsOutputChannels->debugFloatField2 = heaterPid.getIntegration();

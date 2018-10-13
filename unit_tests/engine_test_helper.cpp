@@ -23,7 +23,6 @@ extern float testMafValue;
 extern engine_configuration_s activeConfiguration;
 
 EngineTestHelper::EngineTestHelper(engine_type_e engineType) : engine (&persistentConfig) {
-	ec = &persistentConfig.engineConfiguration;
 	unitTestWarningCounter = 0;
 
 	testMafValue = 0;
@@ -32,8 +31,9 @@ EngineTestHelper::EngineTestHelper(engine_type_e engineType) : engine (&persiste
 	schedulingQueue.clear();
 	enginePins.reset();
 
-	engineConfiguration = ec;
-	board_configuration_s * boardConfiguration = &engineConfiguration->bc;
+	Engine *engine = &this->engine;
+	engine_configuration_s *engineConfiguration = engine->engineConfiguration;
+	board_configuration_s * boardConfiguration = &persistentConfig.engineConfiguration.bc;
 	persistent_config_s *config = &persistentConfig;
 
 	setCurveValue(config->cltFuelCorrBins, config->cltFuelCorr, CLT_CURVE_SIZE, -40, 1.5);
@@ -49,7 +49,6 @@ EngineTestHelper::EngineTestHelper(engine_type_e engineType) : engine (&persiste
 	setCurveValue(config->cltFuelCorrBins, config->cltFuelCorr, CLT_CURVE_SIZE, 60, 1.03);
 	setCurveValue(config->cltFuelCorrBins, config->cltFuelCorr, CLT_CURVE_SIZE, 70, 1.01);
 
-	Engine *engine = &this->engine;
 	prepareFuelMap(PASS_ENGINE_PARAMETER_SIGNATURE);
 
 	initAccelEnrichment(NULL PASS_ENGINE_PARAMETER_SUFFIX);
@@ -65,12 +64,15 @@ EngineTestHelper::EngineTestHelper(engine_type_e engineType) : engine (&persiste
 	engine->updateSlowSensors(PASS_ENGINE_PARAMETER_SIGNATURE);
 	prepareTimingMap(PASS_ENGINE_PARAMETER_SIGNATURE);
 
-	engine_configuration_s *engineConfiguration = engine->engineConfiguration;
-
-	engine->triggerCentral.triggerShape.initializeTriggerShape(NULL PASS_ENGINE_PARAMETER_SUFFIX);
+	TRIGGER_SHAPE(initializeTriggerShape(NULL PASS_ENGINE_PARAMETER_SUFFIX));
 	engine->triggerCentral.addEventListener(rpmShaftPositionCallback, "rpm reporter", engine);
 	engine->triggerCentral.addEventListener(mainTriggerCallback, "main loop", engine);
 	resetTriggerConfigChangedForUnitTest();
+}
+
+void EngineTestHelper::fireRise(int delayMs) {
+	timeNowUs += MS2US(delayMs);
+	firePrimaryTriggerRise();
 }
 
 void EngineTestHelper::firePrimaryTriggerRise() {
@@ -78,9 +80,18 @@ void EngineTestHelper::firePrimaryTriggerRise() {
 	engine.triggerCentral.handleShaftSignal(SHAFT_PRIMARY_RISING, &engine, engine.engineConfiguration, &persistentConfig, boardConfiguration);
 }
 
+void EngineTestHelper::fireFall(int delayMs) {
+	timeNowUs += MS2US(delayMs);
+	firePrimaryTriggerFall();
+}
+
 void EngineTestHelper::firePrimaryTriggerFall() {
 	board_configuration_s * boardConfiguration = &engine.engineConfiguration->bc;
 	engine.triggerCentral.handleShaftSignal(SHAFT_PRIMARY_FALLING, &engine, engine.engineConfiguration, &persistentConfig, boardConfiguration);
+}
+
+void EngineTestHelper::fireTriggerEventsWithDuration(int durationMs) {
+	fireTriggerEvents2(1, durationMs);
 }
 
 /**
@@ -88,12 +99,10 @@ void EngineTestHelper::firePrimaryTriggerFall() {
  *
  * This is helpful for TT_ONE trigger wheel decoder and probably other decoders as well.
  */
-void EngineTestHelper::fireTriggerEvents2(int count, int durationUs) {
+void EngineTestHelper::fireTriggerEvents2(int count, int durationMs) {
 	for (int i = 0; i < count; i++) {
-		timeNowUs += durationUs;
-		firePrimaryTriggerRise();
-		timeNowUs += durationUs;
-		firePrimaryTriggerFall();
+		fireRise(durationMs);
+		fireFall(durationMs);
 	}
 }
 
@@ -104,16 +113,14 @@ void EngineTestHelper::clearQueue() {
 }
 
 void EngineTestHelper::fireTriggerEvents(int count) {
-	fireTriggerEvents2(count, MS2US(5)); // 5ms
+	fireTriggerEvents2(count, 5); // 5ms
 }
 
 void EngineTestHelper::applyTriggerShape() {
 	Engine *engine = &this->engine;
-	engine_configuration_s *engineConfiguration = engine->engineConfiguration;
-	persistent_config_s *config = engine->config;
-	board_configuration_s *boardConfiguration = &engineConfiguration->bc;
+	EXPAND_Engine
 
-	engine->triggerCentral.triggerShape.initializeTriggerShape(NULL PASS_ENGINE_PARAMETER_SUFFIX);
+	TRIGGER_SHAPE(initializeTriggerShape(NULL PASS_ENGINE_PARAMETER_SUFFIX));
 
 	incrementGlobalConfigurationVersion(PASS_ENGINE_PARAMETER_SIGNATURE);
 }

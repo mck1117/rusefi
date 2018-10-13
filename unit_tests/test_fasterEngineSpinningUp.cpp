@@ -43,8 +43,7 @@ void testFasterEngineSpinningUp() {
 	// check all events starting from now
 	int timeStartUs = timeNowUs;
 	// advance 1 revolution
-	timeNowUs += MS2US(200);
-	eth.firePrimaryTriggerRise();
+	eth.fireRise(200);
 
 	// check if the mode is changed
 	assertEquals(SPINNING_UP, engine->rpmCalculator.getState());
@@ -61,13 +60,12 @@ void testFasterEngineSpinningUp() {
 	assertEvent5("inj end#1", 1, (void*)endSimultaniousInjection, timeStartUs, MS2US(200) + 100000);
 
 	// skip the rest of the cycle
-	timeNowUs += MS2US(200);
-	eth.firePrimaryTriggerFall();
+	eth.fireFall(200);
 
 	// now clear and advance more
 	eth.clearQueue();
-	timeNowUs += MS2US(200);
-	eth.firePrimaryTriggerRise();
+
+	eth.fireRise(200);
 
 	// check if the mode is changed when fully synched
 	assertEquals(CRANKING, engine->rpmCalculator.getState());
@@ -84,12 +82,11 @@ void testFasterEngineSpinningUp() {
 	assertEvent5("inj end#2", 1, (void*)endSimultaniousInjection, timeNowUs, 100000);
 
 	// skip, clear & advance 1 more revolution at higher RPM
-	timeNowUs += MS2US(60);
-	eth.firePrimaryTriggerFall();
+	eth.fireFall(60);
 
 	eth.clearQueue();
 	timeStartUs = timeNowUs;
-	eth.fireTriggerEvents2(1, MS2US(60));
+	eth.fireTriggerEventsWithDuration(60);
 
 	// check if the mode is now changed to 'running' at higher RPM
 	assertEquals(RUNNING, engine->rpmCalculator.getState());

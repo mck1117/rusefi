@@ -7,7 +7,7 @@
  * @author Andrey Belomutskiy, (c) 2012-2018
  */
 
-#include <main.h>
+#include "global.h"
 
 #include "flash_main.h"
 #include "eficonsole.h"
@@ -25,8 +25,6 @@
 #if EFI_INTERNAL_FLASH || defined(__DOXYGEN__)
 
 #include "engine_controller.h"
-#include "datalogging.h"
-#include "engine.h"
 
 static bool needToWriteConfiguration = false;
 
@@ -131,7 +129,7 @@ static persisted_configuration_state_e doReadConfiguration(flashaddr_t address, 
  * connectivity so no console output here
  */
 persisted_configuration_state_e readConfiguration(Logging * logger) {
-	efiAssert(getRemainingStack(chThdGetSelfX()) > 256, "read f", PC_ERROR);
+	efiAssert(CUSTOM_ERR_ASSERT, getRemainingStack(chThdGetSelfX()) > 256, "read f", PC_ERROR);
 	persisted_configuration_state_e result = doReadConfiguration(FLASH_ADDR, logger);
 	if (result != PC_OK) {
 		printMsg(logger, "Reading second configuration copy");

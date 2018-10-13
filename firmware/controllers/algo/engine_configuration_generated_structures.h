@@ -1,4 +1,4 @@
-// this section was generated automatically by ConfigDefinition.jar based on rusefi_config.txt Fri Jun 22 01:13:18 CDT 2018
+// this section was generated automatically by ConfigDefinition.jar based on rusefi_config.txt Fri Oct 12 22:17:49 PDT 2018
 // begin
 #ifndef ENGINE_CONFIGURATION_GENERATED_H_
 #define ENGINE_CONFIGURATION_GENERATED_H_
@@ -571,6 +571,7 @@ typedef struct {
 	 */
 	pin_output_mode_e triggerSimulatorPinModes[TRIGGER_SIMULATOR_PIN_COUNT];
 	/**
+	 * Narrow band o2 heater, not used for CJ125. See wboHeaterPin
 	 * offset 368
 	 */
 	brain_pin_e o2heaterPin;
@@ -914,10 +915,10 @@ typedef struct {
 	bool useBiQuadAnalogFiltering : 1;
 	/**
 	offset 76 bit 10 */
-	bool issue_294_10 : 1;
+	bool cj125isUaDivided : 1;
 	/**
 	offset 76 bit 11 */
-	bool issue_294_11 : 1;
+	bool cj125isLsu49 : 1;
 	/**
 	offset 76 bit 12 */
 	bool issue_294_12 : 1;
@@ -986,6 +987,7 @@ typedef struct {
 	 */
 	int16_t tpsErrorDetectionTooLow;
 	/**
+	 * TPS error detection, what TPS % value is unrealistically high
 	 * offset 86
 	 */
 	int16_t tpsErrorDetectionTooHigh;
@@ -1038,7 +1040,8 @@ typedef struct {
 	 */
 	int hip9011PrescalerAndSDO;
 	/**
-	 * kHz knock band override
+	 * We calculate knock band based of cylinderBore
+	 *  Use this to override - kHz knock band override
 	 * offset 328
 	 */
 	float knockBandCustom;
@@ -1261,6 +1264,7 @@ typedef struct {
 	offset 1472 bit 1 */
 	bool fuelClosedLoopCorrectionEnabled : 1;
 	/**
+	 * Print details into rusEfi console
 	offset 1472 bit 2 */
 	bool isVerboseIAC : 1;
 	/**
@@ -1337,7 +1341,7 @@ typedef struct {
 	bool useFSIO12ForServo5 : 1;
 	/**
 	offset 1472 bit 26 */
-	bool unused_bit_1472_26 : 1;
+	bool useFSIO15ForIdleRpmAdjustment : 1;
 	/**
 	offset 1472 bit 27 */
 	bool unused_bit_1472_27 : 1;
@@ -1421,7 +1425,7 @@ typedef struct {
 	bool useAdvanceCorrectionsForCranking : 1;
 	/**
 	offset 1484 bit 19 */
-	bool unused_1484_bit_19 : 1;
+	bool useTPSAdvanceTable : 1;
 	/**
 	offset 1484 bit 20 */
 	bool unused_1484_bit_20 : 1;
@@ -1605,12 +1609,12 @@ typedef struct {
 	 * blue LED on discovery by default
 	 * offset 1908
 	 */
-	brain_pin_e communicationPin;
+	brain_pin_e communicationLedPin;
 	/**
 	 * green LED on discovery by default
 	 * offset 1912
 	 */
-	brain_pin_e runningPin;
+	brain_pin_e runningLedPin;
 	/**
 	 * offset 1916
 	 */
@@ -1742,7 +1746,7 @@ typedef struct {
 	 * TODO: start using this property
 	 * offset 2196
 	 */
-	brain_pin_e warninigPin;
+	brain_pin_e warninigLedPin;
 	/**
 	 * offset 2200
 	 */
@@ -1978,7 +1982,7 @@ typedef struct {
 	 */
 	pin_mode_e stepperEnablePinMode;
 	/**
-	 * lampda input
+	 * lambda input
 	 * offset 2720
 	 */
 	adc_channel_e cj125ua;
@@ -1988,6 +1992,7 @@ typedef struct {
 	 */
 	adc_channel_e cj125ur;
 	/**
+	 * per-cylinder timing correction
 	 * offset 2728
 	 */
 	cfg_float_t_1f timing_offset_cylinder[IGNITION_PIN_COUNT];
@@ -2139,7 +2144,39 @@ typedef struct {
 	/**
 	 * offset 3516
 	 */
-	int unusedEnd[741];
+	ignition_tps_table_t ignitionTpsTable;
+	/**
+	 * offset 4028
+	 */
+	float ignitionTpsBins[IGN_TPS_COUNT];
+	/**
+	 * offset 4092
+	 */
+	float tChargeAirCoefMin;
+	/**
+	 * offset 4096
+	 */
+	float tChargeAirCoefMax;
+	/**
+	 * offset 4100
+	 */
+	float tChargeAirFlowMax;
+	/**
+	 * offset 4104
+	 */
+	float tChargeAirIncrLimit;
+	/**
+	 * offset 4108
+	 */
+	float tChargeAirDecrLimit;
+	/**
+	 * offset 4112
+	 */
+	tChargeMode_e tChargeMode;
+	/**
+	 * offset 4116
+	 */
+	int unusedEnd[591];
 	/** total size 6480*/
 } engine_configuration_s;
 
@@ -2385,4 +2422,4 @@ typedef struct {
 
 #endif
 // end
-// this section was generated automatically by ConfigDefinition.jar based on rusefi_config.txt Fri Jun 22 01:13:18 CDT 2018
+// this section was generated automatically by ConfigDefinition.jar based on rusefi_config.txt Fri Oct 12 22:17:49 PDT 2018

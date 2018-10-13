@@ -1,11 +1,9 @@
 package com.rusefi.autotune;
 
-import com.rusefi.config.Fields;
-
 import java.util.Collection;
 
 /**
- * (c) Andrey Belomutskiy 2013-2017
+ * (c) Andrey Belomutskiy 2013-2018
  * 2/18/2016.
  */
 public enum FuelAutoTune2 implements FuelAutoLogic {
@@ -15,12 +13,12 @@ public enum FuelAutoTune2 implements FuelAutoLogic {
 
 
     @Override
-    public Result process(boolean smooth, Collection<stDataOnline> dataECU, double GRAD, double targetAFR, float[][] VEcur) {
-        float result[][] = new float[SIZE][SIZE];
+    public Result process(boolean smooth, Collection<AfrDataPoint> dataECU, double GRAD, double targetAFR, double[][] VEcur) {
+        double result[][] = new double[SIZE][SIZE];
 
         // proverka na statichnost' rezhimnoy tochki
         boolean fl_static = true;
-        for (stDataOnline dataPoint : dataECU) {
+        for (AfrDataPoint dataPoint : dataECU) {
             // TODO
             // proverka idet po trem poslednim dannym v dataECU
             // proverka po rpmIndex
@@ -32,8 +30,8 @@ public enum FuelAutoTune2 implements FuelAutoLogic {
         if (!fl_static)
             return null;
         // end
-        stDataOnline s = dataECU.iterator().next();
-        double delta = (s.AFR - targetAFR) / targetAFR; // privedennoe otklonenie po toplivu
+        AfrDataPoint s = dataECU.iterator().next();
+        double delta = (s.getAfr() - targetAFR) / targetAFR; // privedennoe otklonenie po toplivu
 
 
         for (int r = 0; r < SIZE; r++) {          //rpmIndex

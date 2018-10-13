@@ -9,7 +9,7 @@
  * @author Andrey Belomutskiy, (c) 2012-2018
  */
 
-#include "main.h"
+#include "global.h"
 #include "engine.h"
 #include "engine_state.h"
 #include "efiGpio.h"
@@ -73,7 +73,7 @@ void Engine::updateSlowSensors(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	// todo: move this logic somewhere to sensors folder?
 	if (engineConfiguration->fuelLevelSensor != EFI_ADC_NONE) {
 		float fuelLevelVoltage = getVoltageDivided("fuel", engineConfiguration->fuelLevelSensor);
-		sensors.fuelTankGauge = interpolate(boardConfiguration->fuelLevelEmptyTankVoltage, 0,
+		sensors.fuelTankGauge = interpolateMsg("fgauge", boardConfiguration->fuelLevelEmptyTankVoltage, 0,
 				boardConfiguration->fuelLevelFullTankVoltage, 100,
 				fuelLevelVoltage);
 	}
@@ -115,6 +115,7 @@ void Engine::reset() {
 	sensorChartMode = SC_OFF;
 	actualLastInjection = 0;
 	fsioTimingAdjustment = 0;
+	fsioIdleTargetRPMAdjustment = 0;
 	isAlternatorControlEnabled = false;
 	callFromPitStopEndTime = 0;
 	rpmHardLimitTimestamp = 0;
@@ -184,7 +185,7 @@ TransmissionState::TransmissionState() {
 }
 
 EngineState::EngineState() {
-	dwellAngle = 0;
+	dwellAngle = NAN;
 	engineNoiseHipLevel = 0;
 	injectorLag = 0;
 	warningCounter = 0;
@@ -194,7 +195,9 @@ EngineState::EngineState() {
 	vssEventCounter = 0;
 	targetAFR = 0;
 	tpsAccelEnrich = 0;
-	tChargeK = 0;
+	tCharge = tChargeK = 0;
+	timeSinceLastTChargeK = getTimeNowNt();
+	airFlow = 0;
 	cltTimingCorrection = 0;
 	runningFuel = baseFuel = currentVE = 0;
 	timeOfPreviousWarning = -10;
@@ -231,7 +234,7 @@ void EngineState::periodicFastCallback(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 
 	int rpm = ENGINE(rpmCalculator).getRpm(PASS_ENGINE_PARAMETER_SIGNATURE);
 	sparkDwell = getSparkDwell(rpm PASS_ENGINE_PARAMETER_SUFFIX);
-	dwellAngle = sparkDwell / getOneDegreeTimeMs(rpm);
+	dwellAngle = cisnan(rpm) ? NAN :  sparkDwell / getOneDegreeTimeMs(rpm);
 	if (hasAfrSensor(PASS_ENGINE_PARAMETER_SIGNATURE)) {
 		engine->sensors.currentAfr = getAfr(PASS_ENGINE_PARAMETER_SIGNATURE);
 	}
@@ -282,7 +285,7 @@ void EngineState::periodicFastCallback(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 
 	baroCorrection = getBaroCorrection(PASS_ENGINE_PARAMETER_SIGNATURE);
 
-	injectionOffset = getinjectionOffset(rpm PASS_ENGINE_PARAMETER_SUFFIX);
+	injectionOffset = getInjectionOffset(rpm PASS_ENGINE_PARAMETER_SUFFIX);
 	float engineLoad = getEngineLoadT(PASS_ENGINE_PARAMETER_SIGNATURE);
 	timingAdvance = getAdvance(rpm, engineLoad PASS_ENGINE_PARAMETER_SUFFIX);
 
@@ -307,6 +310,20 @@ void EngineState::periodicFastCallback(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	}
 }
 
+void EngineState::updateTChargeK(int rpm, float tps DECLARE_ENGINE_PARAMETER_SUFFIX) {
+	float coolantC = ENGINE(sensors.clt);
+	float intakeC = ENGINE(sensors.iat);
+	float newTCharge = getTCharge(rpm, tps, coolantC, intakeC PASS_ENGINE_PARAMETER_SUFFIX);
+	// convert to microsecs and then to seconds
+	efitick_t curTime = getTimeNowNt();
+	float secsPassed = (float)NT2US(curTime - timeSinceLastTChargeK) / 1000000.0f;
+	if (!cisnan(newTCharge)) {
+		// control the rate of change or just fill with the initial value
+		tCharge = (tChargeK == 0) ? newTCharge : limitRateOfChange(newTCharge, tCharge, CONFIG(tChargeAirIncrLimit), CONFIG(tChargeAirDecrLimit), secsPassed);
+		tChargeK = convertCelsiusToKelvin(tCharge);
+		timeSinceLastTChargeK = curTime;
+	}
+}
 
 /**
  * Here we have a bunch of stuff which should invoked after configuration change
@@ -331,7 +348,7 @@ void Engine::setConfig(persistent_config_s *config) {
 	this->config = config;
 	engineConfiguration = &config->engineConfiguration;
 	memset(config, 0, sizeof(persistent_config_s));
-	engineState.warmupAfrPid.init(&config->engineConfiguration.warmupAfrPid);
+	engineState.warmupAfrPid.initPidClass(&config->engineConfiguration.warmupAfrPid);
 }
 
 void Engine::printKnockState(void) {
