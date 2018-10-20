@@ -107,7 +107,7 @@ float getAfr(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	afr_sensor_s * sensor = &CONFIG(afr);
 
 	float volts = getVoltageDivided("ego", sensor->hwChannel);
-	float afr = interpolate(sensor->v1, sensor->value1, sensor->v2, sensor->value2, volts)
+	float afr = interpolateMsg("AFR", sensor->v1, sensor->value1, sensor->v2, sensor->value2, volts)
 			+ engineConfiguration->egoValueShift;
 
 	tsOutputChannels.debugFloatField3 = afr;
@@ -128,8 +128,7 @@ float getAfr(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 #endif
 	}
 
-	return interpolateMsg("AFR", sensor->v1, sensor->value1, sensor->v2, sensor->value2, volts)
-			+ engineConfiguration->egoValueShift;
+	return afr;
 }
 
 static void initEgoSensor(afr_sensor_s *sensor, ego_sensor_e type) {
