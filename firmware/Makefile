@@ -275,6 +275,7 @@ INCDIR = $(CHIBIOS)/os/license \
 	development/test \
 	controllers \
 	controllers/sensors \
+	controllers/sensors/generic \
 	controllers/system \
 	controllers/algo \
 	controllers/core \
