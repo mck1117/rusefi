@@ -1185,6 +1185,7 @@ cmd_test_idle_valve          = "w\x00\x17\x00\x01"
 cmd_call_from_pit            = "w\x00\x20\x34\x56"
 cmd_stop_engine              = "w\x00\x99\x00\x00"
 		
+cmd_reboot_bootloader        = "w\x00\x98\x00\x00"
 		
 [UserDefined]
 	dialog = fuelTableBottomDialog, "", card
@@ -2211,7 +2212,8 @@ cmd_stop_engine              = "w\x00\x99\x00\x00"
 		commandButton = "Check Engine", cmd_test_check_engine_light
 		commandButton = "Idle Air Valve", cmd_test_idle_valve          
 		commandButton = "Stop Engine", cmd_stop_engine          
-		
+		commandButton = "Reboot to Bootloader", cmd_reboot_bootloader
+
 	; bench test	
 	dialog = ioTest, "I-O Test", border
 		panel = testSpark,		West

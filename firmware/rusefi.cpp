@@ -144,6 +144,33 @@ static virtual_timer_t resetTimer;
 EXTERN_ENGINE
 ;
 
+extern "C" void jump_loader()
+{
+	__disable_irq();
+	__DSB();
+
+	// map 0x00000000 to the system ROM, instead of flash
+	SYSCFG->MEMRMP = 1;
+	__DSB();
+	__ISB();
+
+	// new SP address is now at location 0
+	uint32_t* pnew_sp = (uint32_t*)0;
+	uint32_t new_sp = *pnew_sp;
+
+	__set_MSP(new_sp);
+
+	// Load reset vector address and jump
+	__asm__ volatile("ldr r1, [r0, #4];"
+					 "bx r1;");
+}
+
+// ChibiOS startup routine calls this before static constructors, and before main
+extern "C" void __late_init()
+{
+	//jump_loader();
+}
+
 // todo: move this into a hw-specific file
 static void rebootNow(void) {
 	NVIC_SystemReset();
