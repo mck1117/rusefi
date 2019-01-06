@@ -230,7 +230,7 @@ Accelerometer::Accelerometer() {
 }
 
 void SensorsState::reset() {
-	fuelTankGauge = vBatt = 0;
+	fuelTankGauge = 0;
 	iat = clt = NAN;
 }
 

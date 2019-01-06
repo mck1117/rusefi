@@ -19,6 +19,9 @@
 #include "accel_enrichment.h"
 #include "trigger_central.h"
 
+#include "SensorHolder.h"
+#include "LinearAnalogSensor.h"
+
 #define MOCK_ADC_SIZE 16
 
 class MockAdcState {
@@ -75,6 +78,9 @@ public:
 };
 
 class SensorsState {
+private:
+	LinearAnalogSensor sensorOilPressure;
+
 public:
 	SensorsState();
 	/**
@@ -88,14 +94,11 @@ public:
 	float iat;
 	float clt;
 
-	/**
-	 * Oil pressure in kPa
-	 */
-	float oilPressure;
-
 	Accelerometer accelerometer;
 
-	float vBatt;
+	SensorHolder<float, 12> vbatt;
+	SensorHolder<float, 0> oilPressure;
+
 	float currentAfr;
 	/**
 	 * that's fuel in tank - just a gauge
