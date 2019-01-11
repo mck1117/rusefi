@@ -5,51 +5,59 @@
  * @author Andrey Belomutskiy, (c) 2012-2018
  */
 
-#include "main.h"
+#include "global.h"
 #include "EfiWave.h"
 #include "trigger_structure.h"
 
-single_wave_s::single_wave_s() {
+SingleWave::SingleWave() {
 	init(NULL);
 }
 
-single_wave_s::single_wave_s(pin_state_t *ps) {
+SingleWave::SingleWave(pin_state_t *ps) {
 	init(ps);
 }
 
-void single_wave_s::init(pin_state_t *pinStates) {
+void SingleWave::init(pin_state_t *pinStates) {
 	this->pinStates = pinStates;
 }
 
-void multi_wave_s::baseConstructor() {
-	waves = NULL;
+int SingleWave::getState(int index) {
+	return pinStates[index];
+}
+
+void SingleWave::setState(int index, int state) {
+	pinStates[index] = state;
+}
+
+void MultiWave::baseConstructor() {
+	channels = NULL;
 	switchTimes = NULL;
 	reset();
 }
 
-multi_wave_s::multi_wave_s() {
+MultiWave::MultiWave() {
 	baseConstructor();
 }
 
-multi_wave_s::multi_wave_s(float *switchTimes, single_wave_s *waves) {
+MultiWave::MultiWave(float *switchTimes, SingleWave *waves) {
 	baseConstructor();
 	init(switchTimes, waves);
 }
 
-void multi_wave_s::init(float *switchTimes, single_wave_s *waves) {
+void MultiWave::init(float *switchTimes, SingleWave *channels) {
 	this->switchTimes = switchTimes;
-	this->waves = waves;
+	this->channels = channels;
 }
 
-void multi_wave_s::reset(void) {
+void MultiWave::reset(void) {
 	waveCount = 0;
 }
 
-float multi_wave_s::getSwitchTime(int index) const {
+float MultiWave::getSwitchTime(int index) const {
 	return switchTimes[index];
 }
 
-void checkSwitchTimes2(int size, float *switchTimes) {
+void MultiWave::checkSwitchTimes(int size) {
 	if (switchTimes[size - 1] != 1) {
 		firmwareError(CUSTOM_ERR_WAVE_1, "last switch time has to be 1 not %.2f", switchTimes[size - 1]);
 		return;
@@ -59,4 +67,32 @@ void checkSwitchTimes2(int size, float *switchTimes) {
 			firmwareError(CUSTOM_ERR_WAVE_2, "invalid switchTimes @%d: %.2f/%.2f", i, switchTimes[i], switchTimes[i + 1]);
 		}
 	}
+}
+
+int MultiWave::getChannelState(int channelIndex, int phaseIndex) const {
+	return channels[channelIndex].pinStates[phaseIndex];
+}
+
+/**
+ * returns the index at which given value would need to be inserted into sorted array
+ */
+int MultiWave::findInsertionAngle(float angle, int size) const {
+	for (int i = size - 1; i >= 0; i--) {
+		if (angle > switchTimes[i])
+			return i + 1;
+	}
+	return 0;
+}
+
+int MultiWave::findAngleMatch(float angle, int size) const {
+	for (int i = 0; i < size; i++) {
+		if (isSameF(switchTimes[i], angle))
+			return i;
+	}
+	return EFI_ERROR_CODE;
+}
+
+void MultiWave::setSwitchTime(int index, float value) {
+	efiAssertVoid(CUSTOM_ERR_6690, switchTimes != NULL, "switchTimes");
+	switchTimes[index] = value;
 }

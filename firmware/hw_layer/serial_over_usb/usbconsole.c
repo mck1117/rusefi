@@ -6,13 +6,16 @@
  * @author Andrey Belomutskiy, (c) 2012-2018
  */
 
-#include "main.h"
+#include "global.h"
 
 #if EFI_USB_SERIAL || defined(__DOXYGEN__)
 
 #include "usbconsole.h"
 #include "usbcfg.h"
 #include "efifeatures.h"
+
+
+static bool isUsbSerialInitialized = false;
 
 void usb_serial_start(void) {
 	/*
@@ -37,10 +40,12 @@ void usb_serial_start(void) {
 	 */
 	sdStart(&SD2, NULL);
 #endif
+
+	isUsbSerialInitialized = true;
 }
 
 bool is_usb_serial_ready(void) {
-	return SDU1.config->usbp->state == USB_ACTIVE;
+	return isUsbSerialInitialized && SDU1.config->usbp->state == USB_ACTIVE;
 }
 
 #else

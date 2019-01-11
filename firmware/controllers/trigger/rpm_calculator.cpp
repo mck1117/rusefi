@@ -10,7 +10,7 @@
  * @author Andrey Belomutskiy, (c) 2012-2018
  */
 
-#include "main.h"
+#include "global.h"
 #include "rpm_calculator.h"
 
 #if EFI_SHAFT_POSITION_INPUT || defined(__DOXYGEN__)
@@ -90,6 +90,9 @@ bool RpmCalculator::isRunning(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	return state == RUNNING;
 }
 
+/**
+ * @return true if engine is spinning (cranking or running)
+ */
 bool RpmCalculator::checkIfSpinning(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	if (lastRpmEventTimeNt == 0) {
 		// here we assume 64 bit time does not overflow
@@ -97,12 +100,9 @@ bool RpmCalculator::checkIfSpinning(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 		return false;
 	}
 	efitick_t nowNt = getTimeNowNt();
-	if (ENGINE(stopEngineRequestTimeNt) != 0) {
-		if (nowNt - ENGINE(stopEngineRequestTimeNt)	< 3 * US2NT(US_PER_SECOND_LL)) {
-			// 'stopengine' command implementation
-			setStopped(PASS_ENGINE_PARAMETER_SIGNATURE);
-			return false;
-		}
+	if (ENGINE(needToStopEngine(nowNt))) {
+		setStopped(PASS_ENGINE_PARAMETER_SIGNATURE);
+		return false;
 	}
 
 	/**
@@ -202,7 +202,7 @@ void RpmCalculator::setStopSpinning(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 }
 
 void RpmCalculator::setSpinningUp(efitime_t nowNt DECLARE_ENGINE_PARAMETER_SUFFIX) {
-	if (!boardConfiguration->isFasterEngineSpinUpEnabled)
+	if (!CONFIGB(isFasterEngineSpinUpEnabled))
 		return;
 	// Only a completely stopped and non-spinning engine can enter the spinning-up state.
 	if (isStopped(PASS_ENGINE_PARAMETER_SIGNATURE) && !isSpinning) {
@@ -311,7 +311,7 @@ static char rpmBuffer[_MAX_FILLER];
  */
 static void onTdcCallback(void) {
 	itoa10(rpmBuffer, getRpmE(engine));
-	addEngineSniffferEvent(TOP_DEAD_CENTER_MESSAGE, (char* ) rpmBuffer);
+	addEngineSnifferEvent(TOP_DEAD_CENTER_MESSAGE, (char* ) rpmBuffer);
 }
 
 /**
@@ -324,7 +324,7 @@ static void tdcMarkCallback(trigger_event_e ckpSignalType,
 	if (isTriggerSynchronizationPoint && ENGINE(isEngineChartEnabled)) {
 		int revIndex2 = engine->rpmCalculator.getRevolutionCounter() % 2;
 		int rpm = ENGINE(rpmCalculator.getRpm(PASS_ENGINE_PARAMETER_SIGNATURE));
-		// todo: use event-based scheduling, not just time-based scheduling
+		// todo: use tooth event-based scheduling, not just time-based scheduling
 		if (isValidRpm(rpm)) {
 			scheduleByAngle(rpm, &tdcScheduler[revIndex2], tdcPosition(),
 					(schfunc_t) onTdcCallback, NULL, &engine->rpmCalculator);
@@ -362,8 +362,6 @@ void initRpmCalculator(Logging *sharedLogger, Engine *engine) {
 	}
 #if (EFI_PROD_CODE || EFI_SIMULATOR) || defined(__DOXYGEN__)
 
-//	tdcScheduler[0].name = "tdc0";
-//	tdcScheduler[1].name = "tdc1";
 	addTriggerEventListener(tdcMarkCallback, "chart TDC mark", engine);
 #endif
 
@@ -377,12 +375,12 @@ void initRpmCalculator(Logging *sharedLogger, Engine *engine) {
  * it takes the crankshaft to rotate to the specified angle.
  */
 void scheduleByAngle(int rpm, scheduling_s *timer, angle_t angle,
-		schfunc_t callback, void *param, RpmCalculator *calc) {
-	efiAssertVoid(CUSTOM_ERR_6633, !cisnan(angle), "NaN angle?");
+		schfunc_t callback, void *param, RpmCalculator *calc DECLARE_ENGINE_PARAMETER_SUFFIX) {
+	efiAssertVoid(CUSTOM_ANGLE_NAN, !cisnan(angle), "NaN angle?");
 	efiAssertVoid(CUSTOM_ERR_6634, isValidRpm(rpm), "RPM check expected");
 	float delayUs = calc->oneDegreeUs * angle;
 	efiAssertVoid(CUSTOM_ERR_6635, !cisnan(delayUs), "NaN delay?");
-	scheduleForLater(timer, (int) delayUs, callback, param);
+	engine->executor.scheduleForLater(timer, (int) delayUs, callback, param);
 }
 #endif
 

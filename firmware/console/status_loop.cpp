@@ -24,8 +24,9 @@
  *
  */
 
-#include "main.h"
+#include "global.h"
 #include "status_loop.h"
+#include "HIP9011_logic.h"
 
 #include "adc_inputs.h"
 #if EFI_WAVE_ANALYZER || defined(__DOXYGEN__)
@@ -58,6 +59,7 @@
 #include "lcd_controller.h"
 #include "settings.h"
 #include "can_hw.h"
+#include "cdm_ion_sense.h"
 
 extern afr_Map3D_t afrMap;
 extern bool main_loop_started;
@@ -72,8 +74,11 @@ extern bool main_loop_started;
 #include "max31855.h"
 #include "vehicle_speed.h"
 #include "SingleTimerExecutor.h"
-#include "CJ125.h"
 #endif /* EFI_PROD_CODE */
+
+#if EFI_CJ125 || defined(__DOXYGEN__)
+#include "CJ125.h"
+#endif /* EFI_CJ125 */
 
 #if EFI_MAP_AVERAGING
 #include "map_averaging.h"
@@ -90,11 +95,14 @@ int warningEnabled = true;
 
 #if EFI_TUNER_STUDIO || defined(__DOXYGEN__)
 extern TunerStudioOutputChannels tsOutputChannels;
+extern tunerstudio_counters_s tsState;
 #endif
 
 extern bool hasFirmwareErrorFlag;
-extern tunerstudio_counters_s tsState;
+extern int maxTriggerReentraint;
+extern uint32_t maxLockedDuration;
 #define FULL_LOGGING_KEY "fl"
+
 
 static char LOGGING_BUFFER[1800] CCM_OPTIONAL;
 static Logging logger("status loop", LOGGING_BUFFER, sizeof(LOGGING_BUFFER));
@@ -112,9 +120,9 @@ static Logging fileLogger("file logger", FILE_LOGGER, sizeof(FILE_LOGGER));
 static int logFileLineIndex = 0;
 #define TAB "\t"
 
-static void reportSensorF(Logging *log, bool fileFormat, const char *caption, const char *units, float value,
+static void reportSensorF(Logging *log, bool isLogFileFormatting, const char *caption, const char *units, float value,
 		int precision) {
-	if (!fileFormat) {
+	if (!isLogFileFormatting) {
 #if (EFI_PROD_CODE || EFI_SIMULATOR) || defined(__DOXYGEN__)
 		debugFloat(log, caption, value, precision);
 #endif /* EFI_PROD_CODE || EFI_SIMULATOR */
@@ -392,21 +400,21 @@ void printOverallStatus(systime_t nowSeconds) {
 			getTimeNowSeconds(),
 			DELIMETER);
 #if EFI_PROD_CODE || defined(__DOXYGEN__)
-	printOutPin(CRANK1, boardConfiguration->triggerInputPins[0]);
-	printOutPin(CRANK2, boardConfiguration->triggerInputPins[1]);
+	printOutPin(CRANK1, CONFIGB(triggerInputPins)[0]);
+	printOutPin(CRANK2, CONFIGB(triggerInputPins)[1]);
 	printOutPin(VVT_NAME, engineConfiguration->camInput);
-	printOutPin(HIP_NAME, boardConfiguration->hip9011IntHoldPin);
-	printOutPin(TACH_NAME, boardConfiguration->tachOutputPin);
+	printOutPin(HIP_NAME, CONFIGB(hip9011IntHoldPin));
+	printOutPin(TACH_NAME, CONFIGB(tachOutputPin));
 	printOutPin(DIZZY_NAME, engineConfiguration->dizzySparkOutputPin);
 #if EFI_WAVE_ANALYZER || defined(__DOXYGEN__)
-	printOutPin(WA_CHANNEL_1, boardConfiguration->logicAnalyzerPins[0]);
-	printOutPin(WA_CHANNEL_2, boardConfiguration->logicAnalyzerPins[1]);
+	printOutPin(WA_CHANNEL_1, CONFIGB(logicAnalyzerPins)[0]);
+	printOutPin(WA_CHANNEL_2, CONFIGB(logicAnalyzerPins)[1]);
 #endif /* EFI_WAVE_ANALYZER */
 
 	for (int i = 0; i < engineConfiguration->specs.cylindersCount; i++) {
-		printOutPin(enginePins.coils[i].name, boardConfiguration->ignitionPins[i]);
+		printOutPin(enginePins.coils[i].name, CONFIGB(ignitionPins)[i]);
 
-		printOutPin(enginePins.injectors[i].name, boardConfiguration->injectionPins[i]);
+		printOutPin(enginePins.injectors[i].name, CONFIGB(injectionPins)[i]);
 	}
 	for (int i = 0; i < AUX_DIGITAL_VALVE_COUNT;i++) {
 		printOutPin(enginePins.auxValve[i].name, engineConfiguration->auxValves[i]);
@@ -550,7 +558,7 @@ static OutputPin *leds[] = { &enginePins.warningLedPin, &enginePins.runningLedPi
 static void initStatusLeds(void) {
 	enginePins.communicationLedPin.initPin("led: comm status", engineConfiguration->communicationLedPin);
 	// we initialize this here so that we can blink it on start-up
-	enginePins.checkEnginePin.initPin("MalfunctionIndicator", boardConfiguration->malfunctionIndicatorPin, &boardConfiguration->malfunctionIndicatorPinMode);
+	enginePins.checkEnginePin.initPin("MalfunctionIndicator", CONFIGB(malfunctionIndicatorPin), &CONFIGB(malfunctionIndicatorPinMode));
 
 
 #if EFI_WARNING_LED || defined(__DOXYGEN__)
@@ -652,8 +660,7 @@ static void lcdThread(void *arg) {
 }
 
 #if EFI_HIP_9011 || defined(__DOXYGEN__)
-extern int correctResponsesCount;
-extern int invalidHip9011ResponsesCount;
+extern HIP9011 instance;
 #endif /* EFI_HIP_9011 */
 
 #if EFI_TUNER_STUDIO || defined(__DOXYGEN__)
@@ -661,13 +668,13 @@ extern int invalidHip9011ResponsesCount;
 void updateTunerStudioState(TunerStudioOutputChannels *tsOutputChannels DECLARE_ENGINE_PARAMETER_SUFFIX) {
 #if EFI_SHAFT_POSITION_INPUT || defined(__DOXYGEN__)
 	int rpm = getRpmE(engine);
-#else
+#else /* EFI_SHAFT_POSITION_INPUT */
 	int rpm = 0;
-#endif
+#endif /* EFI_SHAFT_POSITION_INPUT */
 
 #if EFI_PROD_CODE || defined(__DOXYGEN__)
 	executorStatistics();
-#endif
+#endif /* EFI_PROD_CODE */
 
 	float tps = getTPS(PASS_ENGINE_PARAMETER_SIGNATURE);
 	float coolant = getCoolantTemperature(PASS_ENGINE_PARAMETER_SIGNATURE);
@@ -684,7 +691,8 @@ void updateTunerStudioState(TunerStudioOutputChannels *tsOutputChannels DECLARE_
 	tsOutputChannels->intakeAirTemperature = intake;
 	tsOutputChannels->throttlePositon = tps;
 	tsOutputChannels->massAirFlowVoltage = hasMafSensor() ? getMaf(PASS_ENGINE_PARAMETER_SIGNATURE) : 0;
-    tsOutputChannels->massAirFlow = hasMafSensor() ? getRealMaf(PASS_ENGINE_PARAMETER_SIGNATURE) : 0;
+	// For air-interpolated tCharge mode, we calculate a decent massAirFlow approximation, so we can show it to users even without MAF sensor!
+    tsOutputChannels->massAirFlow = hasMafSensor() ? getRealMaf(PASS_ENGINE_PARAMETER_SIGNATURE) : engine->engineState.airFlow;
     tsOutputChannels->oilPressure = engine->sensors.oilPressure;
 
     tsOutputChannels->injectionOffset = engine->engineState.injectionOffset;
@@ -730,20 +738,26 @@ void updateTunerStudioState(TunerStudioOutputChannels *tsOutputChannels DECLARE_
 
 	tsOutputChannels->coilDutyCycle = getCoilDutyCycle(rpm PASS_ENGINE_PARAMETER_SUFFIX);
 
-	efitimesec_t now = getTimeNowSeconds();
-	tsOutputChannels->timeSeconds = now;
+	efitimesec_t timeSeconds = getTimeNowSeconds();
+	tsOutputChannels->timeSeconds = timeSeconds;
 	tsOutputChannels->firmwareVersion = getRusEfiVersion();
 
-	tsOutputChannels->isWarnNow = isWarningNow(now, true);
+	tsOutputChannels->isWarnNow = isWarningNow(timeSeconds, true);
 	tsOutputChannels->isCltBroken = engine->isCltBroken;
 #if EFI_HIP_9011 || defined(__DOXYGEN__)
-	tsOutputChannels->isKnockChipOk = (invalidHip9011ResponsesCount == 0);
+	tsOutputChannels->isKnockChipOk = (instance.invalidHip9011ResponsesCount == 0);
 #endif /* EFI_HIP_9011 */
 
 	switch (engineConfiguration->debugMode)	{
 	case DBG_STATUS:
-		tsOutputChannels->debugFloatField1 = getTimeNowSeconds();
+		tsOutputChannels->debugFloatField1 = timeSeconds;
 		tsOutputChannels->debugIntField1 = atoi(VCS_VERSION);
+		break;
+	case DBG_METRICS:
+#if EFI_CLOCK_LOCKS || defined(__DOXYGEN__)
+		tsOutputChannels->debugIntField1 = maxLockedDuration;
+		tsOutputChannels->debugIntField2 = maxTriggerReentraint;
+#endif /* EFI_CLOCK_LOCKS */
 		break;
 	case DBG_TPS_ACCEL:
 		tsOutputChannels->debugIntField1 = engine->tpsAccelEnrichment.cb.getSize();
@@ -798,8 +812,9 @@ void updateTunerStudioState(TunerStudioOutputChannels *tsOutputChannels DECLARE_
 		break;
 #if EFI_HIP_9011 || defined(__DOXYGEN__)
 	case DBG_KNOCK:
-		tsOutputChannels->debugIntField1 = correctResponsesCount;
-		tsOutputChannels->debugIntField2 = invalidHip9011ResponsesCount;
+		// todo: maybe extract hipPostState(tsOutputChannels);
+		tsOutputChannels->debugIntField1 = instance.correctResponsesCount;
+		tsOutputChannels->debugIntField2 = instance.invalidHip9011ResponsesCount;
 		break;
 #endif /* EFI_HIP_9011 */
 #if EFI_CJ125 || defined(__DOXYGEN__)
@@ -832,6 +847,9 @@ void updateTunerStudioState(TunerStudioOutputChannels *tsOutputChannels DECLARE_
 			tsOutputChannels->debugFloatField1 = instantRpm;
 			tsOutputChannels->debugFloatField2 = instantRpm / GET_RPM();
 		}
+		break;
+	case DBG_ION:
+		//ionPostState(tsOutputChannels);
 		break;
 	default:
 		;
@@ -906,7 +924,8 @@ void updateTunerStudioState(TunerStudioOutputChannels *tsOutputChannels DECLARE_
 	tsOutputChannels->clutchDownState = engine->clutchDownState;
 	tsOutputChannels->brakePedalState = engine->brakePedalState;
 
-	tsOutputChannels->tCharge = getTCharge(rpm, tps, coolant, intake PASS_ENGINE_PARAMETER_SUFFIX);
+	// tCharge depends on the previous state, so we should use the stored value.
+	tsOutputChannels->tCharge = ENGINE(engineState.tCharge);
 	float timing = engine->engineState.timingAdvance;
 	tsOutputChannels->ignitionAdvance = timing > 360 ? timing - 720 : timing;
 	tsOutputChannels->sparkDwell = ENGINE(engineState.sparkDwell);

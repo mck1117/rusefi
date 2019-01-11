@@ -39,13 +39,13 @@ import static com.rusefi.ui.storage.PersistentConfiguration.getConfig;
  * <p/>
  * <p/>
  * 12/25/12
- * (c) Andrey Belomutskiy 2013-2017
+ * (c) Andrey Belomutskiy 2013-2018
  *
  * @see StartupFrame
  * @see EngineSnifferPanel
  */
 public class Launcher {
-    public static final int CONSOLE_VERSION = 20180130;
+    public static final int CONSOLE_VERSION = 20181117;
     public static final boolean SHOW_STIMULATOR = false;
     private static final String TAB_INDEX = "main_tab";
     protected static final String PORT_KEY = "port";

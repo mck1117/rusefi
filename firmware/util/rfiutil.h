@@ -22,12 +22,13 @@
 #define isLocked() (ch.dbg.lock_cnt > 0)
 #define isIsrContext() (ch.dbg.isr_cnt > 0)
 
+#define assertIsrContext(code) efiAssertVoid(code, isIsrContext(), "NOT_ISR")
+
 #ifdef __cplusplus
 extern "C"
 {
 #endif /* __cplusplus */
 
-//char hexC(int v);
 void chVTSetAny(virtual_timer_t *vtp, systime_t time, vtfunc_t vtfunc, void *par);
 
 #ifdef __cplusplus

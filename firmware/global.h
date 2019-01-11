@@ -1,6 +1,13 @@
 /*
  * @file global.h
  *
+ * Global utility header file for firmware
+ *
+ * Simulator and unit tests have their own version of this header
+ *
+ * While this header contains 'EXTERN_ENGINE' and 'DECLARE_ENGINE_PARAMETER_SIGNATURE' magic,
+ * this header is not allowed to actually include higher-level engine related headers
+ *
  * @date May 27, 2013
  * @author Andrey Belomutskiy, (c) 2012-2017
  */
@@ -15,12 +22,6 @@ extern "C"
 
 #include <ch.h>
 #include <hal.h>
-    
-#include <string.h>
-
-#ifndef DEFAULT_ENGINE_TYPE
-#define DEFAULT_ENGINE_TYPE CUSTOM_ENGINE
-#endif
 
 // this is about MISRA not liking 'time.h'. todo: figure out something
 #if defined __GNUC__
@@ -34,15 +35,18 @@ typedef unsigned int time_t;
 #define ALWAYS_INLINE INLINE
 #endif
 
-#include "efifeatures.h"
-#include "rusefi_types.h"
-#include "rusefi_enums.h"
-#if EFI_PROD_CODE
+#include "common_headers.h"
+#include "controllers/global_shared.h"
+
 #include "io_pins.h"
-#endif
-#include "auto_generated_enums.h"
-#include "obd_error_codes.h"
-#include "error_handling.h"
+
+#ifdef __cplusplus
+#include "cli_registry.h"
+
+#include "eficonsole.h"
+#endif /* __cplusplus */
+
+#include "chprintf.h"
 
 /* definition to expand macro then apply to pragma message */
 #define VALUE_TO_STRING(x) #x
@@ -70,60 +74,29 @@ typedef unsigned int time_t;
  *
  * Please note that DMA does not work with CCM memory
  */
-#if EFI_USE_CCM && defined __GNUC__
-#define CCM_OPTIONAL __attribute__((section(".ram4")))
-#elif defined __GNUC__
+#if defined(STM32F7XX)
+#undef EFI_USE_CCM
+// todo: DTCM == CCM on STM32F7?
+//#define CCM_RAM ".ram3"
+#else /* defined(STM32F4XX) */
+#define CCM_RAM ".ram4"
+#endif /* defined(STM32F4XX) */
+
+#if EFI_USE_CCM
+#if defined __GNUC__
+#define CCM_OPTIONAL __attribute__((section(CCM_RAM)))
+#else // non-gcc
+#define CCM_OPTIONAL @ CCM_RAM
+#endif
+#else /* !EFI_USE_CCM */
 #define CCM_OPTIONAL
-#else
-#define CCM_OPTIONAL @ ".ram4"
-#endif
+#endif /* EFI_USE_CCM */
 
-#if EFI_PROD_CODE || defined(__DOXYGEN__)
-
-/**
- * The following obscurantism is a hack to reduce stack usage, maybe even a questionable performance
- * optimization.
- *
- * rusEfi main processing happens on IRQ so PORT_INT_REQUIRED_STACK has to be pretty large. Problem
- * is that PORT_INT_REQUIRED_STACK is included within each user thread stack, thus this large stack multiplies
- * and this consumes a lot of valueable RAM. While forcing the compiler to inline helps to some degree,
- * it would be even better not to waste stack on passing the parameter.
- *
- * In the firmware we are using 'extern *Engine' - in the firmware Engine is a signleton
- *
- * On the other hand, in order to have a meaningful unit test we are passing Engine * engine as a parameter
- */
-
-#define EXTERN_ENGINE extern Engine *engine; \
-		extern engine_configuration_s *engineConfiguration; \
-		extern board_configuration_s *boardConfiguration; \
-		extern persistent_config_container_s persistentState; \
+#define EXTERN_ENGINE \
 		extern Engine _engine; \
-		extern persistent_config_s *config; \
-		extern engine_configuration_s activeConfiguration; \
-		extern EnginePins enginePins
+		COMMON_EXTERN_ENGINE
 
-// Use this macro to declare a function which only takes magic references
-#define DECLARE_ENGINE_PARAMETER_SIGNATURE void
-// Use this version of the macro as the suffix if method has other parameters
-#define DECLARE_ENGINE_PARAMETER_SUFFIX
-// Pass this if only magic reference are needed
-#define PASS_ENGINE_PARAMETER_SIGNATURE
-// Pass this after some other parameters are passed
-#define PASS_ENGINE_PARAMETER_SUFFIX
-
-/**
- * this macro allows the compiled to figure out the complete static address, that's a performance
- * optimization which is hopefully useful at least for anything trigger-related
- */
-#define CONFIG(x) persistentState.persistentConfiguration.engineConfiguration.x
 #define ENGINE(x) _engine.x
-#define TRIGGER_SHAPE(x) _engine.triggerCentral.triggerShape.x
-
-#else
-#define EXTERN_ENGINE
-#endif
-
 
 /**
  * low-level function is used here to reduce stack usage
@@ -142,4 +115,32 @@ int getRemainingStack(thread_t *otp);
 }
 #endif /* __cplusplus */
 
+
+// 168 ticks in microsecond
+#define US_TO_NT_MULTIPLIER (CORE_CLOCK / 1000000)
+
+/**
+ * converts efitimeus_t to efitick_t
+ */
+#define US2NT(us) (((efitime_t)(us))*US_TO_NT_MULTIPLIER)
+
+/**
+ * converts efitick_t to efitimeus_t
+ */
+#define NT2US(nt) ((nt) / US_TO_NT_MULTIPLIER)
+
+#define Delay(ms) chThdSleepMilliseconds(ms)
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
+bool lockAnyContext(void);
+void unlockAnyContext(void);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif /* GLOBAL_H_ */
+

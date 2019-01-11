@@ -8,14 +8,12 @@
 #ifndef TUNERSTUDIO_H_
 #define TUNERSTUDIO_H_
 
-#include "main.h"
+#include "global.h"
 #include "tunerstudio_io.h"
 
 #if EFI_TUNER_STUDIO
 #include "tunerstudio_configuration.h"
 #include "engine.h"
-
-#include <stdint.h>
 
 typedef struct {
 	int queryCommandCounter;

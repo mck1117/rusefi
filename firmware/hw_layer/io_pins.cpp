@@ -7,8 +7,9 @@
  * @author Andrey Belomutskiy, (c) 2012-2018
  */
 
-#include <board.h>
-#include "main.h"
+#include "global.h"
+
+#if EFI_PROD_CODE
 #include "io_pins.h"
 #include "efiGpio.h"
 
@@ -27,7 +28,7 @@ static LoggingWithStorage logger("io_pins");
 
 extern EnginePins enginePins;
 
-#if defined(STM32F4XX)
+#if defined(STM32F4XX) || defined(STM32F7XX)
 static ioportid_t PORTS[] = { GPIOA, GPIOB, GPIOC, GPIOD, GPIOE, GPIOF, GPIOG, GPIOH };
 #else
 static ioportid_t PORTS[] = { GPIOA, GPIOB, GPIOC, GPIOD, GPIOF};
@@ -41,16 +42,6 @@ ioportid_t getHwPort(const char *msg, brain_pin_e brainPin) {
 		return GPIO_NULL;
 	}
 	return PORTS[brainPin / PORT_SIZE];
-}
-
-ioportmask_t getHwPin(const char *msg, brain_pin_e brainPin) {
-	if (brainPin == GPIO_UNASSIGNED)
-		return EFI_ERROR_CODE;
-	if (brainPin > GPIO_UNASSIGNED || brainPin < 0) {
-		firmwareError(CUSTOM_ERR_INVALID_PIN, "%s: Invalid brain_pin_e: %d", msg, brainPin);
-		return EFI_ERROR_CODE;
-	}
-	return brainPin % PORT_SIZE;
 }
 
 bool efiReadPin(brain_pin_e pin) {
@@ -98,3 +89,4 @@ void efiIcuStart(ICUDriver *icup, const ICUConfig *config) {
 	icuStart(icup, config);
 }
 #endif /* HAL_USE_ICU */
+#endif

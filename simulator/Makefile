@@ -3,13 +3,23 @@
 # NOTE: Can be overridden externally.
 #
 
+
+CHIBIOS = ../firmware/ChibiOS4
+RULESPATH = $(CHIBIOS)/os/common/startup/SIMIA32/compilers/GCC
+RULESFILE = $(RULESPATH)/rules.mk
+
+include ../firmware/rusefi.mk
+
+
 # Compiler options here.
 ifeq ($(USE_OPT),)
 # this config if debugging is needed, but the binary is about 50M
 #  USE_OPT = -Wall     -ggdb     -Werror-implicit-function-declaration -Werror -Wno-error=pointer-sign -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=sign-compare -Wno-error=unused-parameter -Wno-error=missing-field-initializers -Wno-error=write-strings -Wno-error=strict-aliasing
 #  USE_OPT = -Wall -O0 -ggdb -g3 -Werror-implicit-function-declaration -Werror -Wno-error=pointer-sign -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=sign-compare -Wno-error=unused-parameter -Wno-error=missing-field-initializers -Wno-error=write-strings
 # this config producec a smaller binary file
-  USE_OPT = -Wall -O2           -Werror-implicit-function-declaration -Werror -Wno-error=pointer-sign -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=sign-compare -Wno-error=unused-parameter -Wno-error=missing-field-initializers -Wno-error=write-strings -Wno-error=strict-aliasing
+# 7.3 compiler would want -Wno-error=implicit-fallthrough while 6.4 does not know about it
+# see https://github.com/rusefi/rusefi/issues/517
+  USE_OPT = -Wall -O2    -Wno-error=implicit-fallthrough       -Werror-implicit-function-declaration -Werror -Wno-error=pointer-sign -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=sign-compare -Wno-error=unused-parameter -Wno-error=missing-field-initializers -Wno-error=write-strings -Wno-error=strict-aliasing
 
 	ifeq ($(OS),Windows_NT)
 	else
@@ -24,7 +34,7 @@ endif
 
 # C++ specific options here (added to USE_OPT).
 ifeq ($(USE_CPPOPT),)
-  USE_CPPOPT = -fno-rtti
+  USE_CPPOPT = -std=c++17 -Wno-register -fno-rtti
 endif
 
 # Enable this if you want the linker to remove unused code and data.
@@ -74,7 +84,6 @@ PROJECT = rusefi_simulator
 PROJECT_DIR = ../firmware
 
 # Imported source files and paths
-CHIBIOS = ../firmware/ChibiOS4
 
 # Startup files.
 # HAL-OSAL files (optional).
@@ -94,6 +103,7 @@ endif
 
 include $(PROJECT_DIR)/util/util.mk
 include $(PROJECT_DIR)/config/engines/engines.mk
+include $(PROJECT_DIR)/controllers/controllers.mk
 include $(PROJECT_DIR)/controllers/algo/algo.mk
 include $(PROJECT_DIR)/controllers/core/core.mk
 include $(PROJECT_DIR)/controllers/math/math.mk
@@ -124,18 +134,15 @@ CSRC =  ${PORTSRC} \
         $(UTILSRC) \
         main.c
 
-# todo: reuse controllers.mk here 
 # C++ sources that can be compiled in ARM or THUMB mode depending on the global
 # setting.
 CPPSRC = $(UTILSRC_CPP) \
 	$(CONTROLLERS_ALGO_SRC_CPP) \
-	$(PROJECT_DIR)/controllers/settings.cpp \
-	$(PROJECT_DIR)/controllers/engine_controller.cpp \
-	$(PROJECT_DIR)/controllers/error_handling.cpp \
-	$(PROJECT_DIR)/controllers/persistent_store.cpp \
-	$(PROJECT_DIR)/controllers/map_averaging.cpp \
+	$(CONTROLLERS_SRC_CPP) \
 	$(PROJECT_DIR)/development/sensor_chart.cpp \
 	$(PROJECT_DIR)/development/trigger_emulator.cpp \
+	$(HW_LAYER_EMS_CPP) \
+	$(PROJECT_DIR)/hw_layer/sensors/CJ125.cpp \
 	$(TRIGGER_SRC_CPP) \
 	$(TRIGGER_DECODERS_SRC_CPP) \
 	$(SYSTEMSRC_CPP) \
@@ -172,6 +179,7 @@ INCDIR = . \
           $(PROJECT_DIR)/controllers \
           $(PROJECT_DIR)/hw_layer \
           $(PROJECT_DIR)/hw_layer/algo \
+          $(PROJECT_DIR)/hw_layer/sensors/ \
           $(PROJECT_DIR)/development \
           $(PROJECT_DIR)/controllers/algo \
           $(PROJECT_DIR)/controllers/core \
@@ -257,5 +265,4 @@ endif
 # End of user defines
 ##############################################################################
 
-RULESPATH = $(CHIBIOS)/os/common/startup/SIMIA32/compilers/GCC
 include $(RULESPATH)/rules.mk

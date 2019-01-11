@@ -12,10 +12,10 @@ import java.util.TreeSet;
  */
 @SuppressWarnings("StringConcatenationInsideStringBufferAppend")
 public class EnumToString {
-    private final static Set<String> currentValues = new TreeSet<String>();
+    private final static Set<String> currentValues = new TreeSet<>();
 
-    private final static StringBuilder result = new StringBuilder();
-    private final static StringBuilder header = new StringBuilder();
+    private final static StringBuilder cppFileContent = new StringBuilder();
+    private final static StringBuilder headerFileContent = new StringBuilder();
 
     public static void main(String[] args) throws IOException {
         if (args.length != 2) {
@@ -25,24 +25,23 @@ public class EnumToString {
         String inputPath = args[0];
         String outputPath = args[1];
 
-        header.append("#ifndef _A_H_HEADER_\r\n");
-        header.append("#define _A_H_HEADER_\r\n");
+        headerFileContent.append("#ifndef _A_H_HEADER_\r\n");
+        headerFileContent.append("#define _A_H_HEADER_\r\n");
 
-//        process(path + File.separator + "controllers/algo/io_pins.h");
         process(inputPath + File.separator + "controllers/algo/rusefi_enums.h");
 
-        header.append("#endif /*_A_H_HEADER_ */\r\n");
+        headerFileContent.append("#endif /*_A_H_HEADER_ */\r\n");
 
-        writeResult(outputPath + File.separator + "auto_generated_enums");
+        writeCppAndHeaderFiles(outputPath + File.separator + "auto_generated_enums");
     }
 
-    private static void writeResult(String outFileName) throws IOException {
+    private static void writeCppAndHeaderFiles(String outFileName) throws IOException {
         BufferedWriter bw = new BufferedWriter(new FileWriter(outFileName + ".cpp"));
-        bw.write(result.toString());
+        bw.write(cppFileContent.toString());
         bw.close();
 
         bw = new BufferedWriter(new FileWriter(outFileName + ".h"));
-        bw.write(header.toString());
+        bw.write(headerFileContent.toString());
         bw.close();
     }
 
@@ -56,8 +55,9 @@ public class EnumToString {
                 "\r\n" +
                 "\r\n" +
                 "\r\n";
-        result.append(header);
-        EnumToString.header.append(header);
+
+        cppFileContent.append(header);
+        EnumToString.headerFileContent.insert(0, header);
 
         boolean isInsideEnum = false;
 
@@ -65,14 +65,14 @@ public class EnumToString {
         System.out.println("Reading from " + inFileName);
         String simpleFileName = f.getName();
 
-        result.append("#include \"main.h\"\r\n");
-        result.append("#include \"" + simpleFileName + "\"\r\n");
-        EnumToString.header.append("#include \"" + simpleFileName + "\"\r\n");
+        cppFileContent.append("#include \"global.h\"\r\n");
+        cppFileContent.append("#include \"" + simpleFileName + "\"\r\n");
+        EnumToString.headerFileContent.append("#include \"" + simpleFileName + "\"\r\n");
 
         reader = new BufferedReader(new FileReader(inFileName));
         String line;
         while ((line = reader.readLine()) != null) {
-            line = line.replaceAll("\\s+", "");
+            line = removeSpaces(line);
 
             if (line.startsWith("typedefenum{")) {
                 System.out.println("Entering enum");
@@ -82,12 +82,12 @@ public class EnumToString {
                 isInsideEnum = false;
                 line = line.substring(1, line.length() - 1);
                 System.out.println("Ending enum " + line);
-                result.append(makeCode(line));
-                EnumToString.header.append(getMethodSignature(line) + ";\r\n");
+                cppFileContent.append(makeCode(line));
+                EnumToString.headerFileContent.append(getMethodSignature(line) + ";\r\n");
             } else {
                 line = line.replaceAll("//.+", "");
                 if (isInsideEnum) {
-                    if (line.matches("[a-zA-Z_$][a-zA-Z\\d_$]*[\\=a-zA-Z\\d_*]*,?")) {
+                    if (isKeyValueLine(line)) {
                         line = line.replace(",", "");
                         int index = line.indexOf('=');
                         if (index != -1)
@@ -98,6 +98,14 @@ public class EnumToString {
                 }
             }
         }
+    }
+
+    static String removeSpaces(String line) {
+        return line.replaceAll("\\s+", "");
+    }
+
+    static boolean isKeyValueLine(String line) {
+        return removeSpaces(line).matches("[a-zA-Z_$][a-zA-Z\\d_$]*[=-a-zA-Z\\d_*]*,?");
     }
 
     private static String makeCode(String enumName) {

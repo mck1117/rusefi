@@ -7,8 +7,8 @@
 #ifndef TRIGGER_BMW_H_
 #define TRIGGER_BMW_H_
 
-#include "engine.h"
+#include "trigger_structure.h"
 
-void configureMiniCooperTriggerShape(TriggerShape *s DECLARE_ENGINE_PARAMETER_SUFFIX);
+void configureMiniCooperTriggerShape(TriggerShape *s);
 
 #endif /* TRIGGER_BMW_H_ */

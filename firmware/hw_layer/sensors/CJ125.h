@@ -8,6 +8,8 @@
 #ifndef HW_LAYER_SENSORS_CJ125_H_
 #define HW_LAYER_SENSORS_CJ125_H_
 
+#include "engine_configuration.h"
+
 // CJ125 SPI Registers
 #define	IDENT_REG_RD					0x48 // Read Identity Register
 #define	INIT_REG1_WR					0x56 // Write To Initialization Register 1
@@ -173,9 +175,27 @@ typedef enum {
 
 } cj125_sensor_type_e;
 
+class CJ125 {
+public:
+	CJ125();
 
-void initCJ125(Logging *shared);
+	// Used by CJ125 driver state machine
+	volatile cj125_state_e state;
+	// Last Error code
+	volatile cj125_error_e errorCode;
+
+
+	void cjSetError(cj125_error_e errCode DECLARE_ENGINE_PARAMETER_SUFFIX);
+	bool cjIsWorkingState(void);
+
+};
+
+#if EFI_TUNER_STUDIO || defined(__DOXYGEN__)
 void cjPostState(TunerStudioOutputChannels *tsOutputChannels);
+#endif /* EFI_TUNER_STUDIO */
+
+void initCJ125(Logging *shared DECLARE_ENGINE_PARAMETER_SUFFIX);
+
 float cjGetAfr(DECLARE_ENGINE_PARAMETER_SIGNATURE);
 bool cjHasAfrSensor(DECLARE_ENGINE_PARAMETER_SIGNATURE);
 void cj125defaultPinout();

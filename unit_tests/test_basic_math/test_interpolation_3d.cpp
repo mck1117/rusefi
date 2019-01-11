@@ -1,17 +1,15 @@
 /*
+ * @file    test_interpolation_3d.cpp
+ *
  *  Created on: Oct 17, 2013
  * @author Andrey Belomutskiy, (c) 2012-2018
- */
-
-/**
- * @file    test_interpolation_3d.c
  */
 
 #include "test_interpolation_3d.h"
 #include <stdlib.h>
 
 #include "interpolation.h"
-#include "main.h"
+#include "global.h"
 #include "unit_test_framework.h"
 
 float rpmBins[5] = { 100, 200, 300, 400, 500 };
@@ -61,45 +59,56 @@ static void newTestToComfirmInterpolation() {
 	assertEqualsM("middle @ 2.3  ",35.15, getValue(/*rpm*/250, 2.3));
 
 	assertEqualsM("middle cell    ", 54.25, getValue(/*rpm*/250, 2.5));
+
+	// issue #604: interpolation outside of the table
+	// X above the range
+	assertEqualsM("800 @ 2.1  ",230, getValue(/*rpm*/800, 2.1));
+	assertEqualsM("800 @ 2.3  ",290, getValue(/*rpm*/800, 2.3));
+	assertEqualsM("800 @ 3.3  ",530, getValue(/*rpm*/800, 3.3));
+
+	// X below the range
+	assertEqualsM("-810 @ 2.1  ",2.1, getValue(/*rpm*/-810, 2.1));
+	assertEqualsM("-820 @ 2.3  ",2.3, getValue(/*rpm*/-820, 2.3));
+
+	// Y above the range
+	assertEqualsM("310 @ 12.1  ", 330, getValue(/*rpm*/310, 12.1));
+	assertEqualsM("320 @ 12.3  ", 360, getValue(/*rpm*/320, 12.3));
+
+	// Y below the range
+	assertEqualsM("310 @ -12.1  ", 3.1, getValue(/*rpm*/310, -12.1));
+	assertEqualsM("320 @ -12.3  ", 3.2, getValue(/*rpm*/320, -12.3));
 }
 
 void testInterpolate3d(void) {
 	printf("*************************************************** testInterpolate3d\r\n");
-	float dwell;
+
 	printf("*** no interpolation here 1\r\n");
-	dwell = getValue(100, 2);
-	assertEquals(2, dwell);
+	assertEquals(2, getValue(100, 2));
 
 	printf("*** no interpolation here 2\r\n");
-	dwell = getValue(200, 4);
-	assertEquals(5, dwell);
+	assertEquals(5, getValue(200, 4));
 
 	printf("*** rpm interpolated value expected1\r\n");
-	dwell = getValue(150, 2);
-	assertEquals(2.5, dwell);
+	assertEquals(2.5, getValue(150, 2));
 
 	printf("*** rpm interpolated value expected2\r\n");
-	dwell = getValue(250, 3);
-	assertEquals(102, dwell);
+	assertEquals(102, getValue(250, 3));
 
 	printf("*** both rpm and maf interpolated value expected\r\n");
-	dwell = getValue(335.3, 3.551);
-	assertEquals(361, dwell);
+	assertEquals(361, getValue(335.3, 3.551));
 
 	printf("*** both rpm and maf interpolated value expected 2\r\n");
-	dwell = getValue(410.01, 2.012);
-	assertEquals(203.6, dwell);
+	assertEquals(203.6, getValue(410.01, 2.012));
 
 	printf("*** both rpm and maf interpolated value expected 3\r\n");
-	dwell = getValue(1000000, 1000);
-	assertEquals(600, dwell);
+	assertEquals(600, getValue(1000000, 1000));
 
 	printf("*** both rpm and maf interpolated value expected 4\r\n");
-	dwell = getValue(410.01, -1);
-	assertEquals(4, dwell);
 
-	dwell = getValue(-1, -1);
-	assertEquals(1, dwell);
+	assertEquals(4, getValue(410.01, -1));
+
+
+	assertEquals(1, getValue(-1, -1));
 
 	newTestToComfirmInterpolation();
 

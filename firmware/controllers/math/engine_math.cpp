@@ -19,12 +19,11 @@
  * If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "main.h"
+#include "global.h"
 #include "engine_math.h"
 #include "engine_configuration.h"
 #include "interpolation.h"
 #include "allsensors.h"
-#include "trigger_decoder.h"
 #include "event_registry.h"
 #include "efiGpio.h"
 #include "fuel_math.h"
@@ -135,7 +134,7 @@ bool FuelSchedule::addFuelEventsForCylinder(int i  DECLARE_ENGINE_PARAMETER_SUFF
 	efiAssert(CUSTOM_ERR_ASSERT, !cisnan(fuelMs), "NaN fuelMs", false);
 	angle_t injectionDuration = MS2US(fuelMs) / oneDegreeUs;
 	efiAssert(CUSTOM_ERR_ASSERT, !cisnan(injectionDuration), "NaN injectionDuration", false);
-	assertAngleRange(injectionDuration, "injectionDuration_r", CUSTOM_ERR_6542);
+	assertAngleRange(injectionDuration, "injectionDuration_r", CUSTOM_INJ_DURATION);
 	floatus_t injectionOffset = ENGINE(engineState.injectionOffset);
 	if (cisnan(injectionOffset)) {
 		// injection offset map not ready - we are not ready to schedule fuel events
@@ -163,7 +162,7 @@ bool FuelSchedule::addFuelEventsForCylinder(int i  DECLARE_ENGINE_PARAMETER_SUFF
 
 	bool isSimultanious = mode == IM_SIMULTANEOUS;
 
-	assertAngleRange(baseAngle, "addFbaseAngle", CUSTOM_ERR_6543);
+	assertAngleRange(baseAngle, "addFbaseAngle", CUSTOM_ADD_BASE);
 
 	int cylindersCount = CONFIG(specs.cylindersCount);
 	if (cylindersCount < 1) {
@@ -211,7 +210,7 @@ bool FuelSchedule::addFuelEventsForCylinder(int i  DECLARE_ENGINE_PARAMETER_SUFF
 
 	efiAssert(CUSTOM_ERR_ASSERT, !cisnan(angle), "findAngle#3", false);
 	assertAngleRange(angle, "findAngle#a33", CUSTOM_ERR_6544);
-	TRIGGER_SHAPE(findTriggerPosition(&ev->injectionStart, angle PASS_ENGINE_PARAMETER_SUFFIX));
+	TRIGGER_SHAPE(findTriggerPosition(&ev->injectionStart, angle PASS_CONFIG_PARAM(engineConfiguration->globalTriggerAngleOffset)));
 #if EFI_UNIT_TEST || defined(__DOXYGEN__)
 	printf("registerInjectionEvent angle=%.2f trgIndex=%d inj %d\r\n", angle, ev->injectionStart.eventIndex, injectorIndex);
 #endif
@@ -264,94 +263,37 @@ floatms_t getSparkDwell(int rpm DECLARE_ENGINE_PARAMETER_SUFFIX) {
 	return dwellMs;
 }
 
-/**
- * this method is only used on initialization
- */
-int TriggerShape::findAngleIndex(float target DECLARE_ENGINE_PARAMETER_SUFFIX) {
-	int engineCycleEventCount = TRIGGER_SHAPE(getLength());
 
-	efiAssert(CUSTOM_ERR_ASSERT, engineCycleEventCount > 0, "engineCycleEventCount", 0);
+static const int order_1_2[] = {1, 2};
 
-	uint32_t left = 0;
-	uint32_t right = engineCycleEventCount - 1;
-
-	/**
-	 * Let's find the last trigger angle which is less or equal to the desired angle
-	 * todo: extract binary search as template method?
-	 */
-    while (left <= right) {
-        int middle = (left + right) / 2;
-		angle_t eventAngle = TRIGGER_SHAPE(eventAngles[middle]);
-
-        if (eventAngle < target) {
-            left = middle + 1;
-        } else if (eventAngle > target) {
-            right = middle - 1;
-        } else {
-            // Values are equal
-            return middle;             // Key found
-        }
-    }
-    return left - 1;
-}
-
-void TriggerShape::findTriggerPosition(event_trigger_position_s *position, angle_t angleOffset DECLARE_ENGINE_PARAMETER_SUFFIX) {
-	efiAssertVoid(CUSTOM_ERR_6574, !cisnan(angleOffset), "findAngle#1");
-	assertAngleRange(angleOffset, "findAngle#a1", CUSTOM_ERR_6545);
-
-	efiAssertVoid(CUSTOM_ERR_6575, !cisnan(TRIGGER_SHAPE(tdcPosition)), "tdcPos#1")
-	assertAngleRange(TRIGGER_SHAPE(tdcPosition), "tdcPos#a1", CUSTOM_ERR_6546);
-
-	efiAssertVoid(CUSTOM_ERR_6576, !cisnan(CONFIG(globalTriggerAngleOffset)), "tdcPos#2")
-	assertAngleRange(CONFIG(globalTriggerAngleOffset), "tdcPos#a2", CUSTOM_ERR_6547);
-
-	// convert engine cycle angle into trigger cycle angle
-	angleOffset += tdcPosition();
-	efiAssertVoid(CUSTOM_ERR_6577, !cisnan(angleOffset), "findAngle#2");
-	fixAngle(angleOffset, "addFuel#2", CUSTOM_ERR_6555);
-
-	int index = triggerIndexByAngle[(int)angleOffset];
-	angle_t eventAngle = eventAngles[index];
-	if (angleOffset < eventAngle) {
-		warning(CUSTOM_OBD_ANGLE_CONSTRAINT_VIOLATION, "angle constraint violation in findTriggerPosition(): %.2f/%.2f", angleOffset, eventAngle);
-		return;
-	}
-
-	position->eventIndex = index;
-	position->eventAngle = eventAngle;
-	position->angleOffset = angleOffset - eventAngle;
-}
-
-static int order_1_2[] = {1, 2};
-
-static int order_1_2_3[] = {1, 2, 3};
+static const int order_1_2_3[] = {1, 2, 3};
 // 4 cylinder
 
-static int order_1_THEN_3_THEN_4_THEN2[] = { 1, 3, 4, 2 };
-static int order_1_THEN_2_THEN_4_THEN3[] = { 1, 2, 4, 3 };
-static int order_1_THEN_3_THEN_2_THEN4[] = { 1, 3, 2, 4 };
+static const int order_1_THEN_3_THEN_4_THEN2[] = { 1, 3, 4, 2 };
+static const int order_1_THEN_2_THEN_4_THEN3[] = { 1, 2, 4, 3 };
+static const int order_1_THEN_3_THEN_2_THEN4[] = { 1, 3, 2, 4 };
 
 // 5 cylinder
-static int order_1_2_4_5_3[] = {1, 2, 4, 5, 3};
+static const int order_1_2_4_5_3[] = {1, 2, 4, 5, 3};
 
 // 6 cylinder
-static int order_1_THEN_5_THEN_3_THEN_6_THEN_2_THEN_4[] = { 1, 5, 3, 6, 2, 4 };
-static int order_1_THEN_4_THEN_2_THEN_5_THEN_3_THEN_6[] = { 1, 4, 2, 5, 3, 6 };
-static int order_1_THEN_2_THEN_3_THEN_4_THEN_5_THEN_6[] = { 1, 2, 3, 4, 5, 6 };
-static int order_1_6_3_2_5_4[] = {1, 6, 3, 2, 5, 4};
+static const int order_1_THEN_5_THEN_3_THEN_6_THEN_2_THEN_4[] = { 1, 5, 3, 6, 2, 4 };
+static const int order_1_THEN_4_THEN_2_THEN_5_THEN_3_THEN_6[] = { 1, 4, 2, 5, 3, 6 };
+static const int order_1_THEN_2_THEN_3_THEN_4_THEN_5_THEN_6[] = { 1, 2, 3, 4, 5, 6 };
+static const int order_1_6_3_2_5_4[] = {1, 6, 3, 2, 5, 4};
 
 // 8 cylinder
-static int order_1_8_4_3_6_5_7_2[] = { 1, 8, 4, 3, 6, 5, 7, 2 };
+static const int order_1_8_4_3_6_5_7_2[] = { 1, 8, 4, 3, 6, 5, 7, 2 };
 
-static int order_1_8_7_2_6_5_4_3[] = { 1, 8, 7, 2, 6, 5, 4, 3 };
-static int order_1_5_4_2_6_3_7_8[] = { 1, 5, 4, 2, 6, 3, 7, 8 };
+static const int order_1_8_7_2_6_5_4_3[] = { 1, 8, 7, 2, 6, 5, 4, 3 };
+static const int order_1_5_4_2_6_3_7_8[] = { 1, 5, 4, 2, 6, 3, 7, 8 };
 
 // 10 cylinder
-static int order_1_10_9_4_3_6_5_8_7_2[] = {1, 10, 9, 4, 3, 6, 5, 8, 7, 2};
+static const int order_1_10_9_4_3_6_5_8_7_2[] = {1, 10, 9, 4, 3, 6, 5, 8, 7, 2};
 
 // 12 cyliner
-static int order_1_7_5_11_3_9_6_12_2_8_4_10[] = {1, 7, 5, 11, 3, 9, 6, 12, 2, 8, 4, 10};
-static int order_1_7_4_10_2_8_6_12_3_9_5_11[] = {1, 7, 4, 10, 2, 8, 6, 12, 3, 9, 5, 11};
+static const int order_1_7_5_11_3_9_6_12_2_8_4_10[] = {1, 7, 5, 11, 3, 9, 6, 12, 2, 8, 4, 10};
+static const int order_1_7_4_10_2_8_6_12_3_9_5_11[] = {1, 7, 4, 10, 2, 8, 6, 12, 3, 9, 5, 11};
 
 static int getFiringOrderLength(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 
@@ -517,18 +459,6 @@ ignition_mode_e getIgnitionMode(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	return ignitionMode;
 }
 
-void TriggerShape::prepareShape(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
-	int engineCycleInt = (int) getEngineCycle(CONFIG(operationMode));
-	for (int angle = 0; angle < engineCycleInt; angle++) {
-		int triggerShapeIndex = findAngleIndex(angle PASS_ENGINE_PARAMETER_SUFFIX);
-		if (engineConfiguration->useOnlyRisingEdgeForTrigger) {
-			// we need even index for front_only mode - so if odd indexes are rounded down
-			triggerShapeIndex = triggerShapeIndex & 0xFFFFFFFE;
-		}
-		triggerIndexByAngle[angle] = triggerShapeIndex;
-	}
-}
-
 #if EFI_ENGINE_CONTROL || defined(__DOXYGEN__)
 
 /**
@@ -557,40 +487,40 @@ void prepareOutputSignals(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 
 	prepareIgnitionPinIndices(CONFIG(ignitionMode) PASS_ENGINE_PARAMETER_SUFFIX);
 
-	TRIGGER_SHAPE(prepareShape(PASS_ENGINE_PARAMETER_SIGNATURE));
+	TRIGGER_SHAPE(prepareShape());
 }
 
 #endif
 
-void setFuelRpmBin(float from, float to DECLARE_ENGINE_PARAMETER_SUFFIX) {
+void setFuelRpmBin(float from, float to DECLARE_CONFIG_PARAMETER_SUFFIX) {
 	setTableBin(config->fuelRpmBins, FUEL_RPM_COUNT, from, to);
 }
 
-void setFuelLoadBin(float from, float to DECLARE_ENGINE_PARAMETER_SUFFIX) {
+void setFuelLoadBin(float from, float to DECLARE_CONFIG_PARAMETER_SUFFIX) {
 	setTableBin(config->fuelLoadBins, FUEL_LOAD_COUNT, from, to);
 }
 
-void setTimingRpmBin(float from, float to DECLARE_ENGINE_PARAMETER_SUFFIX) {
+void setTimingRpmBin(float from, float to DECLARE_CONFIG_PARAMETER_SUFFIX) {
 	setRpmBin(config->ignitionRpmBins, IGN_RPM_COUNT, from, to);
 }
 
-void setTimingLoadBin(float from, float to DECLARE_ENGINE_PARAMETER_SUFFIX) {
+void setTimingLoadBin(float from, float to DECLARE_CONFIG_PARAMETER_SUFFIX) {
 	setTableBin(config->ignitionLoadBins, IGN_LOAD_COUNT, from, to);
 }
 
 /**
  * this method sets algorithm and ignition table scale
  */
-void setAlgorithm(engine_load_mode_e algo DECLARE_ENGINE_PARAMETER_SUFFIX) {
+void setAlgorithm(engine_load_mode_e algo DECLARE_CONFIG_PARAMETER_SUFFIX) {
 	engineConfiguration->fuelAlgorithm = algo;
 	if (algo == LM_ALPHA_N) {
-		setTimingLoadBin(20, 120 PASS_ENGINE_PARAMETER_SUFFIX);
+		setTimingLoadBin(20, 120 PASS_CONFIG_PARAMETER_SUFFIX);
 	} else if (algo == LM_SPEED_DENSITY) {
 		setLinearCurve(config->ignitionLoadBins, IGN_LOAD_COUNT, 20, 120, 3);
-		buildTimingMap(35 PASS_ENGINE_PARAMETER_SUFFIX);
+		buildTimingMap(35 PASS_CONFIG_PARAMETER_SUFFIX);
 	}
 }
 
-void setFlatInjectorLag(float value DECLARE_ENGINE_PARAMETER_SUFFIX) {
+void setFlatInjectorLag(float value DECLARE_CONFIG_PARAMETER_SUFFIX) {
 	setArrayValues(engineConfiguration->injector.battLagCorr, VBAT_INJECTOR_CURVE_SIZE, value);
 }

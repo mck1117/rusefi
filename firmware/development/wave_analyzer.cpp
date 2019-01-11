@@ -11,7 +11,7 @@
  * @author Andrey Belomutskiy, (c) 2012-2018
  */
 
-#include "main.h"
+#include "global.h"
 #include "wave_analyzer.h"
 #include "eficonsole.h"
 #include "data_buffer.h"
@@ -60,7 +60,8 @@ static void waAnaWidthCallback(WaveReader *reader) {
 	efitick_t nowUs = getTimeNowUs();
 	reader->riseEventCounter++;
 	reader->lastActivityTimeUs = nowUs;
-	addEngineSniffferEvent(reader->name, WC_UP);
+	assertIsrContext(CUSTOM_ERR_6670);
+	addEngineSnifferEvent(reader->name, WC_UP);
 
 	uint32_t width = nowUs - reader->periodEventTimeUs;
 	reader->last_wave_low_widthUs = width;
@@ -73,7 +74,8 @@ void WaveReader::onFallEvent() {
 	efitick_t nowUs = getTimeNowUs();
 	fallEventCounter++;
 	lastActivityTimeUs = nowUs;
-	addEngineSniffferEvent(name, WC_DOWN);
+	assertIsrContext(CUSTOM_ERR_6670);
+	addEngineSnifferEvent(name, WC_DOWN);
 
 	efitick_t width = nowUs - widthEventTimeUs;
 	last_wave_high_widthUs = width;
@@ -115,9 +117,9 @@ static void setWaveModeSilent(int index, int mode) {
 //}
 
 static void initWave(const char *name, int index) {
-	brain_pin_e brainPin = boardConfiguration->logicAnalyzerPins[index];
+	brain_pin_e brainPin = CONFIGB(logicAnalyzerPins)[index];
 
-	bool mode = boardConfiguration->logicAnalyzerMode[index];
+	bool mode = CONFIGB(logicAnalyzerMode)[index];
 
 	waveReaderCount++;
 	efiAssertVoid(CUSTOM_ERR_6655, index < MAX_ICU_COUNT, "too many ICUs");
@@ -127,9 +129,9 @@ static void initWave(const char *name, int index) {
 	reader->hw = addWaveAnalyzerDriver("wave input", brainPin);
 
 
-	reader->hw->widthListeners.registerCallback((VoidInt) waAnaWidthCallback, (void*) reader);
+	reader->hw->widthListeners.registerCallback((VoidInt)(void*) waAnaWidthCallback, (void*) reader);
 
-	reader->hw->periodListeners.registerCallback((VoidInt) waIcuPeriodCallback, (void*) reader);
+	reader->hw->periodListeners.registerCallback((VoidInt)(void*) waIcuPeriodCallback, (void*) reader);
 
 
 	print("wave%d input on %s\r\n", index, hwPortname(brainPin));

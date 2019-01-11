@@ -4,10 +4,24 @@
 #
 
 PROJECT_DIR = ../firmware
-#CHIBIOS = $(PROJECT_DIR)/chibios
+CHIBIOS=$(PROJECT_DIR)/ChibiOS4
+STREAMSFILE = $(CHIBIOS)/os/hal/include/hal_streams.h
+
+ifeq ("$(wildcard $(STREAMSFILE))","")
+$(info Invoking "git submodule update --init")
+$(shell git submodule update --init)
+$(info Invoked "git submodule update --init")
+# make is not happy about newly checked out module for some reason but next invocation would work
+$(error Please run 'make' again)
+endif
 
 # Compiler options here.
 ifeq ($(USE_OPT),)
+# looks like as of Dec 2018 we are producing 32 bit unit tests
+# Cygwin64 would have 64 bit GDB which would not debug 32 bit unit tests, so one
+# would have to download 32 bit version of GDB maybe from http://www.equation.com/servlet/equation.cmd?fa=gdb
+# TODO: start producing 64 bit binaries?
+#
 # -O2 is needed for mingw, without it there is a linking issue to isnanf?!?!
   #USE_OPT = $(RFLAGS) -O2 -fgnu89-inline -ggdb -fomit-frame-pointer -falign-functions=16 -std=gnu99 -Werror-implicit-function-declaration -Werror -Wno-error=pointer-sign -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=sign-compare -Wno-error=unused-parameter -Wno-error=missing-field-initializers
   USE_OPT = -c -Wall -O0 -ggdb -g3
@@ -20,7 +34,7 @@ endif
 
 # C++ specific options here (added to USE_OPT).
 ifeq ($(USE_CPPOPT),)
-  USE_CPPOPT = -fno-rtti -fpermissive -fno-exceptions -fno-use-cxa-atexit
+  USE_CPPOPT = -std=c++17 -fno-rtti -fpermissive -fno-exceptions -fno-use-cxa-atexit
 endif
 
 # Enable this if you want the linker to remove unused code and data
@@ -96,6 +110,8 @@ CSRC =	$(UTILSRC) \
 # C++ sources that can be compiled in ARM or THUMB mode depending on the global
 # setting.
 CPPSRC = $(UTILSRC_CPP) \
+	gtest-all.cpp \
+	gmock-all.cpp \
 	$(CONTROLLERS_ALGO_SRC_CPP) \
 	$(TRIGGER_DECODERS_SRC_CPP) \
 	$(ENGINES_SRC_CPP) \
@@ -105,8 +121,11 @@ CPPSRC = $(UTILSRC_CPP) \
 	$(TEST_SRC_CPP) \
 	$(SYSTEMSRC_CPP) \
 	$(PROJECT_DIR)/controllers/error_handling.cpp \
+	$(HW_LAYER_EMS_CPP) \
+		  $(PROJECT_DIR)/hw_layer/sensors/CJ125.cpp \
 	$(TRIGGER_SRC_CPP) \
 	main.cpp
+
 
 # C sources to be compiled in ARM mode regardless of the global setting.
 # NOTE: Mixing ARM and THUMB mode enables the -mthumb-interwork compiler
@@ -131,7 +150,6 @@ TCPPSRC =
 # List ASM source files here
 ASMSRC = $(PORTASM)
 
-CHIBIOS=$(PROJECT_DIR)/ChibiOS4
 
 INCDIR = . \
 	$(PROJECT_DIR)/util \
@@ -150,7 +168,13 @@ INCDIR = . \
 	$(CHIBIOS)/os/hal/lib/streams \
 	$(CHIBIOS)/os/hal/include \
 	$(PROJECT_DIR)/hw_layer \
+          $(PROJECT_DIR)/hw_layer/algo \
+          $(PROJECT_DIR)/hw_layer/sensors/ \
 	test_data_structures \
+	googletest/googlemock/include \
+	googletest/googletest \
+	googletest/googletest/include \
+	tests \
 	test_basic_math
 	
 
@@ -190,7 +214,7 @@ AOPT =
 TOPT = -mthumb -DTHUMB
 
 # Define C warning options here
-CWARN = -Wall -Wextra -Wstrict-prototypes
+CWARN = -Wall -Wextra -Wstrict-prototypes -pedantic -Wmissing-prototypes -Wold-style-definition -Wextra
 
 # Define C++ warning options here
 CPPWARN = -Wall -Wextra
@@ -213,7 +237,13 @@ DINCDIR =
 DLIBDIR =
 
 # List all default libraries here
-DLIBS = -static-libgcc -static-libstdc++
+ifeq ($(OS),Windows_NT)
+  # Windows
+  DLIBS = -static-libgcc -static -static-libstdc++
+else
+  # Linux
+  DLIBS = -pthread
+endif
 
 #
 # End of default section

@@ -1,8 +1,9 @@
-// this section was generated automatically by ConfigDefinition.jar based on rusefi_config.txt Wed Aug 01 22:02:16 PDT 2018
+// this section was generated automatically by ConfigDefinition.jar based on rusefi_config.txt Thu Jan 10 17:03:36 EST 2019
 // begin
 #ifndef ENGINE_CONFIGURATION_GENERATED_H_
 #define ENGINE_CONFIGURATION_GENERATED_H_
 #include "rusefi_types.h"
+// start of pid_s
 typedef struct {
 	/**
 	 * offset 0
@@ -27,16 +28,19 @@ typedef struct {
 	 */
 	int16_t period;
 	/**
+	 * Output min value
 	 * offset 16
 	 */
 	int16_t minValue;
 	/**
+	 * Output max value
 	 * offset 18
 	 */
 	int16_t maxValue;
 	/** total size 20*/
 } pid_s;
 
+// start of cranking_parameters_s
 typedef struct {
 	/**
 	 * Fuel squirt duration while cranking
@@ -58,6 +62,7 @@ typedef struct {
 	/** total size 8*/
 } cranking_parameters_s;
 
+// start of air_pressure_sensor_config_s
 typedef struct {
 	/**
 	 * kPa value at low volts
@@ -84,6 +89,7 @@ typedef struct {
  * @brief MAP averaging configuration
 
 */
+// start of MAP_sensor_config_s
 typedef struct {
 	/**
 	 * offset 0
@@ -114,6 +120,7 @@ typedef struct {
  * @brief Thermistor known values
 
 */
+// start of thermistor_conf_s
 typedef struct {
 	/**
 	 * these values are in Celcuus
@@ -151,6 +158,7 @@ typedef struct {
  * @brief Oil pressure sensor interpolation
 
 */
+// start of oil_pressure_config_s
 typedef struct {
 	/**
 	 * offset 0
@@ -179,6 +187,7 @@ typedef struct {
  * @brief Thermistor curve parameters
 
 */
+// start of ThermistorConf
 typedef struct {
 	/**
 	 * offset 0
@@ -191,6 +200,7 @@ typedef struct {
 	/** total size 32*/
 } ThermistorConf;
 
+// start of injector_s
 typedef struct {
 	/**
 	 * cc/min, cubic centimeter per minute
@@ -214,6 +224,7 @@ typedef struct {
 	/** total size 68*/
 } injector_s;
 
+// start of bi_quard_s
 typedef struct {
 	/**
 	 * offset 0
@@ -238,6 +249,7 @@ typedef struct {
 	/** total size 20*/
 } bi_quard_s;
 
+// start of specs_s
 typedef struct {
 	/**
 	 * Engine displacement, in liters
@@ -260,6 +272,7 @@ typedef struct {
  * @brief Trigger wheel(s) configuration
 
 */
+// start of trigger_config_s
 typedef struct {
 	/**
 	 * set trigger_type X
@@ -287,6 +300,7 @@ typedef struct {
 	/** total size 16*/
 } trigger_config_s;
 
+// start of afr_sensor_s
 typedef struct {
 	/**
 	 * offset 0
@@ -311,6 +325,7 @@ typedef struct {
 	/** total size 20*/
 } afr_sensor_s;
 
+// start of idle_hardware_s
 typedef struct {
 	/**
 	 * offset 0
@@ -335,6 +350,7 @@ typedef struct {
 	/** total size 20*/
 } idle_hardware_s;
 
+// start of board_configuration_s
 typedef struct {
 	/**
 	 * offset 0
@@ -806,9 +822,10 @@ typedef struct {
 	 */
 	brain_pin_e spi3sckPin;
 	/**
+	 * Saab Combustion Detection Module knock signal input pin
 	 * offset 752
 	 */
-	float hip9011Gain;
+	brain_pin_e cdmInputPin;
 	/**
 	 * offset 756
 	 */
@@ -864,6 +881,7 @@ typedef struct {
 	/** total size 864*/
 } board_configuration_s;
 
+// start of engine_configuration_s
 typedef struct {
 	/**
 	 * http://rusefi.com/wiki/index.php?title=Manual:Engine_Type
@@ -973,11 +991,13 @@ typedef struct {
 	/**
 	 * Closed throttle. todo: extract these two fields into a structure
 	 * todo: we need two sets of TPS parameters - modern ETBs have two sensors
+	 * See also tpsAdcChannel
 	 * offset 80
 	 */
 	int16_t tpsMin;
 	/**
 	 * Full throtle. tpsMax value as 10 bit ADC value. Not Voltage!
+	 * See also tpsAdcChannel
 	 * offset 82
 	 */
 	int16_t tpsMax;
@@ -1201,6 +1221,7 @@ typedef struct {
 	 */
 	int HD44780height;
 	/**
+	 * See aslo pedalPositionAdcChannel
 	 * offset 520
 	 */
 	adc_channel_e tpsAdcChannel;
@@ -1245,9 +1266,11 @@ typedef struct {
 	 */
 	afr_sensor_s afr;
 	/**
+	 * Electronic pedal position input
+	 * See also tpsAdcChannel
 	 * offset 588
 	 */
-	adc_channel_e pedalPositionChannel;
+	adc_channel_e pedalPositionAdcChannel;
 	/**
 	 * @see hasBaroSensor
 	 * offset 592
@@ -1343,8 +1366,19 @@ typedef struct {
 	offset 1472 bit 26 */
 	bool useFSIO15ForIdleRpmAdjustment : 1;
 	/**
+	 * Sometimes we just have to shut the engine down. Use carefully!
 	offset 1472 bit 27 */
-	bool unused_bit_1472_27 : 1;
+	bool useFSIO5ForCriticalIssueEngineStop : 1;
+	/**
+	 * Sometimes we have to miss injection on purpose to attract driver's attention
+	offset 1472 bit 28 */
+	bool useFSIO4ForSeriousEngineWarning : 1;
+	/**
+	offset 1472 bit 29 */
+	bool unused_bit_1472_29 : 1;
+	/**
+	offset 1472 bit 30 */
+	bool unused_bit_1472_30 : 1;
 	/**
 	 * offset 1476
 	 */
@@ -1425,7 +1459,7 @@ typedef struct {
 	bool useAdvanceCorrectionsForCranking : 1;
 	/**
 	offset 1484 bit 19 */
-	bool unused_1484_bit_19 : 1;
+	bool useTPSAdvanceTable : 1;
 	/**
 	offset 1484 bit 20 */
 	bool unused_1484_bit_20 : 1;
@@ -1568,7 +1602,7 @@ typedef struct {
 	/**
 	 * offset 1808
 	 */
-	float suckedOffCoef;
+	float wwaeTau;
 	/**
 	 * offset 1812
 	 */
@@ -1602,9 +1636,10 @@ typedef struct {
 	 */
 	pid_s idleRpmPid;
 	/**
+	 * Wall wetting/evaporation factor/Tau factor/fuel film
 	 * offset 1904
 	 */
-	float addedToWallCoef;
+	float wwaeBeta;
 	/**
 	 * blue LED on discovery by default
 	 * offset 1908
@@ -1838,6 +1873,8 @@ typedef struct {
 	 */
 	float egoValueShift;
 	/**
+	 * Camshaft input could be used either just for engine phase detection if your trigger shape does not include cam sensor as 'primary' channel, or it could be used for Variable Valve timing on one of the camshafts.
+	 * TODO #660
 	 * offset 2376
 	 */
 	brain_input_pin_e camInput;
@@ -2144,10 +2181,58 @@ typedef struct {
 	/**
 	 * offset 3516
 	 */
-	int unusedEnd[741];
+	ignition_tps_table_t ignitionTpsTable;
+	/**
+	 * offset 4028
+	 */
+	float ignitionTpsBins[IGN_TPS_COUNT];
+	/**
+	 * offset 4092
+	 */
+	float tChargeAirCoefMin;
+	/**
+	 * offset 4096
+	 */
+	float tChargeAirCoefMax;
+	/**
+	 * offset 4100
+	 */
+	float tChargeAirFlowMax;
+	/**
+	 * offset 4104
+	 */
+	float tChargeAirIncrLimit;
+	/**
+	 * offset 4108
+	 */
+	float tChargeAirDecrLimit;
+	/**
+	 * offset 4112
+	 */
+	tChargeMode_e tChargeMode;
+	/**
+	 * target TPS value, 0 to 100%
+	 * TOOD: use int8 data date once we template interpolation method
+	 * offset 4116
+	 */
+	float etbBiasBins[ETB_BIAS_CURVE_LENGTH];
+	/**
+	 * PWM bias, 0 to 100%
+	 * offset 4148
+	 */
+	float etbBiasValues[ETB_BIAS_CURVE_LENGTH];
+	/**
+	 * offset 4180
+	 */
+	float hip9011Gain;
+	/**
+	 * offset 4184
+	 */
+	int unusedEnd[574];
 	/** total size 6480*/
 } engine_configuration_s;
 
+// start of persistent_config_s
 typedef struct {
 	/**
 	 * offset 0
@@ -2239,7 +2324,7 @@ typedef struct {
 	float cltIdleCorr[CLT_CURVE_SIZE];
 	/**
 	 * kg/hour value.
-	 * By the way 2.081989116 kg/h = 1 ft³/m
+	 * By the way 2.081989116 kg/h = 1 ftï¿½/m
 	 * offset 10784
 	 */
 	float mafDecoding[MAF_DECODING_COUNT];
@@ -2390,4 +2475,4 @@ typedef struct {
 
 #endif
 // end
-// this section was generated automatically by ConfigDefinition.jar based on rusefi_config.txt Wed Aug 01 22:02:16 PDT 2018
+// this section was generated automatically by ConfigDefinition.jar based on rusefi_config.txt Thu Jan 10 17:03:36 EST 2019

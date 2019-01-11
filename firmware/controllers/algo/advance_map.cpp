@@ -18,7 +18,7 @@
  * If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "main.h"
+#include "global.h"
 #include "advance_map.h"
 #include "interpolation.h"
 #include "efilib2.h"
@@ -27,11 +27,13 @@
 
 EXTERN_ENGINE;
 
-#if !EFI_UNIT_TEST || defined(__DOXYGEN__)
+#if EFI_TUNER_STUDIO || defined(__DOXYGEN__)
 extern TunerStudioOutputChannels tsOutputChannels;
-#endif
+#endif /* EFI_TUNER_STUDIO */
 
 static ign_Map3D_t advanceMap("advance");
+// This coeff in ctor parameter is sufficient for int16<->float conversion!
+static ign_tps_Map3D_t advanceTpsMap("advanceTps", 1.0 / ADVANCE_TPS_STORAGE_MULT);
 static ign_Map3D_t iatAdvanceCorrectionMap("iat corr");
 
 static int minCrankingRpm = 0;
@@ -59,7 +61,7 @@ static const ignition_table_t defaultIatTiming = {
 };
 
 bool isStep1Condition(int rpm DECLARE_ENGINE_PARAMETER_SUFFIX) {
-	return  boardConfiguration->enabledStep1Limiter && rpm >= engineConfiguration->step1rpm;
+	return  CONFIGB(enabledStep1Limiter) && rpm >= engineConfiguration->step1rpm;
 }
 
 /**
@@ -81,15 +83,21 @@ static angle_t getRunningAdvance(int rpm, float engineLoad DECLARE_ENGINE_PARAME
 	if (isStep1Condition(rpm PASS_ENGINE_PARAMETER_SUFFIX)) {
 		return engineConfiguration->step1timing;
 	}
-
-	float advanceAngle = advanceMap.getValue((float) rpm, engineLoad);
+	
+	float advanceAngle;
+	if (CONFIG(useTPSAdvanceTable)) {
+		float tps = getTPS(PASS_ENGINE_PARAMETER_SIGNATURE);
+		advanceAngle = advanceTpsMap.getValue((float) rpm, tps);
+	} else {
+		advanceAngle = advanceMap.getValue((float) rpm, engineLoad);
+	}
 	
 	// get advance from the separate table for Idle
 	if (CONFIG(useSeparateAdvanceForIdle)) {
 		float idleAdvance = interpolate2d("idleAdvance", rpm, config->idleAdvanceBins, config->idleAdvance, IDLE_ADVANCE_CURVE_SIZE);
 		// interpolate between idle table and normal (running) table using TPS threshold
 		float tps = getTPS(PASS_ENGINE_PARAMETER_SIGNATURE);
-		advanceAngle = interpolateClamped(0.0f, idleAdvance, boardConfiguration->idlePidDeactivationTpsThreshold, advanceAngle, tps);
+		advanceAngle = interpolateClamped(0.0f, idleAdvance, CONFIGB(idlePidDeactivationTpsThreshold), advanceAngle, tps);
 	}
 
 	engine->m.advanceLookupTime = GET_TIMESTAMP() - engine->m.beforeAdvance;
@@ -104,11 +112,11 @@ static angle_t getAdvanceCorrections(int rpm DECLARE_ENGINE_PARAMETER_SUFFIX) {
 		iatCorrection = iatAdvanceCorrectionMap.getValue((float) rpm, engine->sensors.iat);
 	}
 	if (engineConfiguration->debugMode == DBG_IGNITION_TIMING) {
-#if !EFI_UNIT_TEST || defined(__DOXYGEN__)
+#if EFI_TUNER_STUDIO || defined(__DOXYGEN__)
 		tsOutputChannels.debugFloatField1 = iatCorrection;
 		tsOutputChannels.debugFloatField2 = engine->engineState.cltTimingCorrection;
 		tsOutputChannels.debugFloatField3 = engine->fsioTimingAdjustment;
-#endif
+#endif /* EFI_TUNER_STUDIO */
 	}
 	
 	return iatCorrection
@@ -143,16 +151,30 @@ angle_t getAdvance(int rpm, float engineLoad DECLARE_ENGINE_PARAMETER_SUFFIX) {
 	angle_t angle;
 	if (ENGINE(rpmCalculator).isCranking(PASS_ENGINE_PARAMETER_SIGNATURE)) {
 		angle = getCrankingAdvance(rpm, engineLoad PASS_ENGINE_PARAMETER_SUFFIX);
-		assertAngleRange(angle, "crAngle", CUSTOM_ERR_6541);
-		efiAssert(CUSTOM_ERR_ASSERT, !cisnan(angle), "crAngleN", 0);
-		if (CONFIG(useAdvanceCorrectionsForCranking))
-			angle += getAdvanceCorrections(rpm PASS_ENGINE_PARAMETER_SUFFIX);
+		assertAngleRange(angle, "crAngle", CUSTOM_ERR_6680);
+		efiAssert(CUSTOM_ERR_ASSERT, !cisnan(angle), "cr_AngleN", 0);
+		if (CONFIG(useAdvanceCorrectionsForCranking)) {
+			angle_t correction = getAdvanceCorrections(rpm PASS_ENGINE_PARAMETER_SUFFIX);
+			if (!cisnan(correction)) { // correction could be NaN during settings update
+				angle += correction;
+			}
+		}
+		efiAssert(CUSTOM_ERR_ASSERT, !cisnan(angle), "cr_AngleN2", 0);
 	} else {
 		angle = getRunningAdvance(rpm, engineLoad PASS_ENGINE_PARAMETER_SUFFIX);
-		efiAssert(CUSTOM_ERR_ASSERT, !cisnan(angle), "rAngleN", 0);
-		angle += getAdvanceCorrections(rpm PASS_ENGINE_PARAMETER_SUFFIX);
+		if (cisnan(angle)) {
+			warning(CUSTOM_ERR_6610, "NaN angle from table");
+			return 0;
+		}
+		angle_t correction = getAdvanceCorrections(rpm PASS_ENGINE_PARAMETER_SUFFIX);
+		if (!cisnan(correction)) { // correction could be NaN during settings update
+			angle += correction;
+		}
+		efiAssert(CUSTOM_ERR_ASSERT, !cisnan(angle), "AngleN3", 0);
 	}
+	efiAssert(CUSTOM_ERR_ASSERT, !cisnan(angle), "_AngleN4", 0);
 	angle -= engineConfiguration->ignitionOffset;
+	efiAssert(CUSTOM_ERR_ASSERT, !cisnan(angle), "_AngleN5", 0);
 	fixAngle(angle, "getAdvance", CUSTOM_ERR_6548);
 	return angle;
 }
@@ -163,8 +185,11 @@ void setDefaultIatTimingCorrection(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	copyTimingTable(defaultIatTiming, config->ignitionIatCorrTable);
 }
 
-void prepareTimingMap(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
+void initTimingMap(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
+	// We init both tables in RAM because here we're at a very early stage, with no config settings loaded.
 	advanceMap.init(config->ignitionTable, config->ignitionLoadBins,
+			config->ignitionRpmBins);
+	advanceTpsMap.init(CONFIG(ignitionTpsTable), CONFIG(ignitionTpsBins),
 			config->ignitionRpmBins);
 	iatAdvanceCorrectionMap.init(config->ignitionIatCorrTable, config->ignitionIatCorrLoadBins,
 			config->ignitionIatCorrRpmBins);
@@ -232,7 +257,7 @@ float getInitialAdvance(int rpm, float map, float advanceMax) {
 /**
  * this method builds a good-enough base timing advance map bases on a number of heuristics
  */
-void buildTimingMap(float advanceMax DECLARE_ENGINE_PARAMETER_SUFFIX) {
+void buildTimingMap(float advanceMax DECLARE_CONFIG_PARAMETER_SUFFIX) {
 	if (engineConfiguration->fuelAlgorithm != LM_SPEED_DENSITY &&
 			engineConfiguration->fuelAlgorithm != LM_MAP) {
 		warning(CUSTOM_WRONG_ALGORITHM, "wrong algorithm for MAP-based timing");

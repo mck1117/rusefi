@@ -17,6 +17,7 @@
 #define BLOCKING_FACTOR 400
 #define FSIO_ANALOG_INPUT_COUNT 4
 #define SERVO_COUNT 8
+#define ETB_BIAS_CURVE_LENGTH 8
 #define TS_OUTPUT_SIZE 356
 #define TS_FILE_VERSION 20171101
 #define WARMUP_TARGET_AFR_SIZE 4
@@ -37,6 +38,7 @@
 #define DWELL_CURVE_SIZE 8
 #define CRANKING_CURVE_SIZE 8
 #define IGN_LOAD_COUNT 16
+#define IGN_TPS_COUNT 16
 #define IGN_RPM_COUNT 16
 #define INJECTION_PIN_COUNT 12
 #define IGNITION_PIN_COUNT 12
@@ -56,7 +58,7 @@
 #define MAP_ACCEL_TAPER 8
 #define BARO_CORR_SIZE 4
 #define MAF_DECODING_COUNT 256
-#define debug_mode_e_enum "Alternator_PID", "TPS accel enrich", "Warmup PID", "IDLE", "EL accl enrich", "Trigger Counters", "FSIO_ADC", "AUX_PID_1", "VVT PID", "Cranking", "Timing", "Closed-loop fuel corr PID", "VSS", "SD card", "sr5", "Knock", "Trigger Sync", "Electronic Throttle", "Executor", "Bench Test", "Aux Valves", "ADC", "INSTANT_RPM", "FSIO_EXPRESSION", "Status", "CJ125", "CAN", "MAP", "mode28", "mode29"
+#define debug_mode_e_enum "Alternator_PID", "TPS accel enrich", "Warmup PID", "IDLE", "EL accl enrich", "Trigger Counters", "FSIO_ADC", "AUX_PID_1", "VVT input", "Cranking", "Timing", "Closed-loop fuel corr PID", "VSS", "SD card", "sr5", "Knock", "Trigger Sync", "Electronic Throttle", "Executor", "Bench Test", "Aux Valves", "ADC", "INSTANT_RPM", "FSIO_EXPRESSION", "Status", "CJ125", "CAN", "MAP", "mode28", "mode29", "Ion Sense"
 #define vvt_mode_e_enum "First half", "Second half", "2GZ", "Miata NB2", "mode4", "mode5", "mode6", "mode7"
 #define mass_storage_e_enum "Auto", "Always", "Never"
 #define brain_input_pin_e_enum "INVALID", "PA1", "PA2", "PA3", "INVALID", "PA5", "PA6", "PA7", "PA8", "PA9", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "PA15", "INVALID", "INVALID", "INVALID", "PB3", "PB4", "PB5", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "PC6", "PC7", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "PE5", "PE6", "INVALID", "INVALID", "PE9", "INVALID", "PE11", "INVALID", "INVALID", "INVALID", "INVALID", "NONE", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID"
@@ -64,10 +66,11 @@
 #define pin_output_mode_e_enum "default", "default inverted", "open collector", "open collector inverted"
 #define adc_channel_e_enum "PA0", "PA1", "PA2", "PA3", "PA4", "PA5", "PA6", "PA7", "PB0", "PB1", "PC0", "PC1", "PC2", "PC3", "PC4", "PC5", "Disabled", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID"
 #define engine_load_mode_e_enum "MAF", "Alpha-N/TPS", "MAP", "SPEED DENSITY"
-#define trigger_type_e_enum "custom toothed wheel", "Ford Aspire", "Dodge Neon 1995", "Miata NA", "Miata NB", "GM_7X", "Cooper R50", "Mazda SOHC 4", "60/2", "36/1", "Honda 4+24+1", "Mitsubishi", "Honda 4+24", "Honda 1+4+24", "Dodge Neon 2003", "Mazda DOHC 1+4", "1+1", "1+60/2", "Single Tooth", "Dodge Ram 1+16", "60/2 VW", "Honda 1+24", "Dodge Stratus", "36_2_2_2", "Nissan Primera", "2JZ", "Rover K", "GM LS 24", "Honda CBR 600", "2JZ_1_12", "Honda CBR 600 custom", "3/1 skipped" , "Dodge Neon 2003 crank", "Miata VVT", "trg34", "trg35", "Subaru 7+6", "Jeep 18-2-2-2", "WIP", "Dodge Neon 1995 crank only", "trg40", "trg41", "trg42", "INVALID"
+#define trigger_type_e_enum "custom toothed wheel", "Ford Aspire", "Dodge Neon 1995", "Miata NA", "Miata NB", "GM_7X", "Cooper R50", "Mazda SOHC 4", "60/2", "36/1", "Honda 4+24+1", "Mitsubishi", "Honda 4+24", "Honda 1+4+24", "Dodge Neon 2003", "Mazda DOHC 1+4", "1+1", "1+60/2", "Single Tooth", "Dodge Ram 1+16", "60/2 VW", "Honda 1+24", "Dodge Stratus", "36_2_2_2", "Nissan Primera", "2JZ", "Rover K", "GM LS 24", "Honda CBR 600", "2JZ_1_12", "Honda CBR 600 custom", "3/1 skipped" , "Dodge Neon 2003 crank", "Miata VVT", "trg34", "trg35", "Subaru 7+6", "Jeep 18-2-2-2", "WIP", "Dodge Neon 1995 crank only", "Jeep XJ 4 cyl", "FiatIAQ_P8", "Mazda Z5", "trg43", "trg44", "trg45", "INVALID"
 #define sensor_chart_e_enum "none", "trigger", "MAP", "RPM ACCEL", "DETAILED RPM", "INVALID"
 #define ego_sensor_e_enum "BPSX", "Innovate", "14Point7", "Narrow", "PLX", "Custom"
 #define pin_mode_e_enum "default", "INVALID", "INVALID", "INVALID", "opendrain", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "INVALID", "mode12", "mode13", "mode14", "mode15", "mode16", "mode17", "mode18", "mode19", "mode20", "mode21", "mode22", "mode23", "mode24", "mode25", "mode26", "mode27", "mode28", "mode29", "mode30", "mode31", "PULLUP", "mode33", "mode34", "mode35"
+#define tChargeMode_e_enum "RPM+TPS (Default)", "Air Mass Interpolation"
 #define engineConfiguration_offset 0
 #define engineConfiguration_offset_hex 0
 #define engineType_offset 0
@@ -340,8 +343,8 @@
 #define afr_v2_offset_hex 244
 #define afr_value2_offset 584
 #define afr_value2_offset_hex 248
-#define pedalPositionChannel_offset 588
-#define pedalPositionChannel_offset_hex 24c
+#define pedalPositionAdcChannel_offset 588
+#define pedalPositionAdcChannel_offset_hex 24c
 #define baroSensor_offset 592
 #define baroSensor_offset_hex 250
 #define baroSensor_lowValue_offset 592
@@ -810,8 +813,8 @@
 #define spi3misoPin_offset_hex 548
 #define spi3sckPin_offset 1356
 #define spi3sckPin_offset_hex 54c
-#define hip9011Gain_offset 1360
-#define hip9011Gain_offset_hex 550
+#define cdmInputPin_offset 1360
+#define cdmInputPin_offset_hex 550
 #define joystickCenterPin_offset 1364
 #define joystickCenterPin_offset_hex 554
 #define joystickAPin_offset 1368
@@ -920,8 +923,14 @@
 #define useFSIO12ForServo5_offset_hex 5c0
 #define useFSIO15ForIdleRpmAdjustment_offset 1472
 #define useFSIO15ForIdleRpmAdjustment_offset_hex 5c0
-#define unused_bit_1472_27_offset 1472
-#define unused_bit_1472_27_offset_hex 5c0
+#define useFSIO5ForCriticalIssueEngineStop_offset 1472
+#define useFSIO5ForCriticalIssueEngineStop_offset_hex 5c0
+#define useFSIO4ForSeriousEngineWarning_offset 1472
+#define useFSIO4ForSeriousEngineWarning_offset_hex 5c0
+#define unused_bit_1472_29_offset 1472
+#define unused_bit_1472_29_offset_hex 5c0
+#define unused_bit_1472_30_offset 1472
+#define unused_bit_1472_30_offset_hex 5c0
 #define hipOutputChannel_offset 1476
 #define hipOutputChannel_offset_hex 5c4
 #define idleMode_offset 1480
@@ -964,8 +973,8 @@
 #define useSeparateAdvanceForCranking_offset_hex 5cc
 #define useAdvanceCorrectionsForCranking_offset 1484
 #define useAdvanceCorrectionsForCranking_offset_hex 5cc
-#define unused_1484_bit_19_offset 1484
-#define unused_1484_bit_19_offset_hex 5cc
+#define useTPSAdvanceTable_offset 1484
+#define useTPSAdvanceTable_offset_hex 5cc
 #define unused_1484_bit_20_offset 1484
 #define unused_1484_bit_20_offset_hex 5cc
 #define unused_1484_bit_21_offset 1484
@@ -1062,8 +1071,8 @@
 #define tachPulseDuractionMs_offset_hex 708
 #define tachPulseTriggerIndex_offset 1804
 #define tachPulseTriggerIndex_offset_hex 70c
-#define suckedOffCoef_offset 1808
-#define suckedOffCoef_offset_hex 710
+#define wwaeTau_offset 1808
+#define wwaeTau_offset_hex 710
 #define alternatorControl_offset 1812
 #define alternatorControl_offset_hex 714
 #define alternatorControl_pFactor_offset 1812
@@ -1134,8 +1143,8 @@
 #define idleRpmPid_minValue_offset_hex 76c
 #define idleRpmPid_maxValue_offset 1902
 #define idleRpmPid_maxValue_offset_hex 76e
-#define addedToWallCoef_offset 1904
-#define addedToWallCoef_offset_hex 770
+#define wwaeBeta_offset 1904
+#define wwaeBeta_offset_hex 770
 #define communicationLedPin_offset 1908
 #define communicationLedPin_offset_hex 774
 #define runningLedPin_offset 1912
@@ -1568,8 +1577,30 @@
 #define iacCoastingBins_offset_hex d3c
 #define iacCoasting_offset 3452
 #define iacCoasting_offset_hex d7c
-#define unusedEnd_offset 3516
-#define unusedEnd_offset_hex dbc
+#define ignitionTpsTable_offset 3516
+#define ignitionTpsTable_offset_hex dbc
+#define ignitionTpsBins_offset 4028
+#define ignitionTpsBins_offset_hex fbc
+#define tChargeAirCoefMin_offset 4092
+#define tChargeAirCoefMin_offset_hex ffc
+#define tChargeAirCoefMax_offset 4096
+#define tChargeAirCoefMax_offset_hex 1000
+#define tChargeAirFlowMax_offset 4100
+#define tChargeAirFlowMax_offset_hex 1004
+#define tChargeAirIncrLimit_offset 4104
+#define tChargeAirIncrLimit_offset_hex 1008
+#define tChargeAirDecrLimit_offset 4108
+#define tChargeAirDecrLimit_offset_hex 100c
+#define tChargeMode_offset 4112
+#define tChargeMode_offset_hex 1010
+#define etbBiasBins_offset 4116
+#define etbBiasBins_offset_hex 1014
+#define etbBiasValues_offset 4148
+#define etbBiasValues_offset_hex 1034
+#define hip9011Gain_offset 4180
+#define hip9011Gain_offset_hex 1054
+#define unusedEnd_offset 4184
+#define unusedEnd_offset_hex 1058
 #define cltCrankingCorrBins_offset 6480
 #define cltCrankingCorrBins_offset_hex 1950
 #define cltCrankingCorr_offset 6512
@@ -1752,5 +1783,7 @@
 #define GAUGE_NAME_DEBUG_I1 "debug i1: pParam"
 #define GAUGE_NAME_DEBUG_I2 "debug i2: offset"
 #define GAUGE_NAME_DEBUG_I3 "debug i3"
+#define GAUGE_NAME_DEBUG_I4 "debug i4"
+#define GAUGE_NAME_DEBUG_I5 "debug i5"
 #define GAUGE_NAME_DWELL_DUTY "dwell: coil duty cycle"
 #define GAUGE_COIL_DWELL_TIME "dwell: coil charge time"

@@ -11,7 +11,7 @@
  * @author Andrey Belomutskiy, (c) 2012-2018
  */
 
-#include "main.h"
+#include "global.h"
 #include "event_queue.h"
 #include "efitime.h"
 #include "efilib2.h"
@@ -170,7 +170,7 @@ int EventQueue::executeAll(efitime_t now) {
 		uint32_t howFarOff = now - current->momentX;
 		maxSchedulingPrecisionLoss = maxI(maxSchedulingPrecisionLoss, howFarOff);
 #if EFI_UNIT_TEST || defined(__DOXYGEN__)
-		printf("execute current=%d param=%d\r\n", (long)current, (long)current->param);
+		printf("QUEUE: execute current=%d param=%d\r\n", (long)current, (long)current->param);
 #endif
 		current->callback(current->param);
 		// even with overflow it's safe to subtract here
@@ -219,6 +219,9 @@ scheduling_s *EventQueue::getForUnitText(int index) {
 			return current;
 		index--;
 	}
+#if EFI_UNIT_TEST
+	firmwareError(OBD_PCM_Processor_Fault, "getForUnitText: null");
+#endif /* EFI_UNIT_TEST */
 	return NULL;
 }
 

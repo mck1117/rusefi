@@ -6,11 +6,12 @@
  * @author Andrey Belomutskiy, (c) 2012-2018
  */
 
-#include "main.h"
+#include "global.h"
 #include "engine.h"
 #include "efiGpio.h"
 
 #if EFI_GPIO_HARDWARE || defined(__DOXYGEN__)
+#include "pin_repository.h"
 #include "io_pins.h"
 #endif /* EFI_GPIO_HARDWARE */
 
@@ -165,9 +166,9 @@ void EnginePins::startIgnitionPins(void) {
 	for (int i = 0; i < engineConfiguration->specs.cylindersCount; i++) {
 		NamedOutputPin *output = &enginePins.coils[i];
 		// todo: we need to check if mode has changed
-		if (boardConfiguration->ignitionPins[i] != activeConfiguration.bc.ignitionPins[i]) {
-			output->initPin(output->name, boardConfiguration->ignitionPins[i],
-				&boardConfiguration->ignitionPinMode);
+		if (CONFIGB(ignitionPins)[i] != activeConfiguration.bc.ignitionPins[i]) {
+			output->initPin(output->name, CONFIGB(ignitionPins)[i],
+				&CONFIGB(ignitionPinMode));
 		}
 	}
 	// todo: we need to check if mode has changed
@@ -187,8 +188,8 @@ void EnginePins::startInjectionPins(void) {
 		// todo: we need to check if mode has changed
 		if (engineConfiguration->bc.injectionPins[i] != activeConfiguration.bc.injectionPins[i]) {
 
-			output->initPin(output->name, boardConfiguration->injectionPins[i],
-					&boardConfiguration->injectionPinMode);
+			output->initPin(output->name, CONFIGB(injectionPins)[i],
+					&CONFIGB(injectionPinMode));
 		}
 	}
 #endif /* EFI_PROD_CODE */
@@ -210,18 +211,10 @@ void NamedOutputPin::setHigh() {
 	// turn the output level ACTIVE
 	setValue(true);
 
-	// sleep for the needed duration
 #if EFI_ENGINE_SNIFFER || defined(__DOXYGEN__)
-	// explicit check here is a performance optimization to speed up no-chart mode
-	if (ENGINE(isEngineChartEnabled)) {
-		// this is a performance optimization - array index is cheaper then invoking a method with 'switch'
-		const char *pinName = name;
-//	dbgDurr = hal_lld_get_counter_value() - dbgStart;
 
-		addEngineSniffferEvent(pinName, WC_UP);
-	}
+	addEngineSnifferEvent(name, WC_UP);
 #endif /* EFI_ENGINE_SNIFFER */
-//	dbgDurr = hal_lld_get_counter_value() - dbgStart;
 }
 
 void NamedOutputPin::setLow() {
@@ -235,12 +228,7 @@ void NamedOutputPin::setLow() {
 #endif /* EFI_DEFAILED_LOGGING */
 
 #if EFI_ENGINE_SNIFFER || defined(__DOXYGEN__)
-	if (ENGINE(isEngineChartEnabled)) {
-		// this is a performance optimization - array index is cheaper then invoking a method with 'switch'
-		const char *pinName = name;
-
-		addEngineSniffferEvent(pinName, WC_DOWN);
-	}
+	addEngineSnifferEvent(name, WC_DOWN);
 #endif /* EFI_ENGINE_SNIFFER */
 }
 
@@ -334,17 +322,17 @@ void initOutputPins(void) {
 //	memset(&outputs, 0, sizeof(outputs));
 
 #if HAL_USE_SPI || defined(__DOXYGEN__)
-	enginePins.sdCsPin.initPin("spi CS5", boardConfiguration->sdCardCsPin);
+	enginePins.sdCsPin.initPin("spi CS5", CONFIGB(sdCardCsPin));
 #endif /* HAL_USE_SPI */
 
 	// todo: should we move this code closer to the fuel pump logic?
-	enginePins.fuelPumpRelay.initPin("fuel pump relay", boardConfiguration->fuelPumpPin, &boardConfiguration->fuelPumpPinMode);
+	enginePins.fuelPumpRelay.initPin("fuel pump relay", CONFIGB(fuelPumpPin), &CONFIGB(fuelPumpPinMode));
 
-	enginePins.mainRelay.initPin("main relay", boardConfiguration->mainRelayPin, &boardConfiguration->mainRelayPinMode);
+	enginePins.mainRelay.initPin("main relay", CONFIGB(mainRelayPin), &CONFIGB(mainRelayPinMode));
 
-	enginePins.fanRelay.initPin("fan relay", boardConfiguration->fanPin, &boardConfiguration->fanPinMode);
-	enginePins.o2heater.initPin("o2 heater", boardConfiguration->o2heaterPin);
-	enginePins.acRelay.initPin("A/C relay", boardConfiguration->acRelayPin, &boardConfiguration->acRelayPinMode);
+	enginePins.fanRelay.initPin("fan relay", CONFIGB(fanPin), &CONFIGB(fanPinMode));
+	enginePins.o2heater.initPin("o2 heater", CONFIGB(o2heaterPin));
+	enginePins.acRelay.initPin("A/C relay", CONFIGB(acRelayPin), &CONFIGB(acRelayPinMode));
 
 	// digit 1
 	/*
@@ -456,7 +444,7 @@ const char *portname(ioportid_t GPIOx) {
 		return "PC";
 	if (GPIOx == GPIOD)
 		return "PD";
-#if defined(STM32F4XX)
+#if defined(STM32F4XX) || defined(STM32F7XX)
 	if (GPIOx == GPIOE)
 		return "PE";
 	if (GPIOx == GPIOH)
@@ -465,6 +453,19 @@ const char *portname(ioportid_t GPIOx) {
 	if (GPIOx == GPIOF)
 		return "PF";
 	return "unknown";
+}
+
+/**
+ * this method returns the numeric part of pin name. For instance, for PC13 this would return '13'
+ */
+ioportmask_t getHwPin(const char *msg, brain_pin_e brainPin) {
+	if (brainPin == GPIO_UNASSIGNED)
+		return EFI_ERROR_CODE;
+	if (brainPin > GPIO_UNASSIGNED || brainPin < 0) {
+		firmwareError(CUSTOM_ERR_INVALID_PIN, "%s: Invalid brain_pin_e: %d", msg, brainPin);
+		return EFI_ERROR_CODE;
+	}
+	return brainPin % PORT_SIZE;
 }
 
 #else /* EFI_GPIO_HARDWARE */

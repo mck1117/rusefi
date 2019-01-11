@@ -1,0 +1,21 @@
+
+*** Dell OptiPlex 790 desktop ~2011 "Ohio reformatory for women":  i5-2400@3.1GHz, 4GB RAM, 60GB SSD, Win7, gcc 7.3.1 -j4 option to run with 4 cores
+27-Dec-2018 19:36:14
+Done! 
+27-Dec-2018 19:37:44
+
+
+*** Dell e6410 laptop ~2011: i5 M520@2.4GHz, 8GB RAM, 1TB SSD, Win7, gcc 7.3.1 - -j4 option to run with 4 cores
+~3 minutes
+Startting build for benchmark 
+27-Dec-2018 19:15:12
+Done! 
+27-Dec-2018 19:18:08
+
+
+*** Dell e6410 laptop ~2011: i5 M520@2.4GHz, 8GB RAM, 1TB SSD, Win7, gcc 7.3.1 - looks like single core mode?
+~6 minutes
+Startting build for benchmark 
+27-Dec-2018 19:06:48
+Done! 
+27-Dec-2018 19:12:51

@@ -6,26 +6,28 @@
  * @author Andrey Belomutskiy, (c) 2012-2018
  */
 
-#include "main.h"
+#include "global.h"
+
+#include "trigger_input.h"
+#include "servo.h"
+
+#if EFI_PROD_CODE
 #include "adc_inputs.h"
 #include "can_hw.h"
-#include "console_io.h"
 #include "hardware.h"
 #include "io_pins.h"
-#include "pin_repository.h"
 #include "rtc_helper.h"
 #include "rfiutil.h"
 #include "injector_central.h"
 #include "vehicle_speed.h"
-
-#include "trigger_input.h"
-#include "eficonsole.h"
+#include "yaw_rate_sensor.h"
+#include "pin_repository.h"
 #include "max31855.h"
-#include "mpu_util.h"
 #include "accelerometer.h"
-#include "servo.h"
+#include "eficonsole.h"
+#include "console_io.h"
 
-#if EFI_PROD_CODE
+#include "mpu_util.h"
 //#include "usb_msd.h"
 
 #include "AdcConfiguration.h"
@@ -40,11 +42,12 @@
 #include "settings.h"
 #include "algo.h"
 #include "joystick.h"
+#include "cdm_ion_sense.h"
 #include "trigger_central.h"
 #include "svnversion.h"
 #include "engine_configuration.h"
 #include "aux_pid.h"
-#endif /* EFI_PROD_CODE */
+
 
 #if EFI_SPEED_DENSITY
 #include "map_averaging.h"
@@ -94,13 +97,13 @@ void unlockSpi(void) {
 }
 
 static void initSpiModules(board_configuration_s *boardConfiguration) {
-	if (boardConfiguration->is_enabled_spi_1) {
+	if (CONFIGB(is_enabled_spi_1)) {
 		 turnOnSpi(SPI_DEVICE_1);
 	}
-	if (boardConfiguration->is_enabled_spi_2) {
+	if (CONFIGB(is_enabled_spi_2)) {
 		turnOnSpi(SPI_DEVICE_2);
 	}
-	if (boardConfiguration->is_enabled_spi_3) {
+	if (CONFIGB(is_enabled_spi_3)) {
 		turnOnSpi(SPI_DEVICE_3);
 	}
 }
@@ -130,7 +133,13 @@ SPIDriver * getSpiDevice(spi_device_e spiDevice) {
 #endif
 
 #if HAL_USE_I2C || defined(__DOXYGEN__)
+#if defined(STM32F7XX)
+// values calculated with STM32CubeMX tool, 100kHz I2C clock for Nucleo-767 @168 MHz, PCK1=42MHz
+#define HAL_I2C_F7_100_TIMINGR 0x00A0A3F7
+static I2CConfig i2cfg = { HAL_I2C_F7_100_TIMINGR, 0, 0 };	// todo: does it work?
+#else /* defined(STM32F4XX) */
 static I2CConfig i2cfg = { OPMODE_I2C, 100000, STD_DUTY_CYCLE, };
+#endif /* defined(STM32F4XX) */
 
 void initI2Cmodule(void) {
 	print("Starting I2C module\r\n");
@@ -170,7 +179,6 @@ extern int tpsFastAdc;
  * This method is not in the adc* lower-level file because it is more business logic then hardware.
  */
 void adc_callback_fast(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
-	efiAssertVoid(CUSTOM_ERR_6675, getRemainingStack(chThdGetSelfX()) > 64, "lowstck12a");
 
 	(void) buffer;
 	(void) n;
@@ -188,13 +196,13 @@ void adc_callback_fast(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
 		mapAveragingAdcCallback(fastAdc.samples[fastMapSampleIndex]);
 #endif /* EFI_MAP_AVERAGING */
 #if EFI_HIP_9011 || defined(__DOXYGEN__)
-		if (boardConfiguration->isHip9011Enabled) {
+		if (CONFIGB(isHip9011Enabled)) {
 			hipAdcCallback(fastAdc.samples[hipSampleIndex]);
 		}
 #endif
-		if (tpsSampleIndex != TPS_IS_SLOW) {
+//		if (tpsSampleIndex != TPS_IS_SLOW) {
 //			tpsFastAdc = fastAdc.samples[tpsSampleIndex];
-		}
+//		}
 	}
 }
 
@@ -228,12 +236,14 @@ static void unregisterPin(brain_pin_e currentPin, brain_pin_e prevPin) {
 }
 
 void stopSpi(spi_device_e device) {
+#if HAL_USE_SPI || defined(__DOXYGEN__)
 	if (!isSpiInitialized[device])
 		return; // not turned on
 	isSpiInitialized[device] = false;
 	unmarkPin(getSckPin(device));
 	unmarkPin(getMisoPin(device));
 	unmarkPin(getMosiPin(device));
+#endif /* HAL_USE_SPI */
 }
 
 void applyNewHardwareSettings(void) {
@@ -245,12 +255,18 @@ void applyNewHardwareSettings(void) {
        
 	enginePins.stopInjectionPins();
     enginePins.stopIgnitionPins();
+#if EFI_CAN_SUPPORT || defined(__DOXYGEN__)
 	stopCanPins();
+#endif /* EFI_CAN_SUPPORT */
+#if EFI_ELECTRONIC_THROTTLE_BODY || defined(__DOXYGEN__)
 	bool etbRestartNeeded = isETBRestartNeeded();
 	if (etbRestartNeeded) {
 		stopETBPins();
 	}
+#endif /* EFI_ELECTRONIC_THROTTLE_BODY */
+#if EFI_VEHICLE_SPEED || defined(__DOXYGEN__)
 	stopVSSPins();
+#endif /* EFI_VEHICLE_SPEED */
 	stopAuxPins();
 
 	if (engineConfiguration->bc.is_enabled_spi_1 != activeConfiguration.bc.is_enabled_spi_1)
@@ -278,11 +294,17 @@ void applyNewHardwareSettings(void) {
 
 	enginePins.startInjectionPins();
 	enginePins.startIgnitionPins();
+#if EFI_CAN_SUPPORT || defined(__DOXYGEN__)
 	startCanPins();
+#endif /* EFI_CAN_SUPPORT */
+#if EFI_ELECTRONIC_THROTTLE_BODY || defined(__DOXYGEN__)
 	if (etbRestartNeeded) {
 		startETBPins();
 	}
+#endif /* EFI_ELECTRONIC_THROTTLE_BODY */
+#if EFI_VEHICLE_SPEED || defined(__DOXYGEN__)
 	startVSSPins();
+#endif /* EFI_VEHICLE_SPEED */
 	startAuxPins();
 
 	adcConfigListener(engine);
@@ -299,10 +321,10 @@ void showBor(void) {
 }
 
 void initHardware(Logging *l) {
-	efiAssertVoid(CUSTOM_ERR_6677, getRemainingStack(chThdGetSelfX()) > 256, "init h");
+	efiAssertVoid(CUSTOM_IH_STACK, getRemainingStack(chThdGetSelfX()) > 256, "init h");
 	sharedLogger = l;
-	engine_configuration_s *engineConfiguration = engine->engineConfiguration;
-	efiAssertVoid(CUSTOM_ERR_6678, engineConfiguration!=NULL, "engineConfiguration");
+	engine_configuration_s *engineConfiguration = engine->engineConfigurationPtr;
+	efiAssertVoid(CUSTOM_EC_NULL, engineConfiguration!=NULL, "engineConfiguration");
 	board_configuration_s *boardConfiguration = &engineConfiguration->bc;
 
 	printMsg(sharedLogger, "initHardware()");
@@ -368,13 +390,13 @@ void initHardware(Logging *l) {
 #endif
 
 	bool isBoardTestMode_b;
-	if (boardConfiguration->boardTestModeJumperPin != GPIO_UNASSIGNED) {
-		efiSetPadMode("board test", boardConfiguration->boardTestModeJumperPin,
+	if (CONFIGB(boardTestModeJumperPin) != GPIO_UNASSIGNED) {
+		efiSetPadMode("board test", CONFIGB(boardTestModeJumperPin),
 		PAL_MODE_INPUT_PULLUP);
-		isBoardTestMode_b = (!efiReadPin(boardConfiguration->boardTestModeJumperPin));
+		isBoardTestMode_b = (!efiReadPin(CONFIGB(boardTestModeJumperPin)));
 
 		// we can now relese this pin, it is actually used as output sometimes
-		unmarkPin(boardConfiguration->boardTestModeJumperPin);
+		unmarkPin(CONFIGB(boardTestModeJumperPin));
 	} else {
 		isBoardTestMode_b = false;
 	}
@@ -393,7 +415,7 @@ void initHardware(Logging *l) {
 	initOutputPins();
 
 #if EFI_MAX_31855
-	initMax31855(sharedLogger, getSpiDevice(boardConfiguration->max31855spiDevice), boardConfiguration->max31855_cs);
+	initMax31855(sharedLogger, getSpiDevice(CONFIGB(max31855spiDevice)), CONFIGB(max31855_cs));
 #endif /* EFI_MAX_31855 */
 
 #if EFI_CAN_SUPPORT
@@ -427,6 +449,11 @@ void initHardware(Logging *l) {
 	initAccelerometer(PASS_ENGINE_PARAMETER_SIGNATURE);
 #endif
 //	initFixedLeds();
+
+
+#if EFI_BOSCH_YAW || defined(__DOXYGEN__)
+	initBoschYawRateSensor();
+#endif /* EFI_BOSCH_YAW */
 
 	//	initBooleanInputs();
 
@@ -464,6 +491,10 @@ void initHardware(Logging *l) {
 	initVehicleSpeed(sharedLogger);
 #endif
 
+#if EFI_CDM_INTEGRATION
+	cdmIonInit();
+#endif
+
 #if HAL_USE_EXT || defined(__DOXYGEN__)
 	initJoystick(sharedLogger);
 #endif
@@ -474,3 +505,5 @@ void initHardware(Logging *l) {
 }
 
 #endif /* EFI_PROD_CODE */
+
+#endif  /* EFI_PROD_CODE || EFI_SIMULATOR */

@@ -104,13 +104,12 @@
  *
  */
 
-#include "main.h"
+#include "global.h"
 #include "trigger_structure.h"
 #include "hardware.h"
 #include "engine_controller.h"
 #include "efiGpio.h"
 
-#include "global.h"
 #include "rfi_perftest.h"
 #include "rusefi.h"
 #include "memstreams.h"
@@ -162,10 +161,12 @@ static void scheduleReboot(void) {
 }
 
 void runRusEfi(void) {
-	efiAssertVoid(CUSTOM_ERR_6608, getRemainingStack(chThdGetSelfX()) > 512, "init s");
+	efiAssertVoid(CUSTOM_RM_STACK_1, getRemainingStack(chThdGetSelfX()) > 512, "init s");
 	assertEngineReference();
+	engine->setConfig(config);
 	initIntermediateLoggingBuffer();
 	initErrorHandling();
+	addConsoleAction("reboot", scheduleReboot);
 
 #if EFI_SHAFT_POSITION_INPUT || defined(__DOXYGEN__)
 	/**
@@ -182,25 +183,22 @@ void runRusEfi(void) {
 	initDataStructures(PASS_ENGINE_PARAMETER_SIGNATURE);
 
 	/**
-	 * First thing is reading configuration from flash memory.
-	 * In order to have complete flexibility configuration has to go before anything else.
-	 */
-	readConfiguration(&sharedLogger);
-	prepareVoidConfiguration(&activeConfiguration);
-
-	/**
 	 * First data structure keeps track of which hardware I/O pins are used by whom
 	 */
 	initPinRepository();
 
 	/**
+	 * First thing is reading configuration from flash memory.
+	 * In order to have complete flexibility configuration has to go before anything else.
+	 */
+	readConfiguration(&sharedLogger);
+	// TODO: need to fix this place!!! should be a version of PASS_ENGINE_PARAMETER_SIGNATURE somehow
+	prepareVoidConfiguration(&activeConfiguration);
+
+	/**
 	 * Next we should initialize serial port console, it's important to know what's going on
 	 */
 	initializeConsole(&sharedLogger);
-
-	engine->setConfig(config);
-
-	addConsoleAction("reboot", scheduleReboot);
 
 	/**
 	 * Initialize hardware drivers
@@ -213,19 +211,18 @@ void runRusEfi(void) {
 	 * todo: should we initialize some? most? controllers before hardware?
 	 */
 	initEngineContoller(&sharedLogger PASS_ENGINE_PARAMETER_SIGNATURE);
+	rememberCurrentConfiguration();
 
 #if EFI_PERF_METRICS || defined(__DOXYGEN__)
 	initTimePerfActions(&sharedLogger);
 #endif
         
 #if EFI_ENGINE_EMULATOR || defined(__DOXYGEN__)
-	initEngineEmulator(&sharedLogger, engine);
+	initEngineEmulator(&sharedLogger PASS_ENGINE_PARAMETER_SIGNATURE);
 #endif
 	startStatusThreads();
 
-	test557init();
-
-	rememberCurrentConfiguration();
+	runSchedulingPrecisionTestIfNeeded();
 
 	print("Running main loop\r\n");
 	main_loop_started = true;
@@ -234,14 +231,14 @@ void runRusEfi(void) {
 	 * control is around main_trigger_callback
 	 */
 	while (true) {
-		efiAssertVoid(CUSTOM_ERR_6609, getRemainingStack(chThdGetSelfX()) > 128, "stack#1");
+		efiAssertVoid(CUSTOM_RM_STACK, getRemainingStack(chThdGetSelfX()) > 128, "stack#1");
 
 #if (EFI_CLI_SUPPORT && !EFI_UART_ECHO_TEST_MODE) || defined(__DOXYGEN__)
 		// sensor state + all pending messages for our own dev console
 		updateDevConsoleState();
 #endif /* EFI_CLI_SUPPORT */
 
-		chThdSleepMilliseconds(boardConfiguration->consoleLoopPeriod);
+		chThdSleepMilliseconds(CONFIGB(consoleLoopPeriod));
 	}
 }
 

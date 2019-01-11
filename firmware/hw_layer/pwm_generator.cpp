@@ -12,52 +12,14 @@
  *
  */
 
-#include "pwm_generator.h"
+#include "global.h"
 
+#if EFI_PROD_CODE || EFI_SIMULATOR
+#include "pwm_generator.h"
 #include "pin_repository.h"
 #include "datalogging.h"
-
-/**
- * This method controls the actual hardware pins
- *
- * This method takes ~350 ticks.
- */
-void applyPinState(PwmConfig *state, int stateIndex) {
-	efiAssertVoid(CUSTOM_ERR_6663, stateIndex < PWM_PHASE_MAX_COUNT, "invalid stateIndex");
-	efiAssertVoid(CUSTOM_ERR_6664, state->multiWave.waveCount <= PWM_PHASE_MAX_WAVE_PER_PWM, "invalid waveCount");
-	for (int waveIndex = 0; waveIndex < state->multiWave.waveCount; waveIndex++) {
-		OutputPin *output = state->outputPins[waveIndex];
-		int value = state->multiWave.waves[waveIndex].pinStates[stateIndex];
-		output->setValue(value);
-	}
-}
-
-void startSimplePwm(PwmConfig *state, const char *msg, OutputPin *output, float frequency, float dutyCycle, pwm_gen_callback *stateChangeCallback) {
-	efiAssertVoid(CUSTOM_ERR_6665, dutyCycle >= 0 && dutyCycle <= 1, "dutyCycle");
-	if (frequency < 1) {
-		warning(CUSTOM_OBD_LOW_FREQUENCY, "low frequency %.2f", frequency);
-		return;
-	}
-
-	float switchTimes[] = { dutyCycle, 1 };
-	pin_state_t pinStates0[] = { 0, 1 };
-
-	pin_state_t *pinStates[1] = { pinStates0 };
-
-	state->outputPins[0] = output;
-
-	state->setFrequency(frequency);
-	state->weComplexInit(msg, 2, switchTimes, 1, pinStates, NULL, stateChangeCallback);
-}
-
-void startSimplePwmExt(PwmConfig *state, const char *msg, brain_pin_e brainPin, OutputPin *output, float frequency,
-		float dutyCycle, pwm_gen_callback *stateChangeCallback) {
-
-	output->initPin(msg, brainPin);
-
-	startSimplePwm(state, msg, output, frequency, dutyCycle, stateChangeCallback);
-}
 
 void initPwmGenerator(void) {
 }
 
+#endif

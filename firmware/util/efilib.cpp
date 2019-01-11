@@ -209,7 +209,7 @@ int efiPow10(int param) {
 }
 
 /**
- * string to float. NaN input is not supported
+ * string to float. NaN input is supported
  *
  * @return NAN in case of invalid string
  * todo: explicit value for error code? probably not, NaN is only returned in case of an error
@@ -220,9 +220,13 @@ float atoff(const char *param) {
 		return (float) NAN;
 	strcpy(todofixthismesswithcopy, param);
 	char *string = todofixthismesswithcopy;
+	if (indexOf(string, 'n') != -1 || indexOf(string, 'N') != -1) {
+		printf("NAN from [%s]\r\n", string);
+		return (float) NAN;
+	}
 
 	// todo: is there a standard function?
-	// todo: create a unit test
+	// unit-tested by 'testMisc()'
 	int dotIndex = indexOf(string, '.');
 	if (dotIndex == -1) {
 		// just an integer
@@ -306,3 +310,47 @@ void printHistogram(Logging *logging, histogram_s *histogram) {
 #endif /* EFI_HISTOGRAMS */
 }
 
+float limitRateOfChange(float newValue, float oldValue, float incrLimitPerSec, float decrLimitPerSec, float secsPassed) {
+	if (newValue >= oldValue)
+		return (incrLimitPerSec <= 0.0f) ? newValue : oldValue + minF(newValue - oldValue, incrLimitPerSec * secsPassed);
+	return (decrLimitPerSec <= 0.0f) ? newValue : oldValue - minF(oldValue - newValue, decrLimitPerSec * secsPassed);
+}
+
+constexpr float constant_e = 2.71828f;
+
+// 'constexpr' is a keyword that tells the compiler
+// "yes, this thing, it's a 'pure function' that only depends on its inputs and has no side effects"
+// like how const is a constant value, constexpr is a constant expression
+// so if somewhere you used it in a way that it could determine the exact arguments to the function at compile time, it will _run_ the function at compile time, and cook in the result as a constant
+constexpr float expf_taylor_impl(float x, uint8_t n)
+{
+	if (x < -2)
+	{
+		return 0.818f;
+	}
+	else if (x > 0)
+	{
+		return 1;
+	}
+
+	x = x + 1;
+
+	float x_power = x;
+	int fac = 1;
+	float sum = 1;
+
+	for (int i = 1; i <= n; i++)
+	{
+		fac *= i;
+		sum += x_power / fac;
+
+		x_power *= x;
+	}
+
+	return sum / constant_e;
+}
+
+float expf_taylor(float x)
+{
+	return expf_taylor_impl(x, 4);
+}

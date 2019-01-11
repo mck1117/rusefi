@@ -25,7 +25,7 @@
  * If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "main.h"
+#include "global.h"
 #include "io_pins.h"
 #include "malfunction_central.h"
 #include "malfunction_indicator.h"
@@ -106,7 +106,7 @@ static void testMil(void) {
 }
 
 bool isMilEnabled() {
-	return boardConfiguration->malfunctionIndicatorPin != GPIO_UNASSIGNED;
+	return CONFIGB(malfunctionIndicatorPin) != GPIO_UNASSIGNED;
 }
 
 void initMalfunctionIndicator(void) {
@@ -114,7 +114,7 @@ void initMalfunctionIndicator(void) {
 		return;
 	}
 	// create static thread
-	chThdCreateStatic(mfiThreadStack, sizeof(mfiThreadStack), LOWPRIO, (tfunc_t) mfiThread, NULL);
+	chThdCreateStatic(mfiThreadStack, sizeof(mfiThreadStack), LOWPRIO, (tfunc_t)(void*) mfiThread, NULL);
 
 	addConsoleAction("testmil", testMil);
 }

@@ -41,14 +41,14 @@ static void toggleTestAndScheduleNext() {
 	testPin.toggle();
 	periodIndex = (periodIndex + 1) % TEST_LEN;
 	testTime += test557[periodIndex];
-	scheduleByTimestamp(&scheduling, testTime, (schfunc_t) &toggleTestAndScheduleNext, NULL);
+	engine->executor.scheduleByTimestamp(&scheduling, testTime, (schfunc_t) &toggleTestAndScheduleNext, NULL);
 
 }
 
 /**
  * https://github.com/rusefi/rusefi/issues/557 common rail / direct injection scheduling control test
  */
-void test557init(void) {
+void runSchedulingPrecisionTestIfNeeded(void) {
 	if (engineConfiguration->test557pin == GPIO_UNASSIGNED ||
 			engineConfiguration->test557pin == GPIOA_0) {
 		return;
@@ -103,7 +103,7 @@ void setCustomEngineConfiguration(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	 * Frankenso analog #11 PC5 ADC15
 	 * Frankenso analog #12 PC4 ADC14 VBatt
 	 */
-	engineConfiguration->tpsAdcChannel = EFI_ADC_2;
+	engineConfiguration->tpsAdcChannel = EFI_ADC_2; // PA2
 
 	engineConfiguration->map.sensor.hwChannel = EFI_ADC_0;
 
@@ -144,7 +144,7 @@ void setCustomEngineConfiguration(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	boardConfiguration->injectionPins[2] = GPIOB_8; // #3
 	boardConfiguration->injectionPins[3] = GPIOB_7; // #4
 
-	setAlgorithm(LM_SPEED_DENSITY PASS_ENGINE_PARAMETER_SUFFIX);
+	setAlgorithm(LM_SPEED_DENSITY PASS_CONFIG_PARAMETER_SUFFIX);
 
 #if EFI_PWM_TESTER
 	boardConfiguration->injectionPins[4] = GPIOC_8; // #5
@@ -182,9 +182,9 @@ void setCustomEngineConfiguration(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	// todo: 8.2 or 10k?
 	engineConfiguration->vbattDividerCoeff = ((float) (10 + 33)) / 10 * 2;
 
-#if EFI_PROD_CODE
+#if EFI_CAN_SUPPORT || defined(__DOXYGEN__)
 	enableFrankensoCan();
-#endif /* EFI_PROD_CODE */
+#endif /* EFI_CAN_SUPPORT */
 }
 
 void setFrankensoBoardTestConfiguration(DECLARE_ENGINE_PARAMETER_SIGNATURE) {

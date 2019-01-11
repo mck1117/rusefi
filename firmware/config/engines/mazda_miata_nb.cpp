@@ -44,7 +44,7 @@ void setMazdaMiataNb1EngineConfiguration(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	engineConfiguration->mafAdcChannel = EFI_ADC_1;
 	engineConfiguration->clt.adcChannel = EFI_ADC_11;
 	engineConfiguration->iat.adcChannel = EFI_ADC_13;
-	engineConfiguration->afr.hwChannel = EFI_ADC_2;
+	engineConfiguration->afr.hwChannel = EFI_ADC_2; // PA2
 
 	boardConfiguration->idle.solenoidPin = GPIOE_0;
 	boardConfiguration->idle.solenoidPinMode = OM_DEFAULT;
@@ -75,7 +75,7 @@ void setMazdaMiataNb1EngineConfiguration(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	boardConfiguration->clutchDownPin = GPIO_UNASSIGNED;
 
 	// set_whole_fuel_map 3
-	setWholeFuelMap(3 PASS_ENGINE_PARAMETER_SUFFIX);
+	setWholeFuelMap(3 PASS_CONFIG_PARAMETER_SUFFIX);
 
 
 // 10 deg before TDC is default timing

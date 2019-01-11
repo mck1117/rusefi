@@ -16,10 +16,12 @@
  * @author Andrey Belomutskiy, (c) 2012-2018
  */
 
-#include "main.h"
+#include "global.h"
+
+#if EFI_HD44780_LCD || defined(__DOXYGEN__)
+
 #include "lcd_controller.h"
 #include "lcd_HD44780.h"
-#include "efilib.h"
 #include "rpm_calculator.h"
 #include "allsensors.h"
 #include "engine.h"
@@ -38,7 +40,6 @@
 #include "idle_thread.h"
 #include "fuel_math.h"
 
-#if EFI_HD44780_LCD || defined(__DOXYGEN__)
 
 EXTERN_ENGINE
 ;
@@ -74,7 +75,7 @@ static MenuItem miMapV(&miSensors, LL_MAF_V);
 static MenuItem miMapKgHr(&miSensors, LL_MAF_KG_HR);
 static MenuItem miKnock(&miSensors, LL_KNOCK);
 
-static MenuItem miStopEngine(&miBench, "stop engine", stopEngine);
+static MenuItem miStopEngine(&miBench, "stop engine", scheduleStopEngine);
 static MenuItem miTestFan(&miBench, "test fan", fanBench);
 static MenuItem miTestFuelPump(&miBench, "test pump", fuelPumpBench);
 static MenuItem miTestMIL(&miBench, "test MIL", milBench);
@@ -211,7 +212,7 @@ static void showLine(lcd_line_e line, int screenY) {
 #if EFI_FILE_LOGGING || defined(__DOXYGEN__)
 		{
 			char sdState;
-			if (boardConfiguration->isSdCardEnabled) {
+			if (CONFIGB(isSdCardEnabled)) {
 				sdState = isSdCardAlive() ? 'L' : 'n';
 			} else {
 				sdState = 'D';

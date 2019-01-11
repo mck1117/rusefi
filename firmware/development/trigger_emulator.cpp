@@ -12,8 +12,6 @@
 #include "trigger_emulator.h"
 #include "eficonsole.h"
 #include "main_trigger_callback.h"
-#include "datalogging.h"
-#include "engine_configuration.h"
 #include "io_pins.h"
 #include "trigger_emulator_algo.h"
 #include "trigger_central.h"
@@ -50,14 +48,14 @@ void initTriggerEmulator(Logging *sharedLogger DECLARE_ENGINE_PARAMETER_SUFFIX) 
 
 #if EFI_PROD_CODE || defined(__DOXYGEN__)
 	// todo: refactor, make this a loop
-	triggerSignal.outputPins[0]->initPin("trg emulator ch1", boardConfiguration->triggerSimulatorPins[0],
-			&boardConfiguration->triggerSimulatorPinModes[0]);
+	triggerSignal.outputPins[0]->initPin("trg emulator ch1", CONFIGB(triggerSimulatorPins)[0],
+			&CONFIGB(triggerSimulatorPinModes)[0]);
 
-	triggerSignal.outputPins[1]->initPin("trg emulator ch2", boardConfiguration->triggerSimulatorPins[1],
-			&boardConfiguration->triggerSimulatorPinModes[1]);
+	triggerSignal.outputPins[1]->initPin("trg emulator ch2", CONFIGB(triggerSimulatorPins)[1],
+			&CONFIGB(triggerSimulatorPinModes)[1]);
 
-	triggerSignal.outputPins[2]->initPin("trg emulator ch3", boardConfiguration->triggerSimulatorPins[2],
-			&boardConfiguration->triggerSimulatorPinModes[2]);
+	triggerSignal.outputPins[2]->initPin("trg emulator ch3", CONFIGB(triggerSimulatorPins)[2],
+			&CONFIGB(triggerSimulatorPinModes)[2]);
 #endif /* EFI_PROD_CODE */
 
 	initTriggerEmulatorLogic(sharedLogger);

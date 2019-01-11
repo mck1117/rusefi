@@ -9,15 +9,10 @@
  * @author Andrey Belomutskiy, (c) 2012-2018
  */
 
-#include "main.h"
+#include "global.h"
 #include "can_hw.h"
 #include "string.h"
 #include "obd2.h"
-
-#if EFI_PROD_CODE || defined(__DOXYGEN__)
-
-
-#endif /* EFI_PROD_CODE */
 
 #if EFI_CAN_SUPPORT || defined(__DOXYGEN__)
 
@@ -49,9 +44,26 @@ static THD_WORKING_AREA(canTreadStack, UTILITY_THREAD_STACK_SIZE);
  * 29 bit would be CAN_TI0R_EXID (?) but we do not mention it here
  * CAN_TI0R_STID "Standard Identifier or Extended Identifier"? not mentioned as well
  */
-static const CANConfig canConfig = {
+static const CANConfig canConfig500 = {
 CAN_MCR_ABOM | CAN_MCR_AWUM | CAN_MCR_TXFP,
 CAN_BTR_SJW(0) | CAN_BTR_TS2(1) | CAN_BTR_TS1(8) | CAN_BTR_BRP(6) };
+
+/*
+ * speed = 42000000 / (BRP + 1) / (1 + TS1 + 1 + TS2 + 1)
+ * 42000000 / 7 / 6 = 1000000
+ *
+ */
+static const CANConfig canConfig1000 = {
+CAN_MCR_ABOM | CAN_MCR_AWUM | CAN_MCR_TXFP,
+CAN_BTR_SJW(0) | CAN_BTR_TS2(1) | CAN_BTR_TS1(2) | CAN_BTR_BRP(6) };
+
+// 42000000 / 14 / 12 = 250000
+
+// todo: validate this
+static const CANConfig canConfig250 = {
+CAN_MCR_ABOM | CAN_MCR_AWUM | CAN_MCR_TXFP,
+CAN_BTR_SJW(0) | CAN_BTR_TS2(1) | CAN_BTR_TS1(8) | CAN_BTR_BRP(13) };
+
 
 static CANRxFrame rxBuffer;
 CANTxFrame txmsg;
@@ -93,8 +105,8 @@ void commonTxInit(int eid) {
  * send CAN message from txmsg buffer
  */
 static void sendCanMessage2(int size) {
-	CANDriver *device = detectCanDevice(boardConfiguration->canRxPin,
-			boardConfiguration->canTxPin);
+	CANDriver *device = detectCanDevice(CONFIGB(canRxPin),
+			CONFIGB(canTxPin));
 	if (device == NULL) {
 		warning(CUSTOM_ERR_CAN_CONFIGURATION, "CAN configuration issue");
 		return;
@@ -215,8 +227,8 @@ static void canInfoNBCBroadcast(can_nbc_e typeOfNBC) {
 }
 
 static void canRead(void) {
-	CANDriver *device = detectCanDevice(boardConfiguration->canRxPin,
-			boardConfiguration->canTxPin);
+	CANDriver *device = detectCanDevice(CONFIGB(canRxPin),
+			CONFIGB(canTxPin));
 	if (device == NULL) {
 		warning(CUSTOM_ERR_CAN_CONFIGURATION, "CAN configuration issue");
 		return;
@@ -264,13 +276,13 @@ static void canInfo(void) {
 		return;
 	}
 
-	scheduleMsg(&logger, "CAN TX %s", hwPortname(boardConfiguration->canTxPin));
-	scheduleMsg(&logger, "CAN RX %s", hwPortname(boardConfiguration->canRxPin));
+	scheduleMsg(&logger, "CAN TX %s", hwPortname(CONFIGB(canTxPin)));
+	scheduleMsg(&logger, "CAN RX %s", hwPortname(CONFIGB(canRxPin)));
 	scheduleMsg(&logger, "type=%d canReadEnabled=%s canWriteEnabled=%s period=%d", engineConfiguration->canNbcType,
 			boolToString(engineConfiguration->canReadEnabled), boolToString(engineConfiguration->canWriteEnabled),
 			engineConfiguration->canSleepPeriod);
 
-	scheduleMsg(&logger, "CAN rx count %d/tx ok %d/tx not ok %d", canReadCounter, canWriteOk, canWriteNotOk);
+	scheduleMsg(&logger, "CAN rx_cnt=%d/tx_ok=%d/tx_not_ok=%d", canReadCounter, canWriteOk, canWriteNotOk);
 }
 
 void setCanType(int type) {
@@ -285,8 +297,8 @@ void postCanState(TunerStudioOutputChannels *tsOutputChannels) {
 }
 
 void enableFrankensoCan(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
-	boardConfiguration->canTxPin = GPIOB_6;
-	boardConfiguration->canRxPin = GPIOB_12;
+	CONFIGB(canTxPin) = GPIOB_6;
+	CONFIGB(canRxPin) = GPIOB_12;
 	engineConfiguration->canReadEnabled = false;
 }
 
@@ -296,17 +308,17 @@ void stopCanPins(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 }
 
 void startCanPins(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
-	efiSetPadMode("CAN TX", boardConfiguration->canTxPin, PAL_MODE_ALTERNATE(EFI_CAN_TX_AF));
-	efiSetPadMode("CAN RX", boardConfiguration->canRxPin, PAL_MODE_ALTERNATE(EFI_CAN_RX_AF));
+	efiSetPadMode("CAN TX", CONFIGB(canTxPin), PAL_MODE_ALTERNATE(EFI_CAN_TX_AF));
+	efiSetPadMode("CAN RX", CONFIGB(canRxPin), PAL_MODE_ALTERNATE(EFI_CAN_RX_AF));
 }
 
 void initCan(void) {
-	isCanEnabled = (boardConfiguration->canTxPin != GPIO_UNASSIGNED) && (boardConfiguration->canRxPin != GPIO_UNASSIGNED);
+	isCanEnabled = (CONFIGB(canTxPin) != GPIO_UNASSIGNED) && (CONFIGB(canRxPin) != GPIO_UNASSIGNED);
 	if (isCanEnabled) {
-		if (!isValidCanTxPin(boardConfiguration->canTxPin))
-			firmwareError(CUSTOM_OBD_70, "invalid CAN TX %s", hwPortname(boardConfiguration->canTxPin));
-		if (!isValidCanRxPin(boardConfiguration->canRxPin))
-			firmwareError(CUSTOM_OBD_70, "invalid CAN RX %s", hwPortname(boardConfiguration->canRxPin));
+		if (!isValidCanTxPin(CONFIGB(canTxPin)))
+			firmwareError(CUSTOM_OBD_70, "invalid CAN TX %s", hwPortname(CONFIGB(canTxPin)));
+		if (!isValidCanRxPin(CONFIGB(canRxPin)))
+			firmwareError(CUSTOM_OBD_70, "invalid CAN RX %s", hwPortname(CONFIGB(canRxPin)));
 	}
 
 	addConsoleAction("caninfo", canInfo);
@@ -315,13 +327,13 @@ void initCan(void) {
 
 #if STM32_CAN_USE_CAN2 || defined(__DOXYGEN__)
 	// CAN1 is required for CAN2
-	canStart(&CAND1, &canConfig);
-	canStart(&CAND2, &canConfig);
+	canStart(&CAND1, &canConfig500);
+	canStart(&CAND2, &canConfig500);
 #else
-	canStart(&CAND1, &canConfig);
+	canStart(&CAND1, &canConfig500);
 #endif /* STM32_CAN_USE_CAN2 */
 
-	chThdCreateStatic(canTreadStack, sizeof(canTreadStack), NORMALPRIO, (tfunc_t) canThread, NULL);
+	chThdCreateStatic(canTreadStack, sizeof(canTreadStack), NORMALPRIO, (tfunc_t)(void*) canThread, NULL);
 
 	startCanPins();
 

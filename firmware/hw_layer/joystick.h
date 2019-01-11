@@ -7,13 +7,13 @@
 #ifndef CONTROLLERS_JOYSTICK_H_
 #define CONTROLLERS_JOYSTICK_H_
 
-#include "main.h"
+#include "global.h"
 
 typedef enum {
 	JB_CENTER = 0,
 	JB_BUTTON_A = 1,
-	JB_BUTTON_B = 2,
-	JB_BUTTON_C = 3,
+// not used so far	JB_BUTTON_B = 2,
+// not used so far	JB_BUTTON_C = 3,
 	JB_BUTTON_D = 4,
 } joystick_button_e;
 

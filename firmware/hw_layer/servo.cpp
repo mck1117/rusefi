@@ -12,9 +12,12 @@
  * @author Andrey Belomutskiy, (c) 2012-2018
  */
 
+#include "engine.h"
+
+// todo: EFI_SERVO macro
+#if EFI_PROD_CODE || EFI_SIMULATOR
 #include "servo.h"
 #include "pin_repository.h"
-#include "engine.h"
 
 // todo: remove this hack once we have next incompatible configuration change
 #define TEMP_FOR_COMPATIBILITY GPIOA_0
@@ -60,7 +63,7 @@ static msg_t seThread(void *arg) {
 
 		float durationMs = 0 + position * 0.02f;
 
-		scheduleForLater(&servoTurnSignalOff, (int)MS2US(durationMs), (schfunc_t) &servoTachPinLow, pin);
+		engine->executor.scheduleForLater(&servoTurnSignalOff, (int)MS2US(durationMs), (schfunc_t) &servoTachPinLow, pin);
 
 
 		chThdSleepMilliseconds(19);
@@ -79,7 +82,7 @@ void initServo(void) {
 
 
 
-	chThdCreateStatic(seThreadStack, sizeof(seThreadStack), NORMALPRIO, (tfunc_t) seThread, NULL);
+	chThdCreateStatic(seThreadStack, sizeof(seThreadStack), NORMALPRIO, (tfunc_t)(void*) seThread, NULL);
 }
-
+#endif
 

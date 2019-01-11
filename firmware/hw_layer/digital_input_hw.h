@@ -5,10 +5,10 @@
  * @author Andrey Belomutskiy, (c) 2012-2017
  */
 
-#ifndef WAVE_ANALYZER_HW_H_
-#define WAVE_ANALYZER_HW_H_
+#ifndef DIGITAL_INPUT_HW_H_
+#define DIGITAL_INPUT_HW_H_
 
-#include "main.h"
+#include "global.h"
 
 #if HAL_USE_ICU || defined(__DOXYGEN__)
 
@@ -32,6 +32,6 @@ void removeWaveAnalyzerDriver(const char *msg, brain_pin_e brainPin);
 ICUDriver * getInputCaptureDriver(const char *msg, brain_pin_e hwPin);
 icuchannel_t getInputCaptureChannel(brain_pin_e hwPin);
 
-#endif
+#endif /* HAL_USE_ICU */
 
-#endif /* WAVE_ANALYZER_HW_H_ */
+#endif /* DIGITAL_INPUT_HW_H_ */

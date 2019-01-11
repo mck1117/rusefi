@@ -6,10 +6,10 @@
  * express myself in C/C++. I am open for suggestions :)
  *
  * @date May 21, 2014
- * @author Andrey Belomutskiy, (c) 2012-2018
+ * @author Andrey Belomutskiy, (c) 2012-2019
  */
 
-#include "main.h"
+#include "global.h"
 #include "engine.h"
 #include "engine_state.h"
 #include "efiGpio.h"
@@ -30,33 +30,61 @@
 #define isRunningBenchTest() true
 #endif /* EFI_PROD_CODE */
 
-static LoggingWithStorage logger("engine");
+static TriggerState initState CCM_OPTIONAL;
 
-extern fuel_Map3D_t veMap;
-extern afr_Map3D_t afrMap;
+LoggingWithStorage engineLogger("engine");
 
 EXTERN_ENGINE
 ;
 
-#if ! EFI_UNIT_TEST || defined(__DOXYGEN__)
+#if EFI_TUNER_STUDIO || defined(__DOXYGEN__)
 extern TunerStudioOutputChannels tsOutputChannels;
+#endif /* EFI_TUNER_STUDIO */
+
+FsioState::FsioState() {
+#if EFI_ENABLE_ENGINE_WARNING
+	isEngineWarning = FALSE;
+#endif
+#if EFI_ENABLE_CRITICAL_ENGINE_STOP
+	isCriticalEngineCondition = FALSE;
+#endif
+}
+
+void Engine::initializeTriggerShape(Logging *logger DECLARE_ENGINE_PARAMETER_SUFFIX) {
+#if !EFI_UNIT_TEST
+	// we have a confusing threading model so some synchronization would not hurt
+	bool alreadyLocked = lockAnyContext();
+#endif /* EFI_UNIT_TEST */
+
+	TRIGGER_SHAPE(initializeTriggerShape(logger,
+			engineConfiguration->operationMode,
+			engineConfiguration->useOnlyRisingEdgeForTrigger, &engineConfiguration->trigger));
+
+	if (!TRIGGER_SHAPE(shapeDefinitionError)) {
+		/**
+	 	 * this instance is used only to initialize 'this' TriggerShape instance
+	 	 * #192 BUG real hardware trigger events could be coming even while we are initializing trigger
+	 	 */
+		initState.reset();
+		calculateTriggerSynchPoint(&ENGINE(triggerCentral.triggerShape),
+				&initState PASS_ENGINE_PARAMETER_SUFFIX);
+
+		if (engine->triggerCentral.triggerShape.getSize() == 0) {
+			firmwareError(CUSTOM_ERR_TRIGGER_ZERO, "triggerShape size is zero");
+		}
+		engine->engineCycleEventCount = TRIGGER_SHAPE(getLength());
+	}
+
+#if !EFI_UNIT_TEST
+	if (!alreadyLocked) {
+		unlockAnyContext();
+	}
 #endif
 
-MockAdcState::MockAdcState() {
-	memset(hasMockAdc, 0, sizeof(hasMockAdc));
-}
+	if (!TRIGGER_SHAPE(shapeDefinitionError)) {
+		prepareOutputSignals(PASS_ENGINE_PARAMETER_SIGNATURE);
+	}
 
-#if EFI_ENABLE_MOCK_ADC || EFI_SIMULATOR
-void MockAdcState::setMockVoltage(int hwChannel, float voltage) {
-	scheduleMsg(&logger, "fake voltage: channel %d value %.2f", hwChannel, voltage);
-
-	fakeAdcValues[hwChannel] = voltsToAdc(voltage);
-	hasMockAdc[hwChannel] = true;
-}
-#endif /* EFI_ENABLE_MOCK_ADC */
-
-int MockAdcState::getMockAdcValue(int hwChannel) {
-	return fakeAdcValues[hwChannel];
 }
 
 /**
@@ -66,15 +94,15 @@ int MockAdcState::getMockAdcValue(int hwChannel) {
 void Engine::updateSlowSensors(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	int rpm = rpmCalculator.getRpm(PASS_ENGINE_PARAMETER_SIGNATURE);
 	isEngineChartEnabled = CONFIG(isEngineChartEnabled) && rpm < CONFIG(engineSnifferRpmThreshold);
-	sensorChartMode = rpm < CONFIG(sensorSnifferRpmThreshold) ? boardConfiguration->sensorChartMode : SC_OFF;
+	sensorChartMode = rpm < CONFIG(sensorSnifferRpmThreshold) ? CONFIGB(sensorChartMode) : SC_OFF;
 
 	engineState.updateSlowSensors(PASS_ENGINE_PARAMETER_SIGNATURE);
 
 	// todo: move this logic somewhere to sensors folder?
-	if (engineConfiguration->fuelLevelSensor != EFI_ADC_NONE) {
+	if (CONFIG(fuelLevelSensor) != EFI_ADC_NONE) {
 		float fuelLevelVoltage = getVoltageDivided("fuel", engineConfiguration->fuelLevelSensor);
-		sensors.fuelTankGauge = interpolateMsg("fgauge", boardConfiguration->fuelLevelEmptyTankVoltage, 0,
-				boardConfiguration->fuelLevelFullTankVoltage, 100,
+		sensors.fuelTankGauge = interpolateMsg("fgauge", CONFIGB(fuelLevelEmptyTankVoltage), 0,
+				CONFIGB(fuelLevelFullTankVoltage), 100,
 				fuelLevelVoltage);
 	}
 	sensors.vBatt = hasVBatt(PASS_ENGINE_PARAMETER_SIGNATURE) ? getVBatt(PASS_ENGINE_PARAMETER_SIGNATURE) : 12;
@@ -96,17 +124,13 @@ Engine::Engine(persistent_config_s *config) {
 	reset();
 }
 
-Accelerometer::Accelerometer() {
-	x = y = z = 0;
-}
-
-SensorsState::SensorsState() {
-	reset();
-}
-
-void SensorsState::reset() {
-	fuelTankGauge = vBatt = 0;
-	iat = clt = NAN;
+/**
+ * @see scheduleStopEngine()
+ * @return true if there is a reason to stop engine
+ */
+bool Engine::needToStopEngine(efitick_t nowNt) {
+	return stopEngineRequestTimeNt != 0 &&
+			nowNt - stopEngineRequestTimeNt	< 3 * US2NT(US_PER_SECOND_LL);
 }
 
 void Engine::reset() {
@@ -148,167 +172,8 @@ void Engine::reset() {
 	injectionDuration = 0;
 	clutchDownState = clutchUpState = brakePedalState = false;
 	memset(&m, 0, sizeof(m));
-
-}
-
-FuelConsumptionState::FuelConsumptionState() {
-	perSecondConsumption = perSecondAccumulator = 0;
-	perMinuteConsumption = perMinuteAccumulator = 0;
-	accumulatedSecondPrevNt = accumulatedMinutePrevNt = getTimeNowNt();
-}
-
-void FuelConsumptionState::addData(float durationMs) {
-	if (durationMs > 0.0f) {
-		perSecondAccumulator += durationMs;
-		perMinuteAccumulator += durationMs;
-	}
-}
-
-void FuelConsumptionState::update(efitick_t nowNt DECLARE_ENGINE_PARAMETER_SUFFIX) {
-	efitick_t deltaNt = nowNt - accumulatedSecondPrevNt;
-	if (deltaNt >= US2NT(US_PER_SECOND_LL)) {
-		perSecondConsumption = getFuelRate(perSecondAccumulator, deltaNt PASS_ENGINE_PARAMETER_SUFFIX);
-		perSecondAccumulator = 0;
-		accumulatedSecondPrevNt = nowNt;
-	}
-
-	deltaNt = nowNt - accumulatedMinutePrevNt;
-	if (deltaNt >= US2NT(US_PER_SECOND_LL * 60)) {
-		perMinuteConsumption = getFuelRate(perMinuteAccumulator, deltaNt PASS_ENGINE_PARAMETER_SUFFIX);
-		perMinuteAccumulator = 0;
-		accumulatedMinutePrevNt = nowNt;
-	}
-}
-
-TransmissionState::TransmissionState() {
-
-}
-
-EngineState::EngineState() {
-	dwellAngle = NAN;
-	engineNoiseHipLevel = 0;
-	injectorLag = 0;
-	warningCounter = 0;
-	lastErrorCode = 0;
-	crankingTime = 0;
-	timeSinceCranking = 0;
-	vssEventCounter = 0;
-	targetAFR = 0;
-	tpsAccelEnrich = 0;
-	tChargeK = 0;
-	cltTimingCorrection = 0;
-	runningFuel = baseFuel = currentVE = 0;
-	timeOfPreviousWarning = -10;
-	baseTableFuel = iatFuelCorrection = 0;
-	fuelPidCorrection = 0;
-	cltFuelCorrection = postCrankingFuelCorrection = 0;
-	warmupTargetAfr = airMass = 0;
-	baroCorrection = timingAdvance = 0;
-	sparkDwell = mapAveragingDuration = 0;
-	totalLoggedBytes = injectionOffset = 0;
-	auxValveStart = auxValveEnd = 0;
-	fuelCutoffCorrection = 0;
-	coastingFuelCutStartTime = 0;
-}
-
-void EngineState::updateSlowSensors(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
-	engine->sensors.iat = getIntakeAirTemperature(PASS_ENGINE_PARAMETER_SIGNATURE);
-	engine->sensors.clt = getCoolantTemperature(PASS_ENGINE_PARAMETER_SIGNATURE);
-	engine->sensors.oilPressure = getOilPressure(PASS_ENGINE_PARAMETER_SIGNATURE);
-
-	warmupTargetAfr = interpolate2d("warm", engine->sensors.clt, engineConfiguration->warmupTargetAfrBins,
-			engineConfiguration->warmupTargetAfr, WARMUP_TARGET_AFR_SIZE);
-}
-
-void EngineState::periodicFastCallback(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
-	efitick_t nowNt = getTimeNowNt();
-	if (ENGINE(rpmCalculator).isCranking(PASS_ENGINE_PARAMETER_SIGNATURE)) {
-		crankingTime = nowNt;
-		timeSinceCranking = 0.0f;
-	} else {
-		timeSinceCranking = nowNt - crankingTime;
-	}
-	updateAuxValves(PASS_ENGINE_PARAMETER_SIGNATURE);
-
-	int rpm = ENGINE(rpmCalculator).getRpm(PASS_ENGINE_PARAMETER_SIGNATURE);
-	sparkDwell = getSparkDwell(rpm PASS_ENGINE_PARAMETER_SUFFIX);
-	dwellAngle = cisnan(rpm) ? NAN :  sparkDwell / getOneDegreeTimeMs(rpm);
-	if (hasAfrSensor(PASS_ENGINE_PARAMETER_SIGNATURE)) {
-		engine->sensors.currentAfr = getAfr(PASS_ENGINE_PARAMETER_SIGNATURE);
-	}
-
-	// todo: move this into slow callback, no reason for IAT corr to be here
-	iatFuelCorrection = getIatFuelCorrection(engine->sensors.iat PASS_ENGINE_PARAMETER_SUFFIX);
-	// todo: move this into slow callback, no reason for CLT corr to be here
-	if (boardConfiguration->useWarmupPidAfr && engine->sensors.clt < engineConfiguration->warmupAfrThreshold) {
-		if (rpm < 200) {
-			cltFuelCorrection = 1;
-			warmupAfrPid.reset();
-		} else {
-			cltFuelCorrection = warmupAfrPid.getValue(warmupTargetAfr, engine->sensors.currentAfr, 1);
-		}
-#if ! EFI_UNIT_TEST || defined(__DOXYGEN__)
-		if (engineConfiguration->debugMode == DBG_WARMUP_ENRICH) {
-			tsOutputChannels.debugFloatField1 = warmupTargetAfr;
-			warmupAfrPid.postState(&tsOutputChannels);
-		}
-#endif
-
-	} else {
-		cltFuelCorrection = getCltFuelCorrection(PASS_ENGINE_PARAMETER_SIGNATURE);
-	}
-
-	// update fuel consumption states
-	fuelConsumption.update(nowNt PASS_ENGINE_PARAMETER_SUFFIX);
-
-	// Fuel cut-off isn't just 0 or 1, it can be tapered
-	fuelCutoffCorrection = getFuelCutOffCorrection(nowNt, rpm PASS_ENGINE_PARAMETER_SUFFIX);
-	
-	// post-cranking fuel enrichment.
-	// for compatibility reasons, apply only if the factor is greater than zero (0.01 margin used)
-	if (engineConfiguration->postCrankingFactor > 0.01f) {
-		// convert to microsecs and then to seconds
-		float timeSinceCrankingInSecs = NT2US(timeSinceCranking) / 1000000.0f;
-		// use interpolation for correction taper
-		postCrankingFuelCorrection = interpolateClamped(0.0f, engineConfiguration->postCrankingFactor, 
-			engineConfiguration->postCrankingDurationSec, 1.0f, timeSinceCrankingInSecs);
-	} else {
-		postCrankingFuelCorrection = 1.0f;
-	}
-
-	cltTimingCorrection = getCltTimingCorrection(PASS_ENGINE_PARAMETER_SIGNATURE);
-
-	engineNoiseHipLevel = interpolate2d("knock", rpm, engineConfiguration->knockNoiseRpmBins,
-					engineConfiguration->knockNoise, ENGINE_NOISE_CURVE_SIZE);
-
-	baroCorrection = getBaroCorrection(PASS_ENGINE_PARAMETER_SIGNATURE);
-
-	injectionOffset = getInjectionOffset(rpm PASS_ENGINE_PARAMETER_SUFFIX);
-	float engineLoad = getEngineLoadT(PASS_ENGINE_PARAMETER_SIGNATURE);
-	timingAdvance = getAdvance(rpm, engineLoad PASS_ENGINE_PARAMETER_SUFFIX);
-
-	if (engineConfiguration->fuelAlgorithm == LM_SPEED_DENSITY) {
-		float coolantC = ENGINE(sensors.clt);
-		float intakeC = ENGINE(sensors.iat);
-		float tps = getTPS(PASS_ENGINE_PARAMETER_SIGNATURE);
-		tChargeK = convertCelsiusToKelvin(getTCharge(rpm, tps, coolantC, intakeC PASS_ENGINE_PARAMETER_SUFFIX));
-		float map = getMap();
-
-		/**
-		 * *0.01 because of https://sourceforge.net/p/rusefi/tickets/153/
-		 */
-		float rawVe = veMap.getValue(rpm, map);
-		// get VE from the separate table for Idle
-		if (CONFIG(useSeparateVeForIdle)) {
-			float idleVe = interpolate2d("idleVe", rpm, config->idleVeBins, config->idleVe, IDLE_VE_CURVE_SIZE);
-			// interpolate between idle table and normal (running) table using TPS threshold
-			rawVe = interpolateClamped(0.0f, idleVe, boardConfiguration->idlePidDeactivationTpsThreshold, rawVe, tps);
-		}
-		currentVE = baroCorrection * rawVe * 0.01;
-		targetAFR = afrMap.getValue(rpm, map);
-	} else {
-		baseTableFuel = getBaseTableFuel(rpm, engineLoad);
-	}
+	config = NULL;
+	engineConfigurationPtr = NULL;
 }
 
 
@@ -316,9 +181,15 @@ void EngineState::periodicFastCallback(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
  * Here we have a bunch of stuff which should invoked after configuration change
  * so that we can prepare some helper structures
  */
-void Engine::preCalculate() {
+void Engine::preCalculate(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	sparkTable.preCalc(engineConfiguration->sparkDwellRpmBins,
 			engineConfiguration->sparkDwellValues);
+
+#if ! EFI_UNIT_TEST
+	adcToVoltageInputDividerCoefficient = adcToVolts(1) * engineConfiguration->analogInputDividerCoefficient;
+#else
+	adcToVoltageInputDividerCoefficient = engineConfigurationPtr->analogInputDividerCoefficient;
+#endif
 
 	/**
 	 * Here we prepare a fast, index-based MAF lookup from a slower curve description
@@ -333,16 +204,16 @@ void Engine::preCalculate() {
 
 void Engine::setConfig(persistent_config_s *config) {
 	this->config = config;
-	engineConfiguration = &config->engineConfiguration;
+	engineConfigurationPtr = &config->engineConfiguration;
 	memset(config, 0, sizeof(persistent_config_s));
 	engineState.warmupAfrPid.initPidClass(&config->engineConfiguration.warmupAfrPid);
 }
 
 void Engine::printKnockState(void) {
-	scheduleMsg(&logger, "knock now=%s/ever=%s", boolToString(knockNow), boolToString(knockEver));
+	scheduleMsg(&engineLogger, "knock now=%s/ever=%s", boolToString(knockNow), boolToString(knockEver));
 }
 
-void Engine::knockLogic(float knockVolts) {
+void Engine::knockLogic(float knockVolts DECLARE_ENGINE_PARAMETER_SUFFIX) {
 	this->knockVolts = knockVolts;
     knockNow = knockVolts > engineConfiguration->knockVThreshold;
     /**
@@ -399,8 +270,8 @@ void Engine::watchdog() {
 	isSpinning = false;
 	ignitionEvents.isReady = false;
 #if EFI_PROD_CODE || EFI_SIMULATOR || defined(__DOXYGEN__)
-	scheduleMsg(&logger, "engine has STOPPED");
-	scheduleMsg(&logger, "templog engine has STOPPED [%x][%x] [%x][%x] %d",
+	scheduleMsg(&engineLogger, "engine has STOPPED");
+	scheduleMsg(&engineLogger, "templog engine has STOPPED [%x][%x] [%x][%x] %d",
 			(int)(nowNt >> 32), (int)nowNt,
 			(int)(lastTriggerToothEventTimeNt >> 32), (int)lastTriggerToothEventTimeNt,
 			(int)timeSinceLastTriggerEvent
@@ -416,9 +287,13 @@ void Engine::checkShutdown() {
 #if EFI_MAIN_RELAY_CONTROL || defined(__DOXYGEN__)
 	int rpm = rpmCalculator.getRpm();
 
+	/**
+	 * Something is weird here: "below 5.0 volts on battery" what is it about? Is this about
+	 * Frankenso powering everything while driver has already turned ignition off? or what is this condition about?
+	 */
 	const float vBattThreshold = 5.0f;
 	if (isValidRpm(rpm) && sensors.vBatt < vBattThreshold && stopEngineRequestTimeNt == 0) {
-		stopEngine();
+		scheduleStopEngine();
 		// todo: add stepper motor parking
 	}
 #endif /* EFI_MAIN_RELAY_CONTROL */
@@ -460,39 +335,3 @@ void Engine::periodicFastCallback(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	engine->m.fuelCalcTime = GET_TIMESTAMP() - engine->m.beforeFuelCalc;
 
 }
-
-StartupFuelPumping::StartupFuelPumping() {
-	isTpsAbove50 = false;
-	pumpsCounter = 0;
-}
-
-void StartupFuelPumping::setPumpsCounter(int newValue) {
-	if (pumpsCounter != newValue) {
-		pumpsCounter = newValue;
-
-		if (pumpsCounter == PUMPS_TO_PRIME) {
-			scheduleMsg(&logger, "let's squirt prime pulse %.2f", pumpsCounter);
-			pumpsCounter = 0;
-		} else {
-			scheduleMsg(&logger, "setPumpsCounter %d", pumpsCounter);
-		}
-	}
-}
-
-void StartupFuelPumping::update(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
-	if (engine->rpmCalculator.getRpm(PASS_ENGINE_PARAMETER_SIGNATURE) == 0) {
-		bool isTpsAbove50 = getTPS(PASS_ENGINE_PARAMETER_SIGNATURE) >= 50;
-
-		if (this->isTpsAbove50 != isTpsAbove50) {
-			setPumpsCounter(pumpsCounter + 1);
-		}
-
-	} else {
-		/**
-		 * Engine is not stopped - not priming pumping mode
-		 */
-		setPumpsCounter(0);
-		isTpsAbove50 = false;
-	}
-}
-

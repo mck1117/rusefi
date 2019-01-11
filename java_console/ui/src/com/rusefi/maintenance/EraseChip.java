@@ -6,7 +6,7 @@ import javax.swing.*;
 import java.awt.event.ActionEvent;
 
 /**
- * (c) Andrey Belomutskiy 2013-2017
+ * (c) Andrey Belomutskiy 2013-2018
  */
 public class EraseChip extends ProcessStatusWindow {
     private static final String FLASH_SIZE = "0x0100000";
@@ -30,7 +30,7 @@ public class EraseChip extends ProcessStatusWindow {
 
     @NotNull
     private String getEraseCommand() {
-        return FirmwareFlasher.getOpenovdCommad() + ERASE_COMMAND_SUFFIX;
+        return FirmwareFlasher.getOpenocdCommad() + ERASE_COMMAND_SUFFIX;
     }
 
     public JButton getButton() {

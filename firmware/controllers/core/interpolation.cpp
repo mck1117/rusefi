@@ -2,17 +2,15 @@
  * @file    interpolation.cpp
  * @brief	Linear interpolation algorithms
  *
+ * See test_interpolation_3d.cpp
+ *
+ *
  * @date Oct 17, 2013
  * @author Andrey Belomutskiy, (c) 2012-2018
  * @author Dmitry Sidin, (c) 2015
  */
 
-#include "main.h"
-#if DEBUG_FUEL
-#include <stdio.h>
-#endif
-
-#include <math.h>
+#include "global.h"
 
 #include "efilib2.h"
 #include "interpolation.h"
@@ -214,9 +212,9 @@ int findIndexMsg(const char *msg, const float array[], int size, float value) {
 
 		if (middle != 0 && array[middle - 1] > array[middle]) {
 #if EFI_UNIT_TEST || defined(__DOXYGEN__)
-			firmwareError(CUSTOM_ERR_6147, "%s: out of order %.2f %.2f", msg, array[middle - 1], array[middle]);
+			firmwareError(CUSTOM_ERR_6610, "%s: out of order %.2f %.2f", msg, array[middle - 1], array[middle]);
 #else
-			warning(CUSTOM_ERR_6147, "%s: out of order %.2f %.2f", msg, array[middle - 1], array[middle]);
+			warning(CUSTOM_ERR_OUT_OF_ORDER, "%s: out of order %.2f %.2f", msg, array[middle - 1], array[middle]);
 
 #endif /* EFI_UNIT_TEST */
 		}

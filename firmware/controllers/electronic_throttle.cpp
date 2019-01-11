@@ -29,6 +29,10 @@
  * ethinfo
  * set mock_pedal_position X
  *
+ *
+ * set debug_mode 17
+ * for PID outputs
+ *
  * http://rusefi.com/forum/viewtopic.php?f=5&t=592
  *
  * @date Dec 7, 2013
@@ -48,7 +52,7 @@
  * If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "main.h"
+#include "global.h"
 #include "electronic_throttle.h"
 #include "tps.h"
 #include "io_pins.h"
@@ -61,9 +65,13 @@
 #include "pin_repository.h"
 #include "pwm_generator.h"
 #include "pid_auto_tune.h"
+#if EFI_TUNER_STUDIO || defined(__DOXYGEN__)
 extern TunerStudioOutputChannels tsOutputChannels;
+#endif /* EFI_TUNER_STUDIO */
 static bool shouldResetPid = false;
 
+static pid_s tuneWorkingPidSettings;
+static Pid tuneWorkingPid(&tuneWorkingPidSettings);
 static PID_AutoTune autoTune;
 
 static LoggingWithStorage logger("ETB");
@@ -74,68 +82,95 @@ static THD_WORKING_AREA(etbTreadStack, UTILITY_THREAD_STACK_SIZE);
 /**
  * @brief Pulse-Width Modulation state
  */
-static SimplePwm etbPwmUp CCM_OPTIONAL;
-static SimplePwm etbPwmDown CCM_OPTIONAL;
-
+static SimplePwm etbPwmUp("etbUp") CCM_OPTIONAL;
+static float valueOverride = NAN;
+/*
+static SimplePwm etbPwmDown("etbDown") CCM_OPTIONAL;
 static OutputPin outputDirectionOpen CCM_OPTIONAL;
+*/
 static OutputPin outputDirectionClose CCM_OPTIONAL;
 
 EXTERN_ENGINE;
 
 static Pid pid(&engineConfiguration->etb);
 
-//static float prevTps;
-
 static percent_t currentEtbDuty;
 
 static bool wasEtbBraking = false;
 
+// todo: need to fix PWM so that it supports zero duty cycle
+#define PERCENT_TO_DUTY(X) (maxF(minI(X, 99.9), 0.1) / 100.0)
+
 static msg_t etbThread(void *arg) {
         UNUSED(arg);
 	while (true) {
+		// set debug_mode 17
+		if (engineConfiguration->debugMode == DBG_ELECTRONIC_THROTTLE_PID) {
+#if EFI_TUNER_STUDIO || defined(__DOXYGEN__)
+			pid.postState(&tsOutputChannels);
+#endif /* EFI_TUNER_STUDIO */
+		} else if (engineConfiguration->debugMode == DBG_ELECTRONIC_THROTTLE_EXTRA) {
+#if EFI_TUNER_STUDIO || defined(__DOXYGEN__)
+			// set debug_mode 29
+			tsOutputChannels.debugFloatField1 = valueOverride;
+#endif /* EFI_TUNER_STUDIO */
+		}
+
 		if (shouldResetPid) {
 			pid.reset();
-//			alternatorPidResetCounter++;
 			shouldResetPid = false;
 		}
 
-		if (engine->etbAutoTune) {
-			autoTune.Runtime(&logger);
-
-			etbPwmUp.setSimplePwmDutyCycle(autoTune.output);
-
+		if (!cisnan(valueOverride)) {
+			etbPwmUp.setSimplePwmDutyCycle(valueOverride);
 			pid.sleep();
+			continue;
+		}
+
+		percent_t actualThrottlePosition = getTPS();
+
+		if (engine->etbAutoTune) {
+			autoTune.input = actualThrottlePosition;
+			bool result = autoTune.Runtime(&logger);
+
+			tuneWorkingPid.updateFactors(autoTune.output, 0, 0);
+
+			float value = tuneWorkingPid.getValue(50, actualThrottlePosition);
+			scheduleMsg(&logger, "AT input=%f output=%f PID=%f", autoTune.input,
+					autoTune.output,
+					value);
+			scheduleMsg(&logger, "AT PID=%f", value);
+			etbPwmUp.setSimplePwmDutyCycle(PERCENT_TO_DUTY(value));
+
+			if (result) {
+				scheduleMsg(&logger, "GREAT NEWS! %f/%f/%f", autoTune.GetKp(), autoTune.GetKi(), autoTune.GetKd());
+			}
+
+			tuneWorkingPid.sleep();
 			continue;
 		}
 
 
 		percent_t targetPosition = getPedalPosition(PASS_ENGINE_PARAMETER_SIGNATURE);
 
-		percent_t actualThrottlePosition = getTPS();
 
 		currentEtbDuty = pid.getValue(targetPosition, actualThrottlePosition);
 
-		etbPwmUp.setSimplePwmDutyCycle(currentEtbDuty / 100);
+		etbPwmUp.setSimplePwmDutyCycle(PERCENT_TO_DUTY(currentEtbDuty));
 
-		bool needEtbBraking = absF(targetPosition - actualThrottlePosition) < 3;
-		if (needEtbBraking != wasEtbBraking) {
-			scheduleMsg(&logger, "need ETB braking: %d", needEtbBraking);
-			wasEtbBraking = needEtbBraking;
+		if (CONFIGB(etbDirectionPin2) != GPIO_UNASSIGNED) {
+			bool needEtbBraking = absF(targetPosition - actualThrottlePosition) < 3;
+			if (needEtbBraking != wasEtbBraking) {
+				scheduleMsg(&logger, "need ETB braking: %d", needEtbBraking);
+				wasEtbBraking = needEtbBraking;
+			}
+			outputDirectionClose.setValue(needEtbBraking);
 		}
-		outputDirectionClose.setValue(needEtbBraking);
 
-		if (engineConfiguration->debugMode == DBG_ELECTRONIC_THROTTLE) {
-			pid.postState(&tsOutputChannels);
-		}
 		if (engineConfiguration->isVerboseETB) {
 			pid.showPidStatus(&logger, "ETB");
 		}
 
-
-//		if (tps != prevTps) {
-//			prevTps = tps;
-//			scheduleMsg(&logger, "tps=%d", (int) tps);
-//		}
 
 		// this thread is activated 10 times per second
 		pid.sleep();
@@ -145,12 +180,21 @@ static msg_t etbThread(void *arg) {
 #endif
 }
 
-static void setThrottleConsole(int level) {
-	scheduleMsg(&logger, "setting throttle=%d", level);
+/**
+ * set_etb X
+ * manual duty cycle control without PID. Percent value from 0 to 100
+ */
+static void setThrottleDutyCycle(float level) {
+	scheduleMsg(&logger, "setting ETB duty=%f%%", level);
+	if (cisnan(level)) {
+		valueOverride = NAN;
+		return;
+	}
 
-	float dc = 0.01 + (minI(level, 98)) / 100.0;
+	float dc = PERCENT_TO_DUTY(level);
+	valueOverride = dc;
 	etbPwmUp.setSimplePwmDutyCycle(dc);
-	print("st = %.2f\r\n", dc);
+	scheduleMsg(&logger, "duty ETB duty=%f", dc);
 }
 
 static void showEthInfo(void) {
@@ -163,31 +207,39 @@ static void showEthInfo(void) {
 			getPedalPosition(),
 			engineConfiguration->throttlePedalUpVoltage,
 			engineConfiguration->throttlePedalWOTVoltage,
-			getPinNameByAdcChannel("tPedal", engineConfiguration->pedalPositionChannel, pinNameBuffer));
+			getPinNameByAdcChannel("tPedal", engineConfiguration->pedalPositionAdcChannel, pinNameBuffer));
 
 	scheduleMsg(&logger, "TPS=%.2f", getTPS());
 
 	scheduleMsg(&logger, "etbControlPin1=%s duty=%.2f freq=%d",
-			hwPortname(boardConfiguration->etbControlPin1),
+			hwPortname(CONFIGB(etbControlPin1)),
 			currentEtbDuty,
 			engineConfiguration->etbFreq);
-	scheduleMsg(&logger, "close dir=%s", hwPortname(boardConfiguration->etbDirectionPin2));
+	scheduleMsg(&logger, "close dir=%s", hwPortname(CONFIGB(etbDirectionPin2)));
 	pid.showPidStatus(&logger, "ETB");
-}
-
-static void apply(void) {
-	pid.updateFactors(engineConfiguration->etb.pFactor, engineConfiguration->etb.iFactor, 0);
 }
 
 void setEtbPFactor(float value) {
 	engineConfiguration->etb.pFactor = value;
-	apply();
+	pid.reset();
 	showEthInfo();
 }
 
 void setEtbIFactor(float value) {
 	engineConfiguration->etb.iFactor = value;
-	apply();
+	pid.reset();
+	showEthInfo();
+}
+
+void setEtbDFactor(float value) {
+	engineConfiguration->etb.dFactor = value;
+	pid.reset();
+	showEthInfo();
+}
+
+void setEtbOffset(int value) {
+	engineConfiguration->etb.offset = value;
+	pid.reset();
 	showEthInfo();
 }
 
@@ -199,6 +251,8 @@ void setDefaultEtbParameters(void) {
 	engineConfiguration->etb.iFactor = 0.5;
 	engineConfiguration->etb.period = 100;
 	engineConfiguration->etbFreq = 300;
+
+//	CONFIGB(etbControlPin1) = GPIOE_4; // test board, matched default fuel pump relay
 }
 
 bool isETBRestartNeeded(void) {
@@ -228,52 +282,97 @@ void startETBPins(void) {
 
 	// this line used for PWM
 	startSimplePwmExt(&etbPwmUp, "etb1",
-			boardConfiguration->etbControlPin1,
+			&engine->executor,
+			CONFIGB(etbControlPin1),
 			&enginePins.etbOutput1,
 			freq,
 			0.80,
 			applyPinState);
+/*
 	startSimplePwmExt(&etbPwmDown, "etb2",
-			boardConfiguration->etbControlPin2,
+			CONFIGB(etbControlPin2),
 			&enginePins.etbOutput2,
 			freq,
 			0.80,
 			applyPinState);
-
-	outputDirectionOpen.initPin("etb dir open", boardConfiguration->etbDirectionPin1);
-	outputDirectionClose.initPin("etb dir close", boardConfiguration->etbDirectionPin2);
+	outputDirectionOpen.initPin("etb dir open", CONFIGB(etbDirectionPin1));
+*/
+	outputDirectionClose.initPin("etb dir close", CONFIGB(etbDirectionPin2));
 }
 
 static void setTempOutput(float value) {
 	autoTune.output = value;
-
 }
 
-static void setTempStep(float value) {
-	autoTune.oStep = value;
+/**
+ * set_etbat_step X
+ */
+static void setAutoStep(float value) {
+	autoTune.reset();
+	autoTune.SetOutputStep(value);
+}
 
+static void setAutoPeriod(int period) {
+	tuneWorkingPidSettings.period = period;
+	autoTune.reset();
+}
+
+static void setAutoOffset(int offset) {
+	tuneWorkingPidSettings.offset = offset;
+	autoTune.reset();
+}
+
+void setDefaultEtbBiasCurve(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
+	engineConfiguration->etbBiasBins[0] = 0;
+	engineConfiguration->etbBiasBins[1] = 5;
+	engineConfiguration->etbBiasBins[2] = 7;
+	engineConfiguration->etbBiasBins[3] = 8;
+	engineConfiguration->etbBiasBins[4] = 11;
+	engineConfiguration->etbBiasBins[5] = 98;
+	engineConfiguration->etbBiasBins[6] = 99;
+	engineConfiguration->etbBiasBins[7] = 100;
+
+	engineConfiguration->etbBiasValues[0] = -100 / 255.0f * 100;
+	engineConfiguration->etbBiasValues[1] = -95 / 255.0f * 100;
+	engineConfiguration->etbBiasValues[2] = -80 / 255.0f * 100;
+	engineConfiguration->etbBiasValues[3] = 0 / 255.0f * 100;
+	engineConfiguration->etbBiasValues[4] = 115 / 255.0f * 100;
+	engineConfiguration->etbBiasValues[5] = 142 / 255.0f * 100;
+	engineConfiguration->etbBiasValues[6] = 142 / 255.0f * 100;
+	engineConfiguration->etbBiasValues[7] = 142 / 255.0f * 100;
 }
 
 void initElectronicThrottle(void) {
-	// these two lines are controlling direction
-//	outputPinRegister("etb1", ELECTRONIC_THROTTLE_CONTROL_1, ETB_CONTROL_LINE_1_PORT, ETB_CONTROL_LINE_1_PIN);
-//	outputPinRegister("etb2", ELECTRONIC_THROTTLE_CONTROL_2, ETB_CONTROL_LINE_2_PORT, ETB_CONTROL_LINE_2_PIN);
-
 	addConsoleAction("ethinfo", showEthInfo);
 	if (!hasPedalPositionSensor()) {
 		return;
 	}
+	autoTune.SetOutputStep(0.1);
 
 	startETBPins();
 
-	addConsoleActionI("set_etb", setThrottleConsole);
+	// manual duty cycle control without PID. Percent value from 0 to 100
+	addConsoleActionNANF("set_etb", setThrottleDutyCycle);
 
-	addConsoleActionF("set_etb_output", setTempOutput);
-	addConsoleActionF("set_etb_step", setTempStep);
 
-	apply();
+	tuneWorkingPidSettings.pFactor = 1;
+	tuneWorkingPidSettings.iFactor = 0;
+	tuneWorkingPidSettings.dFactor = 0;
+//	tuneWorkingPidSettings.offset = 10; // todo: not hard-coded value
+	//todo tuneWorkingPidSettings.period = 10;
+	tuneWorkingPidSettings.minValue = 0;
+	tuneWorkingPidSettings.maxValue = 100;
+	tuneWorkingPidSettings.period = 100;
 
-	chThdCreateStatic(etbTreadStack, sizeof(etbTreadStack), NORMALPRIO, (tfunc_t) etbThread, NULL);
+	// this is useful one you do "enable etb_auto"
+	addConsoleActionF("set_etbat_output", setTempOutput);
+	addConsoleActionF("set_etbat_step", setAutoStep);
+	addConsoleActionI("set_etbat_period", setAutoPeriod);
+	addConsoleActionI("set_etbat_offset", setAutoOffset);
+
+	pid.reset();
+
+	chThdCreateStatic(etbTreadStack, sizeof(etbTreadStack), NORMALPRIO, (tfunc_t)(void*) etbThread, NULL);
 }
 
 #endif /* EFI_ELECTRONIC_THROTTLE_BODY */

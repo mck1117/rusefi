@@ -21,7 +21,7 @@
  * If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "main.h"
+#include "global.h"
 #if EFI_PROD_CODE || defined(__DOXYGEN__)
 #include <nvic.h>
 #endif
@@ -74,7 +74,9 @@ static Logging *logger;
 #if ! EFI_UNIT_TEST
 static pid_s *fuelPidS = &persistentState.persistentConfiguration.engineConfiguration.fuelClosedLoopPid;
 static Pid fuelPid(fuelPidS);
+#if EFI_TUNER_STUDIO || defined(__DOXYGEN__)
 extern TunerStudioOutputChannels tsOutputChannels;
+#endif /* EFI_TUNER_STUDIO */
 #endif
 
 // todo: figure out if this even helps?
@@ -85,13 +87,13 @@ extern TunerStudioOutputChannels tsOutputChannels;
 //#endif
 
 void startSimultaniousInjection(Engine *engine) {
-	for (int i = 0; i < engine->engineConfiguration->specs.cylindersCount; i++) {
+	for (int i = 0; i < engine->engineConfigurationPtr->specs.cylindersCount; i++) {
 		enginePins.injectors[i].setHigh();
 	}
 }
 
 static void endSimultaniousInjectionOnlyTogglePins(Engine *engine) {
-	for (int i = 0; i < engine->engineConfiguration->specs.cylindersCount; i++) {
+	for (int i = 0; i < engine->engineConfigurationPtr->specs.cylindersCount; i++) {
 		enginePins.injectors[i].setLow();
 	}
 }
@@ -196,7 +198,7 @@ void seTurnPinLow(InjectionSignalPair *pair) {
 	ENGINE(injectionEvents.addFuelEventsForCylinder(pair->event->ownIndex PASS_ENGINE_PARAMETER_SUFFIX));
 }
 
-static void sescheduleByTimestamp(scheduling_s *scheduling, efitimeus_t time, schfunc_t callback, InjectionSignalPair *pair) {
+static void sescheduleByTimestamp(scheduling_s *scheduling, efitimeus_t time, schfunc_t callback, InjectionSignalPair *pair DECLARE_ENGINE_PARAMETER_SUFFIX) {
 #if FUEL_MATH_EXTREME_LOGGING || defined(__DOXYGEN__)
 	InjectorOutputPin *param = pair->outputs[0];
 //	scheduleMsg(&sharedLogger, "schX %s %x %d", prefix, scheduling,	time);
@@ -206,7 +208,7 @@ static void sescheduleByTimestamp(scheduling_s *scheduling, efitimeus_t time, sc
 	printf("seScheduleByTime %s %s %d sch=%d\r\n", direction, param->name, (int)time, (int)scheduling);
 #endif /* FUEL_MATH_EXTREME_LOGGING || EFI_UNIT_TEST */
 
-	scheduleByTimestamp(scheduling, time, callback, pair);
+	engine->executor.scheduleByTimestamp(scheduling, time, callback, pair);
 }
 
 static ALWAYS_INLINE void handleFuelInjectionEvent(int injEventIndex, InjectionEvent *event,
@@ -287,8 +289,8 @@ static ALWAYS_INLINE void handleFuelInjectionEvent(int injEventIndex, InjectionE
 // todo: sequential need this logic as well, just do not forget to clear flag		pair->isScheduled = true;
 		scheduling_s * sDown = &pair->signalTimerDown;
 
-		scheduleForLater(sUp, (int) injectionStartDelayUs, (schfunc_t) &startSimultaniousInjection, engine);
-		scheduleForLater(sDown, (int) injectionStartDelayUs + durationUs,
+		engine->executor.scheduleForLater(sUp, (int) injectionStartDelayUs, (schfunc_t) &startSimultaniousInjection, engine);
+		engine->executor.scheduleForLater(sDown, (int) injectionStartDelayUs + durationUs,
 					(schfunc_t) &endSimultaniousInjection, event);
 
 	} else {
@@ -339,10 +341,10 @@ static ALWAYS_INLINE void handleFuelInjectionEvent(int injEventIndex, InjectionE
 		printf("please cancel %s %d %d\r\n", output->name, (int)getTimeNowUs(), output->overlappingCounter);
 	#endif /* EFI_UNIT_TEST || EFI_SIMULATOR */
 		} else {
-			sescheduleByTimestamp(sUp, turnOnTime, (schfunc_t) &seTurnPinHigh, pair);
+			sescheduleByTimestamp(sUp, turnOnTime, (schfunc_t) &seTurnPinHigh, pair PASS_ENGINE_PARAMETER_SUFFIX);
 		}
 		efitimeus_t turnOffTime = nowUs + (int) (injectionStartDelayUs + durationUs);
-		sescheduleByTimestamp(sDown, turnOffTime, (schfunc_t) &seTurnPinLow, pair);
+		sescheduleByTimestamp(sDown, turnOffTime, (schfunc_t) &seTurnPinLow, pair PASS_ENGINE_PARAMETER_SUFFIX);
 	}
 }
 
@@ -351,7 +353,7 @@ static void fuelClosedLoopCorrection(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	if (GET_RPM() < CONFIG(fuelClosedLoopRpmThreshold) ||
 			ENGINE(sensors.clt) < CONFIG(fuelClosedLoopCltThreshold) ||
 			getTPS(PASS_ENGINE_PARAMETER_SIGNATURE) > CONFIG(fuelClosedLoopTpsThreshold) ||
-			ENGINE(sensors.currentAfr) < boardConfiguration->fuelClosedLoopAfrLowThreshold ||
+			ENGINE(sensors.currentAfr) < CONFIGB(fuelClosedLoopAfrLowThreshold) ||
 			ENGINE(sensors.currentAfr) > engineConfiguration->fuelClosedLoopAfrHighThreshold) {
 		engine->engineState.fuelPidCorrection = 0;
 		fuelPid.reset();
@@ -360,8 +362,10 @@ static void fuelClosedLoopCorrection(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 
 	engine->engineState.fuelPidCorrection = fuelPid.getValue(ENGINE(engineState.targetAFR), ENGINE(sensors.currentAfr), 1);
 	if (engineConfiguration->debugMode == DBG_FUEL_PID_CORRECTION) {
+#if EFI_TUNER_STUDIO || defined(__DOXYGEN__)
 		tsOutputChannels.debugFloatField1 = engine->engineState.fuelPidCorrection;
 		fuelPid.postState(&tsOutputChannels);
+#endif /* EFI_TUNER_STUDIO */
 	}
 
 #endif
@@ -485,7 +489,7 @@ void mainTriggerCallback(trigger_event_e ckpSignalType, uint32_t trgEventIndex D
 
 	if (trgEventIndex == 0) {
 
-		if (checkIfTriggerConfigChanged()) {
+		if (checkIfTriggerConfigChanged(PASS_ENGINE_PARAMETER_SIGNATURE)) {
 			engine->ignitionEvents.isReady = false; // we need to rebuild ignition schedule
 			engine->injectionEvents.isReady = false;
 			// moved 'triggerIndexByAngle' into trigger initialization (why was it invoked from here if it's only about trigger shape & optimization?)
@@ -500,12 +504,12 @@ void mainTriggerCallback(trigger_event_e ckpSignalType, uint32_t trgEventIndex D
 		}
 	}
 
-	efiAssertVoid(CUSTOM_ERR_6630, !CONFIG(useOnlyRisingEdgeForTrigger) || CONFIG(ignMathCalculateAtIndex) % 2 == 0, "invalid ignMathCalculateAtIndex");
+	efiAssertVoid(CUSTOM_IGN_MATH_STATE, !CONFIG(useOnlyRisingEdgeForTrigger) || CONFIG(ignMathCalculateAtIndex) % 2 == 0, "invalid ignMathCalculateAtIndex");
 
 	if (trgEventIndex == CONFIG(ignMathCalculateAtIndex)) {
 		if (CONFIG(externalKnockSenseAdc) != EFI_ADC_NONE) {
 			float externalKnockValue = getVoltageDivided("knock", engineConfiguration->externalKnockSenseAdc);
-			engine->knockLogic(externalKnockValue);
+			engine->knockLogic(externalKnockValue PASS_ENGINE_PARAMETER_SUFFIX);
 		}
 	}
 
@@ -575,7 +579,7 @@ void startPrimeInjectionPulse(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 		if (pulseLength > 0) {
 			startSimultaniousInjection(engine);
 			efitimeus_t turnOffDelayUs = (efitimeus_t)efiRound(MS2US(pulseLength), 1.0f);
-			scheduleForLater(sDown, turnOffDelayUs, (schfunc_t) &endSimultaniousInjectionOnlyTogglePins, engine);
+			engine->executor.scheduleForLater(sDown, turnOffDelayUs, (schfunc_t) &endSimultaniousInjectionOnlyTogglePins, engine);
 		}
 	}
 #if EFI_PROD_CODE || defined(__DOXYGEN__)

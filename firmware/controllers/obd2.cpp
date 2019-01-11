@@ -21,7 +21,11 @@
  * If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "main.h"
+#include "global.h"
+
+#if EFI_CAN_SUPPORT || defined(__DOXYGEN__)
+
+
 #include "engine.h"
 #include "obd2.h"
 #include "can_hw.h"
@@ -188,6 +192,7 @@ static void handleDtcRequest(int numCodes, int *dtcCode) {
 	}
 }
 
+#if HAL_USE_CAN || defined(__DOXYGEN__)
 void obdOnCanPacketRx(CANRxFrame *rx) {
 	if (rx->SID != OBD_TEST_REQUEST) {
 		return;
@@ -206,4 +211,6 @@ void obdOnCanPacketRx(CANRxFrame *rx) {
 		scheduleMsg(&logger, "Got unhandled OBD message");
 	}
 }
+#endif /* HAL_USE_CAN */
 
+#endif /* EFI_CAN_SUPPORT */

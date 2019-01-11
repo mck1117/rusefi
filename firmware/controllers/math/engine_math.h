@@ -14,40 +14,14 @@
 #include "table_helper.h"
 #include "engine.h"
 
-void setAlgorithm(engine_load_mode_e algo DECLARE_ENGINE_PARAMETER_SUFFIX);
+void setAlgorithm(engine_load_mode_e algo DECLARE_CONFIG_PARAMETER_SUFFIX);
 
-#define assertEngineReference() efiAssertVoid(CUSTOM_ERR_6600, engine != NULL, "engine is NULL")
+#define assertEngineReference() efiAssertVoid(CUSTOM_ENGINE_REF, engine != NULL, "engine is NULL")
 
+void setFlatInjectorLag(float value DECLARE_CONFIG_PARAMETER_SUFFIX);
 
-#if EFI_ENABLE_ASSERTS
-#define assertAngleRange(angle, msg, code) if(angle > 10000000 || angle < -10000000) { firmwareError(code, "angle range %s %.2f", msg, angle);angle = 0;}
-#else
-#define assertAngleRange(angle, msg, code) {}
-#endif
+#define fixAngle(angle, msg, code) fixAngle2(angle, msg, code, ENGINE(engineCycle))
 
-void setFlatInjectorLag(float value DECLARE_ENGINE_PARAMETER_SUFFIX);
-
-
-/**
- * @brief Shifts angle into the [0..720) range for four stroke and [0..360) for two stroke
- * I guess this implementation would be faster than 'angle % engineCycle'
- */
-#define fixAngle(angle, msg, code)											    \
-	{																		\
-   	    if (cisnan(angle)) {                                                \
-		   firmwareError(CUSTOM_ERR_ANGLE, "aNaN%s", msg);                  \
-		   angle = 0;                                                       \
-	    }                                                                   \
-		assertAngleRange(angle, msg, code);	   					            \
-		float engineCycleDurationLocalCopy = ENGINE(engineCycle);	        \
-		/* todo: split this method into 'fixAngleUp' and 'fixAngleDown'*/   \
-		/*       as a performance optimization?*/                           \
-		while (angle < 0)                       							\
-			angle += engineCycleDurationLocalCopy;   						\
-			/* todo: would 'if' work as good as 'while'? */                 \
-		while (angle >= engineCycleDurationLocalCopy)						\
-			angle -= engineCycleDurationLocalCopy;   						\
-	}
 
 /**
  * @return time needed to rotate crankshaft by one degree, in milliseconds.
@@ -83,13 +57,16 @@ void prepareIgnitionPinIndices(ignition_mode_e ignitionMode DECLARE_ENGINE_PARAM
 
 int getCylinderId(int index DECLARE_ENGINE_PARAMETER_SUFFIX);
 
-void setFuelRpmBin(float from, float to DECLARE_ENGINE_PARAMETER_SUFFIX);
-void setFuelLoadBin(float from, float to DECLARE_ENGINE_PARAMETER_SUFFIX);
-void setTimingRpmBin(float from, float to DECLARE_ENGINE_PARAMETER_SUFFIX);
-void setTimingLoadBin(float from, float to DECLARE_ENGINE_PARAMETER_SUFFIX);
+void setFuelRpmBin(float from, float to DECLARE_CONFIG_PARAMETER_SUFFIX);
+void setFuelLoadBin(float from, float to DECLARE_CONFIG_PARAMETER_SUFFIX);
+void setTimingRpmBin(float from, float to DECLARE_CONFIG_PARAMETER_SUFFIX);
+void setTimingLoadBin(float from, float to DECLARE_CONFIG_PARAMETER_SUFFIX);
 
 void setSingleCoilDwell(engine_configuration_s *engineConfiguration);
 
+// we combine trigger-defined triggerShape.tdcPosition with user-defined CONFIG(globalTriggerAngleOffset)
+// expectation is that for well-known triggers CONFIG(globalTriggerAngleOffset) would usually be zero
+// while for toothed wheels user would have to provide a value
 #define tdcPosition() \
 		(ENGINE(triggerCentral.triggerShape.tdcPosition) + CONFIG(globalTriggerAngleOffset))
 

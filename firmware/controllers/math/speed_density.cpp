@@ -7,7 +7,7 @@
  * @author Andrey Belomutskiy, (c) 2012-2018
  */
 
-#include "main.h"
+#include "global.h"
 #include "speed_density.h"
 #include "interpolation.h"
 #include "rpm_calculator.h"
@@ -29,21 +29,40 @@ baroCorr_Map3D_t baroCorrMap("baro");
 //  http://rusefi.com/math/t_charge.html
 float getTCharge(int rpm, float tps, float coolantTemp, float airTemp DECLARE_ENGINE_PARAMETER_SUFFIX) {
 	if (cisnan(coolantTemp) || cisnan(airTemp)) {
-		warning(CUSTOM_ERR_6147, "t-getTCharge NaN");
+		warning(CUSTOM_ERR_START_STACK, "t-getTCharge NaN");
 		return coolantTemp;
 	}
-	float minRpmKcurrentTPS = interpolateMsg("minRpm", tpMin, engineConfiguration->tChargeMinRpmMinTps, tpMax,
-			engineConfiguration->tChargeMinRpmMaxTps, tps);
-	float maxRpmKcurrentTPS = interpolateMsg("maxRpm", tpMin, engineConfiguration->tChargeMaxRpmMinTps, tpMax,
-			engineConfiguration->tChargeMaxRpmMaxTps, tps);
 
-	float Tcharge_coff = interpolateMsg("Kcurr", rpmMin, minRpmKcurrentTPS, rpmMax, maxRpmKcurrentTPS, rpm);
+	float Tcharge_coff;
+
+	if (CONFIG(tChargeMode) == TCHARGE_MODE_AIR_INTERP) {
+		const floatms_t gramsPerMsToKgPerHour = (3600.0f * 1000.0f) / 1000.0f;
+		// We're actually using an 'old' airMass calculated for the previous cycle, but it's ok, we're not having any self-excitaton issues
+		floatms_t airMassForEngine = engine->engineState.airMass * engineConfiguration->specs.cylindersCount;
+		// airMass is in grams per 1 cycle for 1 cyl. Convert it to airFlow in kg/h for the engine.
+		// And if the engine is stopped (0 rpm), then airFlow is also zero (avoiding NaN division)
+		floatms_t airFlow = (rpm == 0) ? 0 : airMassForEngine * gramsPerMsToKgPerHour / getEngineCycleDuration(rpm PASS_ENGINE_PARAMETER_SUFFIX);
+		// just interpolate between user-specified min and max coefs, based on the max airFlow value
+		Tcharge_coff = interpolateClamped(0.0, CONFIG(tChargeAirCoefMin), CONFIG(tChargeAirFlowMax), CONFIG(tChargeAirCoefMax), airFlow);
+		// save it for console output (instead of MAF massAirFlow)
+		engine->engineState.airFlow = airFlow;
+	} else {
+		// TCHARGE_MODE_RPM_TPS
+		float minRpmKcurrentTPS = interpolateMsg("minRpm", tpMin, engineConfiguration->tChargeMinRpmMinTps, tpMax,
+				engineConfiguration->tChargeMinRpmMaxTps, tps);
+		float maxRpmKcurrentTPS = interpolateMsg("maxRpm", tpMin, engineConfiguration->tChargeMaxRpmMinTps, tpMax,
+				engineConfiguration->tChargeMaxRpmMaxTps, tps);
+
+		Tcharge_coff = interpolateMsg("Kcurr", rpmMin, minRpmKcurrentTPS, rpmMax, maxRpmKcurrentTPS, rpm);
+	}
+
 	if (cisnan(Tcharge_coff)) {
-		warning(CUSTOM_ERR_6148, "t2-getTCharge NaN");
+		warning(CUSTOM_ERR_T2_CHARGE, "t2-getTCharge NaN");
 		return coolantTemp;
 	}
 
-	float Tcharge = coolantTemp * (1 - Tcharge_coff) + airTemp * Tcharge_coff;
+	// We use a robust interp. function for proper tcharge_coff clamping.
+	float Tcharge = interpolateClamped(0.0f, coolantTemp, 1.0f, airTemp, Tcharge_coff);
 
 	if (cisnan(Tcharge)) {
 		// we can probably end up here while resetting engine state - interpolation would fail
@@ -59,6 +78,9 @@ float getTCharge(int rpm, float tps, float coolantTemp, float airTemp DECLARE_EN
  */
 #define GAS_R 0.28705
 
+/**
+ * @return air mass in grams
+ */
 float getCycleAirMass(engine_configuration_s *engineConfiguration, float VE, float MAP, float tempK) {
 	// todo: pre-calculate cylinder displacement to save one division
 	float cylinderDisplacement = engineConfiguration->specs.displacement;
@@ -109,7 +131,10 @@ floatms_t getSpeedDensityFuel(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	efiAssert(CUSTOM_ERR_ASSERT, !cisnan(adjustedMap), "NaN adjustedMap", 0);
 
 	float airMass = getCylinderAirMass(engineConfiguration, ENGINE(engineState.currentVE), adjustedMap, tChargeK);
-	efiAssert(CUSTOM_ERR_ASSERT, !cisnan(airMass), "NaN airMass", 0);
+	if (cisnan(airMass)) {
+		warning(CUSTOM_ERR_6685, "NaN airMass");
+		return 0;
+	}
 #if EFI_PRINTF_FUEL_DETAILS || defined(__DOXYGEN__)
 	printf("map=%.2f adjustedMap=%.2f airMass=%.2f\t\n",
 			map, adjustedMap, engine->engineState.airMass);

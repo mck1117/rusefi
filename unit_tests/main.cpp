@@ -5,22 +5,17 @@
  * @author Andrey Belomutskiy (c) 2012-2018
  */
 
-#include <stdio.h>
+
 #include <stdlib.h>
-#include <math.h>
 
-
-#include "main.h"
-#include "error_handling.h"
+#include "global.h"
 #include "test_accel_enrichment.h"
 #include "test_interpolation_3d.h"
 #include "test_find_index.h"
-#include "test_sensors.h"
 #include "test_speed_density.h"
 
 #include "test_fuel_map.h"
 #include "fuel_math.h"
-#include "test_fuelCut.h"
 #include "test_logic_expression.h"
 #include "test_pid_auto.h"
 #include "engine_configuration.h"
@@ -36,6 +31,7 @@
 #include "engine_math.h"
 #include "test_engine_math.h"
 #include "test_trigger_decoder.h"
+#include "gtest/gtest.h"
 
 typedef int32_t         msg_t;
 
@@ -61,38 +57,48 @@ int getRevolutionCounter(void) {
 }
 extern bool printTriggerDebug;
 
-int main(void) {
+GTEST_API_ int main(int argc, char **argv) {
 //	printTriggerDebug = true;
 
+	testMisc();
 	testDifferentInjectionModes();
-	testPidAutoZigZag();
-	testMissedSpark299();
+	/**
+	 * PID
+	 */
+	testPidAuto();
+
+	/**
+	 * Larger-scale engine control
+	 */
 	testSparkReverseOrderBug319();
 	testFuelSchedulerBug299smallAndLarge();
 	testFuelSchedulerBug299smallAndMedium();
 	testLogicExpressions(); // fsio
-	testOverflow64Counter();
-	testInterpolate3d();
-	testFindIndex();
 	testPlainCrankingWithoutAdvancedFeatures();
 	testStartOfCrankingPrimingPulse();
 	testFasterEngineSpinningUp();
-	testInterpolate2d();
 	testGpsParser();
-	testMisc();
 	testFuelMap();
-	testFuelCut();
 	testEngineMath();
 	testIgnitionPlanning();
-	testSensors();
-	testCyclicBuffer();
-	testCrc();
+
+	/**
+	 * Data structures and general methods
+	 */
+	testFindIndex();
+	testInterpolate3d();
+	testInterpolate2d();
+	testSetTableValue();
+
+	testFLStack();
 
 	testSignalExecutor();
+	testPwmGenerator();
 
-	testHistogram();
 
-
+	/**
+	 * Business logic tests
+	 */
 	testMalfunctionCentral();
 
 	testConsoleLogic();
@@ -100,27 +106,28 @@ int main(void) {
 	testAngleResolver();
 
 	testPinHelper();
-	testSetTableValue();
 
 	testAccelEnrichment();
 
 	testSpeedDensity();
-
-	testFLStack();
 
 	testMenuTree();
 	testMafLookup();
 	testIgnitionMapGenerator();
 	testMafFuelMath();
 
-	testPidController();
 	testTriggerDecoder();
 
+
+
 	//	resizeMap();
-	printf("Success 20180120\r\n");
+	printf("Success 20190103\r\n");
 	printAllTriggers();
 //	printConvertedTable();
-	return EXIT_SUCCESS;
+	testing::InitGoogleTest(&argc, argv);
+	// uncomment if you only want to run selected tests
+	//::testing::GTEST_FLAG(filter) = "hip*";
+	return RUN_ALL_TESTS();
 }
 
 void print(const char *format, ...) {

@@ -8,9 +8,9 @@
 #ifndef CONTROLLERS_TRIGGER_TRIGGER_SUBARU_H_
 #define CONTROLLERS_TRIGGER_TRIGGER_SUBARU_H_
 
-#include "engine.h"
+#include "trigger_structure.h"
 
-void initialize36_2_2_2(TriggerShape *s DECLARE_ENGINE_PARAMETER_SUFFIX);
-void initializeSubaru7_6(TriggerShape *s DECLARE_ENGINE_PARAMETER_SUFFIX);
+void initialize36_2_2_2(TriggerShape *s);
+void initializeSubaru7_6(TriggerShape *s);
 
 #endif /* CONTROLLERS_TRIGGER_TRIGGER_SUBARU_H_ */

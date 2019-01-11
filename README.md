@@ -8,10 +8,42 @@ current binaries are always available at http://rusefi.com/build_server/
 
 [![Tindie](http://rusefi.com/wiki/images/1/1c/Tindie-smalls.png)](https://www.tindie.com/stores/russian/)
 
-# Releases
+## Cloning the repository
+
+Important note - we now use submodules:
+
+`git submodule update --init`
+
+# What do we have here?
+ * [Firmware](/firmware) Source code for open source engine control unit for stm32 chips
+ * [Hardware](/hardware) KiCAD files for all our PCBs
+ * [rusEfi console](/java_console) rusEfi own naive tuning software
+ * [Simulator](/simulator) win32 or posix version of firmware allows to explore without any hardware 
+ * [Unit Tests](/unit_tests) Unit tests of firmware pieces
+ * [Misc tools](/java_tools) Misc development utilities
+ * [misc/Jenkins](/misc/jenkins) Jenkins Continues Integration scripts
+ * [Work in progress status](work_in_progress.md)
+
+# External Links
+
+ * Wiki: http://rusefi.com
+ * Forum http://rusefi.com/forum
+ * Doxygen documentation is available at http://rusefi.com/docs/html
+ * General source code Q&A is at http://rusefi.com/forum/viewtopic.php?f=5&t=10
+ * Facebook https://www.facebook.com/rusEfiECU
+ * YouTube: https://www.youtube.com/user/rusefi
+ * Patreon https://www.patreon.com/rusefi
+
+# Building the Code
+See https://rusefi.com/forum/viewtopic.php?f=5&t=9
+
+
+# Release Notes
 
 | Release date  | Revision  | Details |
 | ------------  | --------- | ------- |
+| 12/09/2018    | r16057    | electronic throttle body control is now BETA version |
+| 08/19/2018    | r15811    | bugfix #604: no interpolation outside of the table |
 | 01/29/2018    | r15514    | improvement #215: CJ125 wideband contoller |
 | 01/23/2018    | r15442    | improvement #463: ChibiOS 17 / 4 |
 | 01/07/2018    | r14952    | usability & minor bugfix #532 idle defaults are broken |
@@ -64,20 +96,9 @@ current binaries are always available at http://rusefi.com/build_server/
 | 08/03/2013	| r13	    | wideband O2 input, better idling algorithm, serial-over-USB
 | 07/05/2013	| r10	    | Second CKP, sequential injection.
 | 06/19/2013	| r9	    | Initial version - batch injection & ignition with advance table lookup.
-	
-# Links
-
- * Wiki: http://rusefi.com
- * Forum http://rusefi.com/forum
- * Doxygen documentation is available at http://rusefi.com/docs/html
- * General source code Q&A is at http://rusefi.com/forum/viewtopic.php?f=5&t=10
- * Facebook https://www.facebook.com/rusEfiECU
- * YouTube: https://www.youtube.com/user/rusefi
-
-# Building the Code
 
 ## Cloning the repository
 
-We now use submodules:
+Important nonte - we now use submodules:
 
 `git submodule update --init`

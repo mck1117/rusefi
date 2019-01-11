@@ -7,7 +7,7 @@
  * @author andreika, (c) 2017
  */
 
-#include "main.h"
+#include "global.h"
 #include "engine.h"
 #include "engine_math.h"
 #include "allsensors.h"
@@ -27,7 +27,7 @@ static void setPrometheusDefaults(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	setOperationMode(engineConfiguration, FOUR_STROKE_CRANK_SENSOR/*FOUR_STROKE_CAM_SENSOR*/);
 	engineConfiguration->trigger.type = TT_TOOTHED_WHEEL_60_2;
 	//engineConfiguration->useOnlyRisingEdgeForTrigger = true;
-	setAlgorithm(LM_SPEED_DENSITY PASS_ENGINE_PARAMETER_SUFFIX);
+	setAlgorithm(LM_SPEED_DENSITY PASS_CONFIG_PARAMETER_SUFFIX);
 
 	engineConfiguration->specs.cylindersCount = 4;
 	engineConfiguration->specs.firingOrder = FO_1_3_4_2;
@@ -146,7 +146,7 @@ void setBoardConfigurationOverrides(void) {
 	engineConfiguration->adcVcc = ADC_VCC;
 
 	engineConfiguration->baroSensor.hwChannel = EFI_ADC_NONE;
-	engineConfiguration->pedalPositionChannel = EFI_ADC_NONE;
+	engineConfiguration->pedalPositionAdcChannel = EFI_ADC_NONE;
 
 	boardConfiguration->injectionPins[0] = is469 ? GPIOD_9  : GPIOB_14; // #1
 	boardConfiguration->injectionPins[1] = is469 ? GPIOD_15 : GPIOC_7;  // #2
@@ -171,7 +171,7 @@ void setBoardConfigurationOverrides(void) {
 
 	engineConfiguration->communicationLedPin = GPIO_UNASSIGNED;// GPIOA_13; // yellow LED
 	engineConfiguration->runningLedPin = GPIOA_13; //GPIOA_13; // yellow LED
-	engineConfiguration->fatalErrorLedPin = GPIOA_13;
+	engineConfiguration->fatalErrorPin = GPIOA_13;
 	engineConfiguration->warninigLedPin = GPIO_UNASSIGNED;
 	engineConfiguration->configResetPin = GPIO_UNASSIGNED;
 

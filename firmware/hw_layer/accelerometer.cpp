@@ -17,13 +17,14 @@
  */
 
 #include "accelerometer.h"
-#include "lis302dl.h"
 #include "hardware.h"
-#include "mpu_util.h"
 
 EXTERN_ENGINE;
 
 #if EFI_MEMS || defined(__DOXYGEN__)
+#include "mpu_util.h"
+#include "lis302dl.h"
+
 static SPIDriver *driver;
 
 /*
@@ -42,12 +43,12 @@ static const SPIConfig accelerometerCfg = {
 
 void configureAccelerometerPins(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 //	engineConfiguration->LIS302DLCsPin = GPIOE_3; // we have a conflict with VVT output on Miata
-// 	boardConfiguration->is_enabled_spi_1 = true; // we have a conflict with PA5 input pin
+// 	CONFIGB(is_enabled_spi_1) = true; // we have a conflict with PA5 input pin
 
 	// stm32f4discovery defaults
-	boardConfiguration->spi1mosiPin = GPIOA_7;
-	boardConfiguration->spi1misoPin = GPIOA_6;
-	boardConfiguration->spi1sckPin = GPIOA_5;
+	CONFIGB(spi1mosiPin) = GPIOA_7;
+	CONFIGB(spi1misoPin) = GPIOA_6;
+	CONFIGB(spi1sckPin) = GPIOA_5;
 }
 
 
@@ -75,8 +76,9 @@ void initAccelerometer(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	if (engineConfiguration->LIS302DLCsPin == GPIO_UNASSIGNED)
 		return; // not used
 
-	if (!boardConfiguration->is_enabled_spi_1)
+	if (!CONFIGB(is_enabled_spi_1))
 		return; // temporary
+#if HAL_USE_SPI || defined(__DOXYGEN__)
 	driver = getSpiDevice(engineConfiguration->accelerometerSpiDevice);
 
 	turnOnSpi(engineConfiguration->accelerometerSpiDevice);
@@ -84,8 +86,8 @@ void initAccelerometer(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	initSpiCs((SPIConfig *)driver->config, engineConfiguration->LIS302DLCsPin);
 
 //	memsCs.initPin("LIS302 CS", engineConfiguration->LIS302DLCsPin);
-//	memsCfg.ssport = getHwPort("mmc", boardConfiguration->sdCardCsPin);
-//	memsCfg.sspad = getHwPin("mmc", boardConfiguration->sdCardCsPin);
+//	memsCfg.ssport = getHwPort("mmc", CONFIGB(sdCardCsPin));
+//	memsCfg.sspad = getHwPin("mmc", CONFIGB(sdCardCsPin));
 
 
 	/* LIS302DL initialization.*/
@@ -93,7 +95,8 @@ void initAccelerometer(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	lis302dlWriteRegister(driver, LIS302DL_CTRL_REG2, 0x00); // 4 wire mode
 	lis302dlWriteRegister(driver, LIS302DL_CTRL_REG3, 0x00);
 
-	chThdCreateStatic(ivThreadStack, sizeof(ivThreadStack), NORMALPRIO, (tfunc_t) ivThread, NULL);
+	chThdCreateStatic(ivThreadStack, sizeof(ivThreadStack), NORMALPRIO, (tfunc_t)(void*) ivThread, NULL);
+#endif /* HAL_USE_SPI */
 }
 
 #endif /* EFI_MEMS */

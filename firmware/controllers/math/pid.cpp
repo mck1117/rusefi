@@ -106,7 +106,7 @@ void Pid::setErrorAmplification(float coef) {
 	errorAmplificationCoef = coef;
 }
 
-#if EFI_PROD_CODE || EFI_SIMULATOR
+#if EFI_TUNER_STUDIO || defined(__DOXYGEN__)
 void Pid::postState(TunerStudioOutputChannels *tsOutputChannels) {
 	postState(tsOutputChannels, 1);
 }
@@ -126,8 +126,9 @@ void Pid::postState(TunerStudioOutputChannels *tsOutputChannels, int pMult) {
 	tsOutputChannels->debugIntField1 = getP() * pMult;
 	tsOutputChannels->debugIntField2 = getOffset();
 	tsOutputChannels->debugIntField3 = resetCounter;
+	tsOutputChannels->debugIntField4 = pid->period;
 }
-#endif
+#endif /* EFI_TUNER_STUDIO */
 
 void Pid::sleep() {
 #if !EFI_UNIT_TEST || defined(__DOXYGEN__)

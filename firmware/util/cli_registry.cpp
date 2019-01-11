@@ -15,9 +15,7 @@
  */
 
 #include <stdarg.h>
-#include <string.h>
-#include <stdbool.h>
-#include "main.h"
+#include "global.h"
 #include "cli_registry.h"
 #include "efilib.h"
 
@@ -53,11 +51,11 @@ static void doAddAction(const char *token, action_type_e type, Void callback, vo
 	}
 	for (int i = 0; i < consoleActionCount; i++) {
 		if (strcmp(token, consoleActions[i].token) == 0 /* zero result means strings are equal */) {
-			firmwareError(CUSTOM_ERR_6147, "Same action twice [%s]", token);
+			firmwareError(CUSTOM_SAME_TWICE, "Same action twice [%s]", token);
 		}
 	}
 
-	efiAssertVoid(CUSTOM_ERR_6601, consoleActionCount < CONSOLE_MAX_ACTIONS, "Too many console actions");
+	efiAssertVoid(CUSTOM_CONSOLE_TOO_MANY, consoleActionCount < CONSOLE_MAX_ACTIONS, "Too many console actions");
 	TokenCallback *current = &consoleActions[consoleActionCount++];
 	current->token = token;
 	current->parameterType = type;
@@ -120,6 +118,10 @@ void addConsoleActionSSS(const char *token, VoidCharPtrCharPtrCharPtr callback) 
 
 void addConsoleActionSSSSS(const char *token, VoidCharPtrCharPtrCharPtrCharPtrCharPtr callback) {
 	doAddAction(token, STRING5_PARAMETER, (Void) callback, NULL);
+}
+
+void addConsoleActionNANF(const char *token, VoidFloat callback) {
+	doAddAction(token, FLOAT_PARAMETER_NAN_ALLOWED, (Void) callback, NULL);
 }
 
 void addConsoleActionF(const char *token, VoidFloat callback) {
@@ -358,6 +360,15 @@ void handleActionWithParameter(TokenCallback *current, char *parameter) {
 		}
 		VoidIntInt callbackS = (VoidIntInt) current->callback;
 		(*callbackS)(value1, value2);
+		return;
+	}
+
+	if (current->parameterType == FLOAT_PARAMETER_NAN_ALLOWED) {
+		float value = atoff(parameter);
+		VoidFloat callbackF = (VoidFloat) current->callback;
+
+		// invoke callback function by reference
+		(*callbackF)(value);
 		return;
 	}
 

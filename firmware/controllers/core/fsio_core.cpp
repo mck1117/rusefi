@@ -13,7 +13,7 @@
  * @author Andrey Belomutskiy, (c) 2012-2018
  */
 
-#include "main.h"
+#include "global.h"
 
 #if EFI_FSIO || defined(__DOXYGEN__)
 
@@ -113,7 +113,7 @@ void LECalculator::add(LEElement *element) {
 	}
 }
 
-static bool float2bool(float v) {
+bool float2bool(float v) {
 	return v != 0;
 }
 
@@ -253,7 +253,7 @@ bool LECalculator::processElement(LEElement *element DECLARE_ENGINE_PARAMETER_SU
 		float humanIndex = pop(LE_METHOD_FSIO_SETTING);
 		int index = (int) humanIndex - 1;
 		if (index >= 0 && index < FSIO_COMMAND_COUNT) {
-			push(element->action, boardConfiguration->fsio_setting[index]);
+			push(element->action, CONFIGB(fsio_setting)[index]);
 		} else {
 			push(element->action, NAN);
 		}

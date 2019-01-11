@@ -2,15 +2,22 @@
  * @file efifeatures.h
  *
  * @date Mar 7, 2014
- * @author Andrey Belomutskiy, (c) 2012-2017
+ * @author Andrey Belomutskiy, (c) 2012-2018
  */
 
 #ifndef EFIFEATURES_H_
 #define EFIFEATURES_H_
 
+#include "rusefi_true.h"
+
 #define EFI_ENABLE_ASSERTS TRUE
 
+#define EFI_CJ125 TRUE
+
 #define SPARK_EXTREME_LOGGING TRUE
+
+#define EFI_ENABLE_CRITICAL_ENGINE_STOP TRUE
+#define EFI_ENABLE_ENGINE_WARNING TRUE
 
 #define EFI_GPIO_HARDWARE FALSE
 
@@ -24,6 +31,8 @@
 
 #define EFI_FSIO TRUE
 
+#define EFI_TEXT_LOGGING TRUE
+
 #define EFI_HISTOGRAMS FALSE
 
 #define CONSOLE_MAX_ACTIONS 128
@@ -36,7 +45,7 @@
 #define EFI_SUPPORT_FORD_FIESTA TRUE
 #define EFI_SUPPORT_NISSAN_PRIMERA TRUE
 
-#define EFI_SIGNAL_EXECUTOR_ONE_TIMER TRUE
+#define EFI_SIGNAL_EXECUTOR_ONE_TIMER FALSE
 #define EFI_SIGNAL_EXECUTOR_SLEEP FALSE
 
 #define EFI_SHAFT_POSITION_INPUT TRUE

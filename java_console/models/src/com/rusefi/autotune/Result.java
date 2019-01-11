@@ -1,17 +1,17 @@
 package com.rusefi.autotune;
 
 /**
- * (c) Andrey Belomutskiy 2013-2017
+ * (c) Andrey Belomutskiy 2013-2018
  * 2/23/2016.
  */
 public class Result {
-    private final float[][] kgbcRES;
+    private final double[][] kgbcRES;
 
-    public Result(float[][] kgbcRES) {
+    public Result(double[][] kgbcRES) {
         this.kgbcRES = kgbcRES;
     }
 
-    public float[][] getKgbcRES() {
+    public double[][] getKgbcRES() {
         return kgbcRES;
     }
 }

@@ -2,13 +2,19 @@
  * @file	trigger_input.cpp
  * @brief	Position sensor hardware layer
  *
+ * todo: code reuse with digital_input_hw.cpp was never finished
+ * todo: at the moment due to half-done code reuse we already depend on EFI_ICU_INPUTS but still have custom code
+ * todo: VVT implementation is a nasty copy-paste :(
+ *
+ * see digital_input_hw.cp
+ *
  * @date Dec 30, 2012
  * @author Andrey Belomutskiy, (c) 2012-2018
  */
 
-#include "main.h"
+#include "global.h"
 
-#if EFI_SHAFT_POSITION_INPUT || defined(__DOXYGEN__)
+#if (EFI_SHAFT_POSITION_INPUT && EFI_PROD_CODE) || defined(__DOXYGEN__)
 
 #include "trigger_input.h"
 #include "digital_input_hw.h"
@@ -146,7 +152,7 @@ static void turnOffTriggerInputPin(brain_pin_e hwPin) {
 
 static void rememberPrimaryChannel(void) {
 	primaryCrankDriver = getInputCaptureDriver("primary",
-			boardConfiguration->triggerInputPins[0]);
+			CONFIGB(triggerInputPins)[0]);
 }
 
 void turnOnTriggerInputPins(Logging *sharedLogger) {
@@ -157,7 +163,7 @@ void turnOnTriggerInputPins(Logging *sharedLogger) {
 
 void stopTriggerInputPins(void) {
 	for (int i = 0; i < TRIGGER_SUPPORTED_CHANNELS; i++) {
-		if (boardConfiguration->triggerInputPins[i]
+		if (CONFIGB(triggerInputPins)[i]
 				!= activeConfiguration.bc.triggerInputPins[i]) {
 			turnOffTriggerInputPin(activeConfiguration.bc.triggerInputPins[i]);
 		}
@@ -173,10 +179,10 @@ void applyNewTriggerInputPins(void) {
 
 // then we will enable all the changed pins
 	for (int i = 0; i < TRIGGER_SUPPORTED_CHANNELS; i++) {
-		if (boardConfiguration->triggerInputPins[i]
+		if (CONFIGB(triggerInputPins)[i]
 				!= activeConfiguration.bc.triggerInputPins[i]) {
 			const char * msg = (i == 0 ? "trigger#1" : (i == 1 ? "trigger#2" : "trigger#3"));
-			turnOnTriggerInputPin(msg, boardConfiguration->triggerInputPins[i], &shaft_icucfg);
+			turnOnTriggerInputPin(msg, CONFIGB(triggerInputPins)[i], &shaft_icucfg);
 		}
 	}
 
@@ -187,4 +193,4 @@ void applyNewTriggerInputPins(void) {
 	rememberPrimaryChannel();
 }
 
-#endif /* EFI_SHAFT_POSITION_INPUT */
+#endif /* EFI_SHAFT_POSITION_INPUT && EFI_PROD_CODE */

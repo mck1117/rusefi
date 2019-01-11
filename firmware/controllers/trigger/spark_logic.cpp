@@ -100,7 +100,7 @@ static void prepareCylinderIgnitionSchedule(angle_t dwellAngle, IgnitionEvent *e
 	angle_t a = localAdvance - dwellAngle;
 	efiAssertVoid(CUSTOM_ERR_6590, !cisnan(a), "findAngle#5");
 	assertAngleRange(a, "findAngle#a6", CUSTOM_ERR_6550);
-	TRIGGER_SHAPE(findTriggerPosition(&event->dwellPosition, a PASS_ENGINE_PARAMETER_SUFFIX));
+	TRIGGER_SHAPE(findTriggerPosition(&event->dwellPosition, a PASS_CONFIG_PARAM(engineConfiguration->globalTriggerAngleOffset)));
 
 #if FUEL_MATH_EXTREME_LOGGING || defined(__DOXYGEN__)
 	printf("addIgnitionEvent %s ind=%d\n", output->name, event->dwellPosition.eventIndex);
@@ -224,7 +224,7 @@ static ALWAYS_INLINE void handleSparkEvent(bool limitedSpark, uint32_t trgEventI
 		 * This way we make sure that coil dwell started while spark was enabled would fire and not burn
 		 * the coil.
 		 */
-		scheduleForLater(sUp, chargeDelayUs, (schfunc_t) &turnSparkPinHigh, iEvent);
+		engine->executor.scheduleForLater(sUp, chargeDelayUs, (schfunc_t) &turnSparkPinHigh, iEvent);
 	}
 	/**
 	 * Spark event is often happening during a later trigger event timeframe
@@ -233,7 +233,7 @@ static ALWAYS_INLINE void handleSparkEvent(bool limitedSpark, uint32_t trgEventI
 
 	efiAssertVoid(CUSTOM_ERR_6591, !cisnan(advance), "findAngle#4");
 	assertAngleRange(advance, "findAngle#a5", CUSTOM_ERR_6549);
-	TRIGGER_SHAPE(findTriggerPosition(&iEvent->sparkPosition, advance PASS_ENGINE_PARAMETER_SUFFIX));
+	TRIGGER_SHAPE(findTriggerPosition(&iEvent->sparkPosition, advance PASS_CONFIG_PARAM(engineConfiguration->globalTriggerAngleOffset)));
 
 #if EFI_UNIT_TEST || defined(__DOXYGEN__)
 	printf("spark dwell@ %d/%d spark@ %d/%d id=%d\r\n", iEvent->dwellPosition.eventIndex, (int)iEvent->dwellPosition.angleOffset,
@@ -241,6 +241,19 @@ static ALWAYS_INLINE void handleSparkEvent(bool limitedSpark, uint32_t trgEventI
 			iEvent->sparkId);
 #endif
 
+	/**
+	 * todo: extract a "scheduleForAngle" method with best implementation into a separate utility method
+	 *
+	 * Here's the status as of Nov 2018:
+	 * "scheduleForLater" uses time only and for best precision it's best to use "scheduleForLater" only
+	 * once we hit the last trigger tooth prior to needed event. This case we use as much trigger position angle as possible
+	 * and only use less precise RPM-based time calculation for the last portion of the angle, the one between two teeth closest to the
+	 * desired angle moment.
+	 *
+	 * At the moment we only have time-based scheduler. I believe what needs to be added is a trigger-event based scheduler on top of the
+	 * time-based schedule. This case we would be firing events with best possible angle precision.
+	 *
+	 */
 	if (iEvent->sparkPosition.eventIndex == trgEventIndex) {
 		/**
 		 * Spark should be fired before the next trigger event - time-based delay is best precision possible
@@ -251,7 +264,7 @@ static ALWAYS_INLINE void handleSparkEvent(bool limitedSpark, uint32_t trgEventI
 		scheduleMsg(logger, "scheduling sparkDown ind=%d %d %s now=%d %d later id=%d", trgEventIndex, getRevolutionCounter(), iEvent->getOutputForLoggins()->name, (int)getTimeNowUs(), (int)timeTillIgnitionUs, iEvent->sparkId);
 #endif /* FUEL_MATH_EXTREME_LOGGING */
 
-		scheduleForLater(sDown, (int) timeTillIgnitionUs, (schfunc_t) &turnSparkPinLow, iEvent);
+		engine->executor.scheduleForLater(sDown, (int) timeTillIgnitionUs, (schfunc_t) &turnSparkPinLow, iEvent);
 	} else {
 #if SPARK_EXTREME_LOGGING || defined(__DOXYGEN__)
 		scheduleMsg(logger, "to queue sparkDown ind=%d %d %s %d for %d", trgEventIndex, getRevolutionCounter(), iEvent->getOutputForLoggins()->name, (int)getTimeNowUs(), iEvent->sparkPosition.eventIndex);
@@ -355,7 +368,7 @@ void handleSpark(bool limitedSpark, uint32_t trgEventIndex, int rpm
 
 
 			float timeTillIgnitionUs = ENGINE(rpmCalculator.oneDegreeUs) * current->sparkPosition.angleOffset;
-			scheduleForLater(sDown, (int) timeTillIgnitionUs, (schfunc_t) &turnSparkPinLow, current);
+			engine->executor.scheduleForLater(sDown, (int) timeTillIgnitionUs, (schfunc_t) &turnSparkPinLow, current);
 		}
 	}
 

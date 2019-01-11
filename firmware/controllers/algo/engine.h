@@ -2,13 +2,12 @@
  * @file	engine.h
  *
  * @date May 21, 2014
- * @author Andrey Belomutskiy, (c) 2012-2017
+ * @author Andrey Belomutskiy, (c) 2012-2019
  */
 #ifndef H_ENGINE_H_
 #define H_ENGINE_H_
 
 #include "global.h"
-#include "main.h"
 #include "pid.h"
 #include "engine_configuration.h"
 #include "rpm_calculator.h"
@@ -19,6 +18,17 @@
 #include "listener_array.h"
 #include "accel_enrichment.h"
 #include "trigger_central.h"
+
+#if EFI_SIGNAL_EXECUTOR_ONE_TIMER
+// PROD real firmware uses this implementation
+#include "SingleTimerExecutor.h"
+#endif /* EFI_SIGNAL_EXECUTOR_ONE_TIMER */
+#if EFI_SIGNAL_EXECUTOR_SLEEP
+#include "signal_executor_sleep.h"
+#endif /* EFI_SIGNAL_EXECUTOR_SLEEP */
+#if EFI_UNIT_TEST
+#include "global_execution_queue.h"
+#endif /* EFI_UNIT_TEST */
 
 #define MOCK_ADC_SIZE 16
 
@@ -131,6 +141,7 @@ public:
 	EngineState();
 	void periodicFastCallback(DECLARE_ENGINE_PARAMETER_SIGNATURE);
 	void updateSlowSensors(DECLARE_ENGINE_PARAMETER_SIGNATURE);
+	void updateTChargeK(int rpm, float tps DECLARE_ENGINE_PARAMETER_SUFFIX);
 
 	FuelConsumptionState fuelConsumption;
 
@@ -142,9 +153,13 @@ public:
 	efitimesec_t timeOfPreviousWarning;
 
 	/**
-	 * speed-density logic, calculated air mass in gramms
+	 * speed-density logic, calculated air mass in grams
 	 */
 	float airMass;
+	/**
+	 * speed-density logic, calculated air flow in kg/h for tCharge Air-Interp. method
+	 */
+	float airFlow;
 
 	float engineNoiseHipLevel;
 
@@ -195,7 +210,10 @@ public:
 	float baroCorrection;
 
 	// speed density
-	float tChargeK;
+	// Rate-of-change limiter is applied to degrees, so we store both Kelvin and degrees.
+	float tCharge, tChargeK;
+	efitick_t timeSinceLastTChargeK;
+
 	float currentVE;
 	float targetAFR;
 
@@ -278,6 +296,26 @@ class WallFuel;
 
 typedef void (*configuration_callback_t)(Engine*);
 
+class FsioState {
+public:
+	FsioState();
+#if EFI_ENABLE_ENGINE_WARNING
+	/**
+	 * Shall we purposely miss on some cylinders in order to attract driver's attention to some problem
+	 * like getting too hot
+	 */
+	float isEngineWarning;
+#endif /* EFI_ENABLE_ENGINE_WARNING */
+
+#if EFI_ENABLE_CRITICAL_ENGINE_STOP
+	/**
+	 * Shall we stop engine due to some critical condition in order to save the engine
+	 */
+	float isCriticalEngineCondition;
+#endif /* EFI_ENABLE_CRITICAL_ENGINE_STOP */
+};
+
+
 class Engine {
 public:
 	Engine(persistent_config_s *config);
@@ -289,6 +327,17 @@ public:
 	InjectionSignalPair fuelActuators[INJECTION_PIN_COUNT];
 	IgnitionEventList ignitionEvents;
 
+	// a pointer with interface type would make this code nicer but would carry extra runtime
+	// cost to resolve pointer, we use instances as a micro optimization
+#if EFI_SIGNAL_EXECUTOR_ONE_TIMER
+	SingleTimerExecutor executor;
+#endif
+#if EFI_SIGNAL_EXECUTOR_SLEEP
+	SleepExecutor executor;
+#endif
+#if EFI_UNIT_TEST
+	TestExecutor executor;
+#endif
 
 #if EFI_ENGINE_CONTROL || defined(__DOXYGEN__)
 	FuelSchedule injectionEvents;
@@ -297,7 +346,7 @@ public:
 	float fsioLastValue[FSIO_COMMAND_COUNT];
 
 	WallFuel wallFuel;
-
+	bool needToStopEngine(efitick_t nowNt);
 	bool etbAutoTune;
 	/**
 	 * That's the list of pending spark firing events
@@ -337,7 +386,11 @@ public:
 
 	RpmCalculator rpmCalculator;
 	persistent_config_s *config;
-	engine_configuration_s *engineConfiguration;
+	/**
+	 * we use funny unique name to make sure that compiler is not confused between global variable and class member
+	 * todo: this variable is probably a sign of some problem, should we even have it?
+	 */
+	engine_configuration_s *engineConfigurationPtr;
 
 	/**
 	 * this is about 'stopengine' command
@@ -372,6 +425,7 @@ public:
 
 	void periodicFastCallback(DECLARE_ENGINE_PARAMETER_SIGNATURE);
 	void updateSlowSensors(DECLARE_ENGINE_PARAMETER_SIGNATURE);
+	void initializeTriggerShape(Logging *logger DECLARE_ENGINE_PARAMETER_SUFFIX);
 
 	bool clutchUpState;
 	bool clutchDownState;
@@ -379,10 +433,12 @@ public:
 
 	bool isRunningPwmTest;
 
+	// todo: move this into FsioState class
 	float fsioTimingAdjustment;
 	float fsioIdleTargetRPMAdjustment;
-
 	float servoValues[SERVO_COUNT];
+
+	FsioState fsioState;
 
 	/**
 	 * Are we experiencing knock right now?
@@ -434,7 +490,7 @@ public:
 
 	/**
 	 * This coefficient translates ADC value directly into voltage adjusted according to
-	 * voltage divider configuration. This is a future (?) performance optimization.
+	 * voltage divider configuration with just one multiplication. This is a future (?) performance optimization.
 	 */
 	float adcToVoltageInputDividerCoefficient;
 
@@ -462,7 +518,7 @@ public:
 	 */
 	float mafDecodingLookup[MAF_DECODING_CACHE_SIZE];
 
-	void preCalculate();
+	void preCalculate(DECLARE_ENGINE_PARAMETER_SIGNATURE);
 
 	void watchdog();
 
@@ -479,7 +535,7 @@ public:
 
 	monitoring_timestamps_s m;
 
-	void knockLogic(float knockVolts);
+	void knockLogic(float knockVolts DECLARE_ENGINE_PARAMETER_SUFFIX);
 	void printKnockState(void);
 
 private:

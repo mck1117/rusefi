@@ -21,7 +21,7 @@
  * If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "main.h"
+#include "global.h"
 #include "efilib2.h"
 #include "map.h"
 
@@ -205,7 +205,7 @@ static void endAveraging(void *arg) {
 
 static void applyMapMinBufferLength() {
 	// check range
-	mapMinBufferLength = maxI(minI(boardConfiguration->mapMinBufferLength, MAX_MAP_BUFFER_LENGTH), 1);
+	mapMinBufferLength = maxI(minI(CONFIGB(mapMinBufferLength), MAX_MAP_BUFFER_LENGTH), 1);
 	// reset index
 	averagedMapBufIdx = 0;
 	// fill with maximum values
@@ -215,10 +215,12 @@ static void applyMapMinBufferLength() {
 }
 
 void postMapState(TunerStudioOutputChannels *tsOutputChannels) {
+#if EFI_TUNER_STUDIO || defined(__DOXYGEN__)
 	tsOutputChannels->debugFloatField1 = v_averagedMapValue;
 	tsOutputChannels->debugFloatField2 = engine->engineState.mapAveragingDuration;
 	tsOutputChannels->debugFloatField3 = currentPressure;
 	tsOutputChannels->debugIntField1 = mapMeasurementsCounter;
+#endif /* EFI_TUNER_STUDIO */
 }
 
 void refreshMapAveragingPreCalc(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
@@ -226,11 +228,14 @@ void refreshMapAveragingPreCalc(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	if (isValidRpm(rpm)) {
 		MAP_sensor_config_s * c = &engineConfiguration->map;
 		angle_t start = interpolate2d("mapa", rpm, c->samplingAngleBins, c->samplingAngle, MAP_ANGLE_SIZE);
+		efiAssertVoid(CUSTOM_ERR_6690, !cisnan(start), "start");
 
 		angle_t offsetAngle = TRIGGER_SHAPE(eventAngles[CONFIG(mapAveragingSchedulingAtIndex)]);
+		efiAssertVoid(CUSTOM_ERR_6691, !cisnan(offsetAngle), "offsetAngle");
 
 		for (int i = 0; i < engineConfiguration->specs.cylindersCount; i++) {
 			angle_t cylinderOffset = getEngineCycle(engineConfiguration->operationMode) * i / engineConfiguration->specs.cylindersCount;
+			efiAssertVoid(CUSTOM_ERR_6692, !cisnan(cylinderOffset), "cylinderOffset");
 			float cylinderStart = start + cylinderOffset - offsetAngle + tdcPosition();
 			fixAngle(cylinderStart, "cylinderStart", CUSTOM_ERR_6562);
 			engine->engineState.mapAveragingStart[i] = cylinderStart;
@@ -261,14 +266,14 @@ static void mapAveragingTriggerCallback(trigger_event_e ckpEventType,
 		return;
 	}
 
-	if (boardConfiguration->mapMinBufferLength != mapMinBufferLength) {
+	if (CONFIGB(mapMinBufferLength) != mapMinBufferLength) {
 		applyMapMinBufferLength();
 	}
 
 	measurementsPerRevolution = measurementsPerRevolutionCounter;
 	measurementsPerRevolutionCounter = 0;
 
-	int samplingCount = boardConfiguration->measureMapOnlyInOneCylinder ? 1 : engineConfiguration->specs.cylindersCount;
+	int samplingCount = CONFIGB(measureMapOnlyInOneCylinder) ? 1 : engineConfiguration->specs.cylindersCount;
 
 	for (int i = 0; i < samplingCount; i++) {
 		angle_t samplingStart = ENGINE(engineState.mapAveragingStart[i]);

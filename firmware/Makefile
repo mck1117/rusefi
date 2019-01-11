@@ -3,6 +3,12 @@
 # NOTE: Can be overridden externally.
 #
 
+CHIBIOS = ChibiOS4
+RULESPATH = $(CHIBIOS)/os/common/startup/ARMCMx/compilers/GCC
+RULESFILE = $(RULESPATH)/rules.mk
+
+include rusefi.mk
+
 # by default EXTRA_PARAMS is empty and we create 'debug' version of the firmware with additional assertions and statistics
 # for 'release' options see 'clean_compile_two_versions.bat' file
 
@@ -24,7 +30,8 @@ endif
 
 # C++ specific options here (added to USE_OPT).
 ifeq ($(USE_CPPOPT),)
-  USE_CPPOPT = -std=c++11 -fno-rtti -fno-exceptions -fno-use-cxa-atexit -Werror=write-strings -Werror=type-limits
+  # constexpr float expf_taylor_impl probably needs just c++14 but why not go with 17?
+  USE_CPPOPT = -std=c++17 -Wno-register -fno-rtti -fno-exceptions -fno-use-cxa-atexit -Werror=write-strings -Werror=type-limits
 endif
 
 # Enable this if you want the linker to remove unused code and data
@@ -84,8 +91,14 @@ endif
 
 # Enables the use of FPU on Cortex-M4 (no, softfp, hard).
 ifeq ($(USE_FPU),)
-  USE_FPU = softfp
+  USE_FPU = hard
 endif
+
+# and this is not working for be :( See https://github.com/rusefi/rusefi/issues/638
+# use -j4 unless some value was specified
+NUMJOBS=${NUMJOBS:-" -j4 "}
+
+MAKEFLAGS += ${NUMJOBS}
 
 #
 # Architecture or project specific options
@@ -100,19 +113,13 @@ PROJECT = rusefi
 PROJECT_DIR = .
 
 # Imported source files and paths
-CHIBIOS = ChibiOS4
 CHIBIOS_CONTRIB = ChibiOS-Contrib
 
-ifeq ($(PROJECT_BOARD),)
-  PROJECT_BOARD = ST_STM32F4
-endif
-DDEFS += -D$(PROJECT_BOARD)
-
 # Startup files.
-include $(CHIBIOS)/os/common/startup/ARMCMx/compilers/GCC/mk/startup_stm32f4xx.mk
+include $(CHIBIOS)/os/common/startup/ARMCMx/compilers/GCC/mk/$(CPU_STARTUP)
 # HAL-OSAL files (optional).
 include $(CHIBIOS_CONTRIB)/os/hal/hal.mk
-include $(CHIBIOS_CONTRIB)/os/hal/ports/STM32/STM32F4xx/platform.mk
+include $(CHIBIOS)/os/hal/ports/STM32/$(CPU_PLATFORM)
 include $(CHIBIOS)/os/hal/osal/rt/osal.mk
 # RTOS files (optional).
 include $(CHIBIOS)/os/rt/rt.mk
@@ -127,8 +134,8 @@ include $(PROJECT_DIR)/ext/fatfs.mk
 include $(PROJECT_DIR)/hw_layer/hw_layer.mk
 include $(PROJECT_DIR)/hw_layer/sensors/sensors.mk
 include $(PROJECT_DIR)/hw_layer/mass_storage/mass_storage.mk
-include development/development.mk
-include controllers/controllers.mk
+include $(PROJECT_DIR)/development/development.mk
+include $(PROJECT_DIR)/controllers/controllers.mk
 
 include $(PROJECT_DIR)/util/util.mk
 include $(PROJECT_DIR)/config/boards/$(PROJECT_BOARD)/board.mk
@@ -149,6 +156,10 @@ endif
 ifeq ($(LDSCRIPT),)
   LDSCRIPT= config/stm32f4ems/STM32F407xG.ld
 endif
+
+ifeq ($(PROJECT_CPU),)
+  PROJECT_CPU=ST_STM32F4
+endif                 
 
 # C sources that can be compiled in ARM or THUMB mode depending on the global
 # setting.
@@ -223,6 +234,11 @@ TCPPSRC =
 # List ASM source files here
 ASMXSRC = $(STARTUPASM) $(PORTASM) $(OSALASM)
 
+ifeq ($(CONFIGPATH),)
+  CONFIGPATH=config/stm32f4ems
+endif
+
+
 INCDIR = $(CHIBIOS)/os/license \
         $(PORTINC) \
 	$(OSALINC) \
@@ -237,8 +253,7 @@ INCDIR = $(CHIBIOS)/os/license \
 	$(CHIBIOS)/os/hal/lib/streams \
 	$(CHIBIOS)/os/various \
 	$(CHIBIOS)/os/various/devices_lib/accel \
-        $(CHIBIOS_CONTRIB)/os/various \
-	config/stm32f4ems \
+	$(CONFIGPATH) \
 	config/engines \
 	config \
 	ext \
@@ -255,7 +270,7 @@ INCDIR = $(CHIBIOS)/os/license \
 	hw_layer/lcd \
 	hw_layer/sensors \
 	hw_layer/mass_storage \
-	hw_layer/stm32f4 \
+	hw_layer/$(CPU_HWLAYER) \
 	development \
 	development/hw_layer \
 	development/test \
@@ -334,5 +349,4 @@ ULIBS = -lm
 # End of user defines
 ##############################################################################
 
-RULESPATH = $(CHIBIOS)/os/common/startup/ARMCMx/compilers/GCC
-include $(RULESPATH)/rules.mk
+include $(RULESFILE)

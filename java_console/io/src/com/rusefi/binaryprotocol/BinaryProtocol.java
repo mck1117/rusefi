@@ -66,13 +66,7 @@ public class BinaryProtocol implements BinaryProtocolCommands {
         this.stream = stream;
 
         incomingData = new IncomingDataBuffer(logger);
-        DataListener streamDataListener = new DataListener() {
-            @Override
-            public void onDataArrived(byte[] freshData) {
-                incomingData.addData(freshData);
-            }
-        };
-        stream.setInputListener(streamDataListener);
+        stream.setInputListener(incomingData::addData);
     }
 
     private static void sleep() {
@@ -496,7 +490,13 @@ public class BinaryProtocol implements BinaryProtocolCommands {
             } else if (sensor.getType() == FieldType.INT) {
                 int value = bb.getInt();
                 SensorCentral.getInstance().setValue(value, sensor);
-            }
+            } else if (sensor.getType() == FieldType.INT16) {
+                int value = bb.getInt() & 0xFFFF;
+                SensorCentral.getInstance().setValue(value, sensor);
+            } else if (sensor.getType() == null) {
+                // do nothing for old text sensors which I am suprised are still in the code
+            } else
+                throw new UnsupportedOperationException("type " + sensor.getType());
         }
         return true;
     }

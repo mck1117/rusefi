@@ -1,6 +1,5 @@
 package com.rusefi;
 
-import java.io.CharArrayWriter;
 import java.io.IOException;
 import java.io.Writer;
 import java.util.ArrayList;
@@ -12,7 +11,10 @@ import java.util.List;
  */
 public class ConfigStructure {
     public static final String UINT8_T = "uint8_t";
-    public final String name;
+    public static final String UINT_16_T = "uint16_t";
+    public static final String INT_16_T = "int16_t";
+
+    private final String name;
     private final String comment;
     public final boolean withPrefix;
     /**
@@ -31,7 +33,11 @@ public class ConfigStructure {
         this.withPrefix = withPrefix;
     }
 
-    public void addAlignmentFill() {
+    public String getName() {
+        return name;
+    }
+
+    public void addAlignmentFill(ReaderState state) {
         bitState.reset();
         /**
          * we make alignment decision based on C fields since we expect interation and non-iteration fields
@@ -47,7 +53,7 @@ public class ConfigStructure {
         int fillSize = totalSize % 4 == 0 ? 0 : 4 - (totalSize % 4);
 
         if (fillSize != 0) {
-            ConfigField fill = new ConfigField("alignmentFill", "need 4 byte alignment", false,
+            ConfigField fill = new ConfigField(state, "alignmentFill", "need 4 byte alignment", false,
                     "" + fillSize,
                     UINT8_T, fillSize, null, false);
             addBoth(fill);
@@ -58,24 +64,26 @@ public class ConfigStructure {
     /**
      * This method writes a C header version of a data structure
      */
-    public void headerWrite(Writer cHeader) throws IOException {
-        if (comment != null) {
-            cHeader.write("/**" + ConfigDefinition.EOL + ConfigDefinition.packComment(comment, "")  + ConfigDefinition.EOL + "*/" + ConfigDefinition.EOL);
+    public static void headerWrite(ConfigStructure configStructure, Writer cHeader) throws IOException {
+        if (configStructure.comment != null) {
+            cHeader.write("/**" + ConfigDefinition.EOL + ConfigDefinition.packComment(configStructure.comment, "")  + ConfigDefinition.EOL + "*/" + ConfigDefinition.EOL);
         }
+
+        cHeader.write("// start of " + configStructure.name + ConfigDefinition.EOL);
         cHeader.write("typedef struct {" + ConfigDefinition.EOL);
 
-        bitState.reset();
-        for (int i = 0; i < cFields.size(); i++) {
-            ConfigField cf = cFields.get(i);
-            cHeader.write(cf.getHeaderText(currentOffset, bitState.get()));
-            ConfigField next = i == cFields.size() - 1 ? ConfigField.VOID : cFields.get(i + 1);
+        configStructure.bitState.reset();
+        for (int i = 0; i < configStructure.cFields.size(); i++) {
+            ConfigField cf = configStructure.cFields.get(i);
+            cHeader.write(cf.getHeaderText(configStructure.currentOffset, configStructure.bitState.get()));
+            ConfigField next = i == configStructure.cFields.size() - 1 ? ConfigField.VOID : configStructure.cFields.get(i + 1);
 
-            bitState.incrementBitIndex(cf, next);
-            currentOffset += cf.getSize(next);
+            configStructure.bitState.incrementBitIndex(cf, next);
+            configStructure.currentOffset += cf.getSize(next);
         }
 
-        cHeader.write("\t/** total size " + currentOffset + "*/" + ConfigDefinition.EOL);
-        cHeader.write("} " + name + ";" + ConfigDefinition.EOL + ConfigDefinition.EOL);
+        cHeader.write("\t/** total size " + configStructure.currentOffset + "*/" + ConfigDefinition.EOL);
+        cHeader.write("} " + configStructure.name + ";" + ConfigDefinition.EOL + ConfigDefinition.EOL);
     }
 
     public int writeTunerStudio(String prefix, Writer tsHeader, int tsPosition) throws IOException {
@@ -90,7 +98,7 @@ public class ConfigStructure {
         return tsPosition;
     }
 
-    public int writeJavaFields(String prefix, Writer javaFieldsWriter, int tsPosition) throws IOException {
+    public int writeJavaFields(ReaderState state, String prefix, Writer javaFieldsWriter, int tsPosition) throws IOException {
         FieldIterator fieldIterator = new FieldIterator();
         for (int i = 0; i < tsFields.size(); i++) {
             ConfigField next = i == tsFields.size() - 1 ? ConfigField.VOID : tsFields.get(i + 1);

@@ -135,8 +135,8 @@ static void commonMiataNa(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	boardConfiguration->triggerInputPins[1] = GPIOA_5; // 2E White CKP
 
 	engineConfiguration->ignitionMode = IM_WASTED_SPARK;
-	setFuelLoadBin(1.2, 4.4 PASS_ENGINE_PARAMETER_SUFFIX);
-	setFuelRpmBin(800, 7000 PASS_ENGINE_PARAMETER_SUFFIX);
+	setFuelLoadBin(1.2, 4.4 PASS_CONFIG_PARAMETER_SUFFIX);
+	setFuelRpmBin(800, 7000 PASS_CONFIG_PARAMETER_SUFFIX);
 
 	boardConfiguration->idle.solenoidFrequency = 160;
 
@@ -293,7 +293,7 @@ static void setMiata1994_common(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 
 	commonFrankensoAnalogInputs(engineConfiguration);
 
-	engineConfiguration->tpsAdcChannel = EFI_ADC_2;
+	engineConfiguration->tpsAdcChannel = EFI_ADC_2; // PA2
 	engineConfiguration->map.sensor.hwChannel = EFI_ADC_4;
 	engineConfiguration->mafAdcChannel = EFI_ADC_0;
 	engineConfiguration->clt.adcChannel = EFI_ADC_12;

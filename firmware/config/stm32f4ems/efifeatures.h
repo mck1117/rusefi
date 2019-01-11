@@ -14,9 +14,16 @@
 
 #define EFI_FSIO TRUE
 
+#define EFI_CDM_INTEGRATION TRUE
+
+#define EFI_TEXT_LOGGING TRUE
+
 #define EFI_PWM_TESTER FALSE
 
 #define HAL_USE_USB_MSD FALSE
+
+#define EFI_ENABLE_CRITICAL_ENGINE_STOP TRUE
+#define EFI_ENABLE_ENGINE_WARNING TRUE
 
 #define EFI_USE_CCM TRUE
 
@@ -46,6 +53,8 @@
  * Build-in logic analyzer support. Logic analyzer viewer is one of the java console panes.
  */
 #define EFI_WAVE_ANALYZER TRUE
+
+#define EFI_ICU_INPUTS TRUE
 
 /**
  * TunerStudio support.
@@ -211,6 +220,7 @@
 // todo: most of this should become configurable
 
 // todo: switch to continues ADC conversion for slow ADC?
+// https://github.com/rusefi/rusefi/issues/630
 #define EFI_INTERNAL_SLOW_ADC_PWM	&PWMD8
 // todo: switch to continues ADC conversion for fast ADC?
 #define EFI_INTERNAL_FAST_ADC_PWM	&PWMD4

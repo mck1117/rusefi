@@ -9,11 +9,13 @@
  *  We need frequent MAP for map_averaging.cpp
  *  We need frequent TPS for ???
  *
+ * 10KHz equals one measurement every 3.6 degrees at 6000 RPM
+ *
  * @date Jan 14, 2013
  * @author Andrey Belomutskiy, (c) 2012-2018
  */
 
-#include "main.h"
+#include "global.h"
 
 #if HAL_USE_ADC || defined(__DOXYGEN__)
 
@@ -197,6 +199,7 @@ void doSlowAdc(void) {
 #endif /* EFI_INTERNAL_ADC */
 }
 
+#if HAL_USE_PWM || defined(__DOXYGEN__)
 static void pwmpcb_slow(PWMDriver *pwmp) {
 	(void) pwmp;
 	doSlowAdc();
@@ -229,6 +232,7 @@ static void pwmpcb_fast(PWMDriver *pwmp) {
 	fastAdc.conversionCount++;
 #endif /* EFI_INTERNAL_ADC */
 }
+#endif /* HAL_USE_PWM */
 
 float getMCUInternalTemperature(void) {
 	float TemperatureValue = adcToVolts(slowAdc.getAdcValueByHwChannel(ADC_CHANNEL_SENSOR));
@@ -265,6 +269,7 @@ int getInternalAdcValue(const char *msg, adc_channel_e hwChannel) {
 	return slowAdc.getAdcValueByHwChannel(hwChannel);
 }
 
+#if HAL_USE_PWM || defined(__DOXYGEN__)
 static PWMConfig pwmcfg_slow = { PWM_FREQ_SLOW, PWM_PERIOD_SLOW, pwmpcb_slow, { {
 PWM_OUTPUT_DISABLED, NULL }, { PWM_OUTPUT_DISABLED, NULL }, {
 PWM_OUTPUT_DISABLED, NULL }, { PWM_OUTPUT_DISABLED, NULL } },
@@ -276,6 +281,7 @@ PWM_OUTPUT_DISABLED, NULL }, { PWM_OUTPUT_DISABLED, NULL }, {
 PWM_OUTPUT_DISABLED, NULL }, { PWM_OUTPUT_DISABLED, NULL } },
 /* HW dependent part.*/
 0, 0 };
+#endif /* HAL_USE_PWM */
 
 static void initAdcPin(brain_pin_e pin, const char *msg) {
 	// todo: migrate to scheduleMsg if we want this back print("adc %s\r\n", msg);
@@ -615,7 +621,7 @@ static void configureInputs(void) {
 
 	addChannel("TPS", engineConfiguration->tpsAdcChannel, ADC_SLOW);
 	addChannel("fuel", engineConfiguration->fuelLevelSensor, ADC_SLOW);
-	addChannel("pPS", engineConfiguration->pedalPositionChannel, ADC_SLOW);
+	addChannel("pPS", engineConfiguration->pedalPositionAdcChannel, ADC_SLOW);
 	addChannel("VBatt", engineConfiguration->vbattAdcChannel, ADC_SLOW);
 	// not currently used	addChannel("Vref", engineConfiguration->vRefAdcChannel, ADC_SLOW);
 	addChannel("CLT", engineConfiguration->clt.adcChannel, ADC_SLOW);
@@ -624,7 +630,7 @@ static void configureInputs(void) {
 	addChannel("OilP", engineConfiguration->oilPressure.hwChannel, ADC_SLOW);
 	addChannel("AC", engineConfiguration->acSwitchAdc, ADC_SLOW);
 
-	if (boardConfiguration->isCJ125Enabled) {
+	if (CONFIGB(isCJ125Enabled)) {
 		addChannel("cj125ur", engineConfiguration->cj125ur, ADC_SLOW);
 		addChannel("cj125ua", engineConfiguration->cj125ua, ADC_SLOW);
 	}
@@ -671,16 +677,20 @@ void initAdcInputs(bool boardTestMode) {
 	slowAdc.enableChannel((adc_channel_e)ADC_CHANNEL_SENSOR);
 
 	slowAdc.init();
+#if HAL_USE_PWM || defined(__DOXYGEN__)
 	pwmStart(EFI_INTERNAL_SLOW_ADC_PWM, &pwmcfg_slow);
 	pwmEnablePeriodicNotification(EFI_INTERNAL_SLOW_ADC_PWM);
+#endif /* HAL_USE_PWM */
 
-	if (boardConfiguration->isFastAdcEnabled) {
+	if (CONFIGB(isFastAdcEnabled)) {
 		fastAdc.init();
 		/*
 		 * Initializes the PWM driver.
 		 */
+#if HAL_USE_PWM || defined(__DOXYGEN__)
 		pwmStart(EFI_INTERNAL_FAST_ADC_PWM, &pwmcfg_fast);
 		pwmEnablePeriodicNotification(EFI_INTERNAL_FAST_ADC_PWM);
+#endif /* HAL_USE_PWM */
 	}
 
 	// ADC_CHANNEL_IN0 // PA0

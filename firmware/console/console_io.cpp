@@ -18,7 +18,7 @@
  * If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "main.h"
+#include "global.h"
 #include "console_io.h"
 #include "rfiutil.h"
 #include "tunerstudio.h"
@@ -148,10 +148,12 @@ static SerialConfig serialConfig = { 0, 0, USART_CR2_STOP1_BITS | USART_CR2_LINE
 bool consoleInBinaryMode = false;
 
 void runConsoleLoop(ts_channel_s *console) {
-	if (boardConfiguration->startConsoleInBinaryMode) {
+	if (CONFIGB(startConsoleInBinaryMode)) {
 		// switch to binary protocol
 		consoleInBinaryMode = true;
+#if EFI_TUNER_STUDIO || defined(__DOXYGEN__)
 		runBinaryProtocolLoop(console, true);
+#endif /* EFI_TUNER_STUDIO */
 	}
 
 	while (true) {
@@ -168,10 +170,19 @@ void runConsoleLoop(ts_channel_s *console) {
 
 		if (consoleInBinaryMode) {
 #if EFI_SIMULATOR || defined(__DOXYGEN__)
+			/**
+			 * Originally there was an attempt to have a human-readable text-based custom communication
+			 * protocol between rusEfi console and rusEfi firmware. This is still kind of a bit functional
+			 * but probably not very useful.
+			 * Here we switch from that text mode into the protocol which is currently known as TunerStudio protocol
+			 * even while historically it could be rooted in some older software.
+			 */
 			logMsg("Switching to binary mode\r\n");
 #endif
 			// switch to binary protocol
+#if EFI_TUNER_STUDIO || defined(__DOXYGEN__)
 			runBinaryProtocolLoop(console, true);
+#endif /* EFI_TUNER_STUDIO */
 		}
 	}
 }

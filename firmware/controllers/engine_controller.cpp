@@ -22,7 +22,7 @@
  */
 
 #include "sensor_chart.h"
-#include "main.h"
+#include "global.h"
 #include "engine_configuration.h"
 #include "trigger_central.h"
 #include "engine_controller.h"
@@ -66,8 +66,11 @@
 #include "lcd_controller.h"
 #include "pin_repository.h"
 #include "tachometer.h"
-#include "CJ125.h"
 #endif /* EFI_PROD_CODE */
+
+#if EFI_CJ125 || defined(__DOXYGEN__)
+#include "CJ125.h"
+#endif
 
 #if defined(EFI_BOOTLOADER_INCLUDE_CODE) || defined(__DOXYGEN__)
 #include "bootloader/bootloader.h"
@@ -225,7 +228,7 @@ static void periodicSlowCallback(Engine *engine);
 
 static void scheduleNextSlowInvocation(void) {
 	// schedule next invocation
-	int periodMs = boardConfiguration->generalPeriodicThreadPeriod;
+	int periodMs = CONFIGB(generalPeriodicThreadPeriod);
 	if (periodMs == 0)
 		periodMs = 50; // this might happen while resetting configuration
 	chVTSetAny(&periodicSlowTimer, MS2ST(periodMs), (vtfunc_t) &periodicSlowCallback, engine);
@@ -233,7 +236,10 @@ static void scheduleNextSlowInvocation(void) {
 
 static void periodicFastCallback(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	engine->periodicFastCallback();
-
+	/**
+	 * not many reasons why we use ChibiOS timer and not say a dedicated thread here
+	 * the only down-side of a dedicated thread is the cost of thread stack
+	 */
 	chVTSetAny(&periodicFastTimer, MS2ST(20), (vtfunc_t) &periodicFastCallback, engine);
 }
 
@@ -243,6 +249,43 @@ static void resetAccel(void) {
 	engine->wallFuel.reset();
 }
 
+static int previousSecond;
+
+#if EFI_CLOCK_LOCKS
+
+typedef FLStack<int, 16> irq_enter_timestamps_t;
+
+static irq_enter_timestamps_t irqEnterTimestamps;
+
+void irqEnterHook(void) {
+	irqEnterTimestamps.push(GET_TIMESTAMP());
+}
+
+static int currentIrqDurationAccumulator = 0;
+static int currentIrqCounter = 0;
+/**
+ * See also maxLockedDuration
+ */
+int perSecondIrqDuration = 0;
+int perSecondIrqCounter = 0;
+void irqExitHook(void) {
+	int enterTime = irqEnterTimestamps.pop();
+	currentIrqDurationAccumulator += (GET_TIMESTAMP() - enterTime);
+	currentIrqCounter++;
+}
+#endif /* EFI_CLOCK_LOCKS */
+
+static void invokePerSecond(void) {
+#if EFI_CLOCK_LOCKS
+	// this data transfer is not atomic but should be totally good enough
+	perSecondIrqDuration = currentIrqDurationAccumulator;
+	perSecondIrqCounter = currentIrqCounter;
+	currentIrqDurationAccumulator = currentIrqCounter = 0;
+#endif /* EFI_CLOCK_LOCKS */
+
+}
+
+
 static void periodicSlowCallback(Engine *engine) {
 	efiAssertVoid(CUSTOM_ERR_6661, getRemainingStack(chThdGetSelfX()) > 64, "lowStckOnEv");
 #if EFI_PROD_CODE
@@ -250,11 +293,16 @@ static void periodicSlowCallback(Engine *engine) {
 	 * We need to push current value into the 64 bit counter often enough so that we do not miss an overflow
 	 */
 	bool alreadyLocked = lockAnyContext();
-	updateAndSet(&halTime.state, port_rt_get_counter_value());
+	updateAndSet(&halTime.state, GET_TIMESTAMP());
 	if (!alreadyLocked) {
 		unlockAnyContext();
 	}
-#endif
+	int timeSeconds = getTimeNowSeconds();
+	if (previousSecond != timeSeconds) {
+		previousSecond = timeSeconds;
+		invokePerSecond();
+	}
+#endif /* EFI_PROD_CODE */
 
 	/**
 	 * Update engine RPM state if needed (check timeouts).
@@ -262,15 +310,15 @@ static void periodicSlowCallback(Engine *engine) {
 	engine->rpmCalculator.checkIfSpinning(PASS_ENGINE_PARAMETER_SIGNATURE);
 
 	if (engine->rpmCalculator.isStopped(PASS_ENGINE_PARAMETER_SIGNATURE)) {
-#if (EFI_PROD_CODE && EFI_ENGINE_CONTROL && EFI_INTERNAL_FLASH) || defined(__DOXYGEN__)
+#if EFI_INTERNAL_FLASH || defined(__DOXYGEN__)
 		writeToFlashIfPending();
-#endif
+#endif /* EFI_INTERNAL_FLASH */
 		resetAccel();
 	} else {
 		updatePrimeInjectionPulseState(PASS_ENGINE_PARAMETER_SIGNATURE);
 	}
 
-	if (versionForConfigurationListeners.isOld()) {
+	if (versionForConfigurationListeners.isOld(getGlobalConfigurationVersion())) {
 		updateAccelParameters();
 		engine->engineState.warmupAfrPid.reset();
 	}
@@ -279,7 +327,7 @@ static void periodicSlowCallback(Engine *engine) {
 	engine->updateSlowSensors();
 	engine->checkShutdown();
 
-#if (EFI_PROD_CODE && EFI_FSIO) || defined(__DOXYGEN__)
+#if EFI_FSIO || defined(__DOXYGEN__)
 	runFsio(PASS_ENGINE_PARAMETER_SIGNATURE);
 #endif /* EFI_PROD_CODE && EFI_FSIO */
 
@@ -322,7 +370,7 @@ static void printAnalogChannelInfoExt(const char *name, adc_channel_e hwChannel,
 	}
 
 	if (fastAdc.isHwUsed(hwChannel)) {
-		scheduleMsg(&logger, "fast enabled=%s", boolToString(boardConfiguration->isFastAdcEnabled));
+		scheduleMsg(&logger, "fast enabled=%s", boolToString(CONFIGB(isFastAdcEnabled)));
 	}
 
 	float voltage = adcVoltage * dividerCoeff;
@@ -343,7 +391,7 @@ static void printAnalogInfo(void) {
 	printAnalogChannelInfo("hip9011", engineConfiguration->hipOutputChannel);
 	printAnalogChannelInfo("fuel gauge", engineConfiguration->fuelLevelSensor);
 	printAnalogChannelInfo("TPS", engineConfiguration->tpsAdcChannel);
-	printAnalogChannelInfo("pPS", engineConfiguration->pedalPositionChannel);
+	printAnalogChannelInfo("pPS", engineConfiguration->pedalPositionAdcChannel);
 	if (engineConfiguration->clt.adcChannel != EFI_ADC_NONE) {
 		printAnalogChannelInfo("CLT", engineConfiguration->clt.adcChannel);
 	}
@@ -486,7 +534,7 @@ static void setFloat(const char *offsetStr, const char *valueStr) {
 		scheduleMsg(&logger, "invalid value [%s]", valueStr);
 		return;
 	}
-	float *ptr = (float *) (&((char *) engine->engineConfiguration)[offset]);
+	float *ptr = (float *) (&((char *) engineConfiguration)[offset]);
 	*ptr = value;
 	getFloat(offset);
 }
@@ -622,8 +670,8 @@ void initEngineContoller(Logging *sharedLogger DECLARE_ENGINE_PARAMETER_SUFFIX) 
 	/**
 	 * this uses SimplePwm which depends on scheduler, has to be initialized after scheduler
 	 */
-	initCJ125(sharedLogger);
-#endif
+	initCJ125(sharedLogger PASS_ENGINE_PARAMETER_SUFFIX);
+#endif /* EFI_CJ125 */
 
 
 #if EFI_SHAFT_POSITION_INPUT || defined(__DOXYGEN__)
@@ -646,7 +694,7 @@ void initEngineContoller(Logging *sharedLogger DECLARE_ENGINE_PARAMETER_SUFFIX) 
 		return;
 	}
 
-	chThdCreateStatic(csThreadStack, sizeof(csThreadStack), LOWPRIO, (tfunc_t) csThread, NULL);
+	chThdCreateStatic(csThreadStack, sizeof(csThreadStack), LOWPRIO, (tfunc_t)(void*) csThread, NULL);
 
 #if (EFI_PROD_CODE && EFI_ENGINE_CONTROL) || defined(__DOXYGEN__)
 	/**
@@ -687,7 +735,7 @@ void initEngineContoller(Logging *sharedLogger DECLARE_ENGINE_PARAMETER_SUFFIX) 
 	initEgoAveraging(PASS_ENGINE_PARAMETER_SIGNATURE);
 
 #if EFI_ENGINE_CONTROL || defined(__DOXYGEN__)
-	if (boardConfiguration->isEngineControlEnabled) {
+	if (CONFIGB(isEngineControlEnabled)) {
 		/**
 		 * This method initialized the main listener which actually runs injectors & ignition
 		 */
@@ -716,9 +764,9 @@ void initEngineContoller(Logging *sharedLogger DECLARE_ENGINE_PARAMETER_SUFFIX) 
 #endif /* EFI_PROD_CODE */
 }
 
-static char UNUSED_RAM_SIZE[7000];
+static char UNUSED_RAM_SIZE[10400];
 
-static char UNUSED_CCM_SIZE[7000] CCM_OPTIONAL;
+static char UNUSED_CCM_SIZE[7100] CCM_OPTIONAL;
 
 /**
  * See also VCS_VERSION
@@ -733,5 +781,5 @@ int getRusEfiVersion(void) {
 	if (initBootloader() != 0)
 		return 123;
 #endif /* EFI_BOOTLOADER_INCLUDE_CODE */
-	return 20180801;
+	return 20190109;
 }

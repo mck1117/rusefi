@@ -29,7 +29,7 @@
  *
  */
 
-#include "main.h"
+#include "global.h"
 #include "fuel_math.h"
 #include "interpolation.h"
 #include "engine_configuration.h"
@@ -106,10 +106,10 @@ angle_t getInjectionOffset(float rpm DECLARE_ENGINE_PARAMETER_SUFFIX) {
 	}
 	angle_t value = fuelPhaseMap.getValue(rpm, engineLoad);
 	if (cisnan(value)) {
-		firmwareError(CUSTOM_ERR_ASSERT, "inj offset#1 %.2f %.2f", rpm, engineLoad);
+		// we could be here while resetting configuration for example
+		warning(CUSTOM_ERR_6569, "phase map not ready");
 		return 0;
 	}
-	efiAssert(CUSTOM_ERR_ASSERT, !cisnan(value), "inj offset#1", 0);
 	angle_t result =  value + CONFIG(extraInjectionOffset);
 	fixAngle(result, "inj offset#2", CUSTOM_ERR_6553);
 	return result;
@@ -224,7 +224,7 @@ floatms_t getInjectorLag(float vBatt DECLARE_ENGINE_PARAMETER_SUFFIX) {
  * @note this method has nothing to do with fuel map VALUES - it's job
  * is to prepare the fuel map data structure for 3d interpolation
  */
-void prepareFuelMap(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
+void initFuelMap(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	fuelMap.init(config->fuelTable, config->fuelLoadBins, config->fuelRpmBins);
 	fuelPhaseMap.init(config->injectionPhase, config->injPhaseLoadBins, config->injPhaseRpmBins);
 }
@@ -260,7 +260,7 @@ float getFuelCutOffCorrection(efitick_t nowNt, int rpm DECLARE_ENGINE_PARAMETER_
 	float fuelCorr = 1.0f;
 
 	// coasting fuel cut-off correction
-	if (boardConfiguration->coastingFuelCutEnabled) {
+	if (CONFIGB(coastingFuelCutEnabled)) {
 		percent_t tpsPos = getTPS(PASS_ENGINE_PARAMETER_SIGNATURE);
 		float map = getMap();
 	

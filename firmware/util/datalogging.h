@@ -9,8 +9,8 @@
 #ifndef DATALOGGING_H_
 #define DATALOGGING_H_
 
-#include "global.h"
 #include <stdarg.h>
+#include <stdint.h>
 
 #define DELIMETER	","
 
@@ -21,6 +21,11 @@ public:
 	void baseConstructor();
 	Logging();
 	Logging(const char *name, char *buffer, int bufferSize);
+	void initLoggingExt(const char *name, char *buffer, int bufferSize);
+	void vappendPrintf(const char *fmt, va_list arg);
+	void append(const char *text);
+	void appendFast(const char *text);
+	void appendPrintf(const char *fmt, ...);
 	const char *name;
 	char SMALL_BUFFER[40];
 	/**
@@ -59,8 +64,6 @@ void resetLogging(Logging *logging);
 
 void appendMsgPrefix(Logging *logging);
 void appendMsgPostfix(Logging *logging);
-
-void scheduleMsg(Logging *logging, const char *fmt, ...);
 
 
 #ifdef __cplusplus

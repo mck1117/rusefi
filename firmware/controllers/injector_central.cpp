@@ -21,7 +21,7 @@
  */
 
 // todo: rename this file
-#include "main.h"
+#include "global.h"
 
 #if EFI_ENGINE_CONTROL || defined(__DOXYGEN__)
 
@@ -139,7 +139,7 @@ static void doRunFuel(int humanIndex, const char *delayStr, const char * onTimeS
 		scheduleMsg(logger, "Invalid index: %d", humanIndex);
 		return;
 	}
-	brain_pin_e b = boardConfiguration->injectionPins[humanIndex - 1];
+	brain_pin_e b = CONFIGB(injectionPins)[humanIndex - 1];
 	pinbench(delayStr, onTimeStr, offTimeStr, countStr, &enginePins.injectors[humanIndex - 1], b);
 }
 
@@ -154,7 +154,7 @@ static void fuelbench2(const char *delayStr, const char *indexStr, const char * 
 }
 
 static void fanBenchExt(const char *durationMs) {
-	pinbench("0", durationMs, "100", "1", &enginePins.fanRelay, boardConfiguration->fanPin);
+	pinbench("0", durationMs, "100", "1", &enginePins.fanRelay, CONFIGB(fanPin));
 }
 
 void fanBench(void) {
@@ -162,11 +162,11 @@ void fanBench(void) {
 }
 
 void milBench(void) {
-	pinbench("0", "500", "500", "16", &enginePins.checkEnginePin, boardConfiguration->malfunctionIndicatorPin);
+	pinbench("0", "500", "500", "16", &enginePins.checkEnginePin, CONFIGB(malfunctionIndicatorPin));
 }
 
 void fuelPumpBenchExt(const char *durationMs) {
-	pinbench("0", durationMs, "100", "1", &enginePins.fuelPumpRelay, boardConfiguration->fuelPumpPin);
+	pinbench("0", durationMs, "100", "1", &enginePins.fuelPumpRelay, CONFIGB(fuelPumpPin));
 }
 
 void fuelPumpBench(void) {
@@ -184,7 +184,7 @@ static void doRunSpark(int humanIndex, const char *delayStr, const char * onTime
 		scheduleMsg(logger, "Invalid index: %d", humanIndex);
 		return;
 	}
-	brain_pin_e b = boardConfiguration->ignitionPins[humanIndex - 1];
+	brain_pin_e b = CONFIGB(ignitionPins)[humanIndex - 1];
 	pinbench(delayStr, onTimeStr, offTimeStr, countStr, &enginePins.coils[humanIndex - 1], b);
 }
 
@@ -233,10 +233,10 @@ static msg_t benchThread(int param) {
 void OutputPin::unregisterOutput(brain_pin_e oldPin, brain_pin_e newPin) {
 	if (oldPin != GPIO_UNASSIGNED && oldPin != newPin) {
 		scheduleMsg(logger, "unregistering %s", hwPortname(oldPin));
-		unmarkPin(oldPin);
 #if EFI_GPIO_HARDWARE || defined(__DOXYGEN__)
+		unmarkPin(oldPin);
 		port = NULL;
-#endif /* EFI_PROD_CODE */
+#endif /* EFI_GPIO_HARDWARE */
 	}
 }
 
@@ -258,13 +258,13 @@ void runIoTest(int subsystem, int index) {
 		// call to pit
 		setCallFromPitStop(30000);
 	} else if (subsystem == 0x99) {
-		stopEngine();
+		scheduleStopEngine();
 	}
 }
 
 void initInjectorCentral(Logging *sharedLogger) {
 	logger = sharedLogger;
-	chThdCreateStatic(benchThreadStack, sizeof(benchThreadStack), NORMALPRIO, (tfunc_t) benchThread, NULL);
+	chThdCreateStatic(benchThreadStack, sizeof(benchThreadStack), NORMALPRIO, (tfunc_t)(void*) benchThread, NULL);
 
 	for (int i = 0; i < INJECTION_PIN_COUNT; i++) {
 		is_injector_enabled[i] = true;

@@ -13,6 +13,8 @@
 #include "scheduler.h"
 #include "efiGpio.h"
 
+#define NAN_FREQUENCY_SLEEP_PERIOD_MS 100
+
 typedef struct {
 	/**
 	 * a copy so that all phases are executed on the same period, even if another thread
@@ -35,20 +37,34 @@ class PwmConfig;
 typedef void (pwm_cycle_callback)(PwmConfig *state);
 typedef void (pwm_gen_callback)(PwmConfig *state, int stateIndex);
 
+typedef enum {
+	PM_ZERO,
+	PM_NORMAL,
+	PM_FULL
+} pwm_mode_e;
+
 /**
  * @brief   Multi-channel software PWM output configuration
  */
 class PwmConfig {
 public:
 	PwmConfig();
-	PwmConfig(float *switchTimes, single_wave_s *waves);
+	PwmConfig(float *switchTimes, SingleWave *waves);
 	void baseConstructor();
-	void init(float *switchTimes, single_wave_s *waves);
+	void init(float *switchTimes, SingleWave *waves);
 
 	void weComplexInit(const char *msg,
+			ExecutorInterface *executor,
 			int phaseCount, float *swithcTimes, int waveCount, pin_state_t **pinStates,
 			pwm_cycle_callback *pwmCycleCallback,
 			pwm_gen_callback *callback);
+
+	ExecutorInterface *executor;
+
+	/**
+	 * We need to handle zero duty cycle and 100% duty cycle in a special way
+	 */
+	pwm_mode_e mode;
 
 	/**
 	 * @param use NAN frequency to pause PWM
@@ -56,10 +72,10 @@ public:
 	void setFrequency(float frequency);
 
 	void handleCycleStart();
-
+	const char *name;
 
 	OutputPin *outputPins[PWM_PHASE_MAX_WAVE_PER_PWM];
-	multi_wave_s multiWave;
+	MultiWave multiWave;
 	efitimeus_t togglePwmState();
 
 	int dbgNestingLevel;
@@ -93,13 +109,35 @@ private:
 class SimplePwm : public PwmConfig {
 public:
 	SimplePwm();
+	SimplePwm(const char *name);
 	void setSimplePwmDutyCycle(float dutyCycle);
 	pin_state_t pinStates[2];
-	single_wave_s sr[1];
+	SingleWave sr[1];
 	float _switchTimes[2];
 private:
-	single_wave_s waveInstance;
+	SingleWave waveInstance;
 };
+
+/**
+ * Start a one-channel software PWM driver.
+ *
+ * This method should be called after scheduling layer is started by initSignalExecutor()
+ */
+void startSimplePwm(SimplePwm *state, const char *msg,
+		ExecutorInterface *executor,
+		OutputPin *output,
+		float dutyCycle, float frequency, pwm_gen_callback *stateChangeCallback);
+
+/**
+ * initialize GPIO pin and start a one-channel software PWM driver.
+ *
+ * This method should be called after scheduling layer is started by initSignalExecutor()
+ */
+void startSimplePwmExt(SimplePwm *state,
+		const char *msg,
+		ExecutorInterface *executor,
+		brain_pin_e brainPin, OutputPin *output,
+		float frequency, float dutyCycle, pwm_gen_callback *stateChangeCallback);
 
 void copyPwmParameters(PwmConfig *state, int phaseCount, float *switchTimes,
 		int waveCount, pin_state_t **pinStates);

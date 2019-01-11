@@ -7,7 +7,6 @@
  * @author Andrey Belomutskiy, (c) 2012-2018
  */
 
-#include "main.h"
 #include "engine.h"
 #include "rpm_calculator.h"
 #include "alternatorController.h"
@@ -25,7 +24,7 @@ EXTERN_ENGINE
 
 static Logging *logger;
 
-static SimplePwm alternatorControl;
+static SimplePwm alternatorControl("alt");
 static pid_s *altPidS = &persistentState.persistentConfiguration.engineConfiguration.alternatorControl;
 static Pid altPid(altPidS);
 
@@ -33,9 +32,9 @@ static THD_WORKING_AREA(alternatorControlThreadStack, UTILITY_THREAD_STACK_SIZE)
 
 static percent_t currentAltDuty;
 
-#if ! EFI_UNIT_TEST || defined(__DOXYGEN__)
+#if EFI_TUNER_STUDIO || defined(__DOXYGEN__)
 extern TunerStudioOutputChannels tsOutputChannels;
-#endif
+#endif /* EFI_TUNER_STUDIO */
 
 static bool currentPlainOnOffState = false;
 static bool shouldResetPid = false;
@@ -57,15 +56,13 @@ static msg_t AltCtrlThread(int param) {
 
 		altPid.sleep();
 
-#if ! EFI_UNIT_TEST || defined(__DOXYGEN__)
 		if (engineConfiguration->debugMode == DBG_ALTERNATOR_PID) {
 			// this block could be executed even in on/off alternator control mode
 			// but at least we would reflect latest state
+#if EFI_TUNER_STUDIO || defined(__DOXYGEN__)
 			altPid.postState(&tsOutputChannels);
+#endif /* EFI_TUNER_STUDIO */
 		}
-#endif /* !EFI_UNIT_TEST */
-
-
 
 		// todo: migrate this to FSIO
 		bool alternatorShouldBeEnabledAtCurrentRpm = GET_RPM() > engineConfiguration->cranking.rpm;
@@ -80,14 +77,15 @@ static msg_t AltCtrlThread(int param) {
 		float vBatt = getVBatt(PASS_ENGINE_PARAMETER_SIGNATURE);
 		float targetVoltage = engineConfiguration->targetVBatt;
 
-		if (boardConfiguration->onOffAlternatorLogic) {
+		if (CONFIGB(onOffAlternatorLogic)) {
 			float h = 0.1;
 			bool newState = (vBatt < targetVoltage - h) || (currentPlainOnOffState && vBatt < targetVoltage);
 			enginePins.alternatorPin.setValue(newState);
 			currentPlainOnOffState = newState;
 			if (engineConfiguration->debugMode == DBG_ALTERNATOR_PID) {
+#if EFI_TUNER_STUDIO || defined(__DOXYGEN__)
 				tsOutputChannels.debugIntField1 = newState;
-
+#endif /* EFI_TUNER_STUDIO */
 			}
 
 			continue;
@@ -95,7 +93,7 @@ static msg_t AltCtrlThread(int param) {
 
 
 		currentAltDuty = altPid.getValue(targetVoltage, vBatt);
-		if (boardConfiguration->isVerboseAlternator) {
+		if (CONFIGB(isVerboseAlternator)) {
 			scheduleMsg(logger, "alt duty: %.2f/vbatt=%.2f/p=%.2f/i=%.2f/d=%.2f int=%.2f", currentAltDuty, vBatt,
 					altPid.getP(), altPid.getI(), altPid.getD(), altPid.getIntegration());
 		}
@@ -111,7 +109,7 @@ static msg_t AltCtrlThread(int param) {
 
 void showAltInfo(void) {
 	scheduleMsg(logger, "alt=%s @%s t=%dms", boolToString(engineConfiguration->isAlternatorControlEnabled),
-			hwPortname(boardConfiguration->alternatorControlPin),
+			hwPortname(CONFIGB(alternatorControlPin)),
 			engineConfiguration->alternatorControl.period);
 	scheduleMsg(logger, "p=%.2f/i=%.2f/d=%.2f offset=%.2f", engineConfiguration->alternatorControl.pFactor,
 			0, 0, engineConfiguration->alternatorControl.offset); // todo: i & d
@@ -128,9 +126,9 @@ void setAltPFactor(float p) {
 
 static void applyAlternatorPinState(PwmConfig *state, int stateIndex) {
 	efiAssertVoid(CUSTOM_ERR_6643, stateIndex < PWM_PHASE_MAX_COUNT, "invalid stateIndex");
-	efiAssertVoid(CUSTOM_ERR_6644, state->multiWave.waveCount == 1, "invalid idle waveCount");
+	efiAssertVoid(CUSTOM_IDLE_WAVE_CNT, state->multiWave.waveCount == 1, "invalid idle waveCount");
 	OutputPin *output = state->outputPins[0];
-	int value = state->multiWave.waves[0].pinStates[stateIndex];
+	int value = state->multiWave.getChannelState(/*channelIndex*/0, stateIndex);
 	/**
 	 * 'engine->isAlternatorControlEnabled' would be false is RPM is too low
 	 */
@@ -141,8 +139,8 @@ static void applyAlternatorPinState(PwmConfig *state, int stateIndex) {
 void setDefaultAlternatorParameters(void) {
 	engineConfiguration->alternatorOffAboveTps = 120;
 
-	boardConfiguration->alternatorControlPin = GPIO_UNASSIGNED;
-	boardConfiguration->alternatorControlPinMode = OM_DEFAULT;
+	CONFIGB(alternatorControlPin) = GPIO_UNASSIGNED;
+	CONFIGB(alternatorControlPinMode) = OM_DEFAULT;
 	engineConfiguration->targetVBatt = 14;
 
 	engineConfiguration->alternatorControl.offset = 0;
@@ -157,19 +155,22 @@ void onConfigurationChangeAlternatorCallback(engine_configuration_s *previousCon
 void initAlternatorCtrl(Logging *sharedLogger) {
 	logger = sharedLogger;
 	addConsoleAction("altinfo", showAltInfo);
-	if (boardConfiguration->alternatorControlPin == GPIO_UNASSIGNED)
+	if (CONFIGB(alternatorControlPin) == GPIO_UNASSIGNED)
 		return;
 
-	if (boardConfiguration->onOffAlternatorLogic) {
-		enginePins.alternatorPin.initPin("on/off alternator", boardConfiguration->alternatorControlPin);
+	if (CONFIGB(onOffAlternatorLogic)) {
+		enginePins.alternatorPin.initPin("on/off alternator", CONFIGB(alternatorControlPin));
 
 	} else {
-		startSimplePwmExt(&alternatorControl, "Alternator control", boardConfiguration->alternatorControlPin,
+		startSimplePwmExt(&alternatorControl,
+				"Alternator control",
+				&engine->executor,
+				CONFIGB(alternatorControlPin),
 				&enginePins.alternatorPin,
 				engineConfiguration->alternatorPwmFrequency, 0.1, applyAlternatorPinState);
 	}
 	chThdCreateStatic(alternatorControlThreadStack, sizeof(alternatorControlThreadStack), LOWPRIO,
-			(tfunc_t) AltCtrlThread, NULL);
+			(tfunc_t)(void*) AltCtrlThread, NULL);
 }
 
 #endif /* EFI_ALTERNATOR_CONTROL */

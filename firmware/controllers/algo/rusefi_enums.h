@@ -11,8 +11,11 @@
 #ifndef RUSEFI_ENUMS_H_
 #define RUSEFI_ENUMS_H_
 
-#include "firing_order.h"
 #include "efifeatures.h"
+
+// for now I want most enums to be 32 bit integers. At some point maybe we will make the one-byte
+// this is about offsets and sizes in TunerStudio
+#define ENUM_32_BITS 2000000000
 
 #define HIP_NAME "HIP"
 #define TACH_NAME "tach"
@@ -174,7 +177,7 @@ typedef enum {
 
 	PROMETHEUS_DEFAULTS = 100,
 
-	Force_4b_engine_type = ENUM_32_BITS,
+	Force_4_bytes_size_engine_type = ENUM_32_BITS,
 } engine_type_e;
 
 
@@ -268,6 +271,7 @@ typedef enum {
 
 	TT_SUBARU_7_6 = 36,
 
+	// this one is 6 cylinder, see TT_JEEP_4_cyl for 4 cylinders
 	TT_JEEP_18_2_2_2 = 37,
 
 	/*
@@ -277,9 +281,24 @@ typedef enum {
 
 	TT_DODGE_NEON_1995_ONLY_CRANK = 39,
 
-	TT_UNUSED = 40, // this is used if we want to iterate over all trigger types
+	// Jeep XJ 2500cc 4 cylinder. See also TT_JEEP_18_2_2_2 for 6 cylinders
+	TT_JEEP_4_CYL = 40,
 
-	Force_4b_trigger_type = ENUM_32_BITS,
+	// magneti marelli Fiat/Lancia IAW P8 from the 90', 2.0 16 v turbo engine - Lancia Coupe
+	// https://rusefi.com/forum/viewtopic.php?f=5&t=1440
+	TT_FIAT_IAW_P8 = 41,
+
+	TT_MAZDA_Z5 = 42,
+
+	// do not forget to edit "#define trigger_type_e_enum" line in integration/rusefi_config.txt file to propogate new value to rusefi.ini TS project
+	// do not forget to invoke "gen_config.bat" once you make changes to integration/rusefi_config.txt
+	// todo: one day a hero would integrate some of these things into Makefile in order to reduce manual magic
+	//
+	// Another point: once you add a new trigger, run get_trigger_images.bat which would run rusefi_test.exe from unit_tests
+	//
+	TT_UNUSED = 43, // this is used if we want to iterate over all trigger types
+
+	Force_4_bytes_size_trigger_type = ENUM_32_BITS,
 } trigger_type_e;
 
 typedef enum {
@@ -287,7 +306,7 @@ typedef enum {
 	ADC_SLOW = 1,
 	ADC_FAST = 2,
 
-	Force_4b_adc_channel_mode = ENUM_32_BITS,
+	Force_4_bytes_size_adc_channel_mode = ENUM_32_BITS,
 } adc_channel_mode_e;
 
 typedef enum {
@@ -318,7 +337,7 @@ typedef enum {
 	VVT_SECOND_HALF = 1,
 	VVT_2GZ = 2,
 	MIATA_NB2 = 3,
-	Force_4b_vvt_mode = ENUM_32_BITS,
+	Force_4_bytes_size_vvt_mode = ENUM_32_BITS,
 } vvt_mode_e;
 
 /**
@@ -348,7 +367,7 @@ typedef enum {
 	 */
 	LM_REAL_MAF = 4,
 
-	Force_4b_engine_load_mode = ENUM_32_BITS,
+	Force_4_bytes_size_engine_load_mode = ENUM_32_BITS,
 } engine_load_mode_e;
 
 typedef enum {
@@ -356,7 +375,7 @@ typedef enum {
 	DM_HD44780 = 1,
 	DM_HD44780_OVER_PCF8574 = 2,
 
-	Force_4b_display_mode = ENUM_32_BITS,
+	Force_4_bytes_size_display_mode = ENUM_32_BITS,
 
 } display_mode_e;
 
@@ -368,7 +387,7 @@ typedef enum {
 	 */
 	LM_MLV = 1,
 
-	Force_4b_log_format = ENUM_32_BITS,
+	Force_4_bytes_size_log_format = ENUM_32_BITS,
 } log_format_e;
 
 typedef enum {
@@ -383,7 +402,7 @@ typedef enum {
 	 * which could be adjusted according to current CLT
 	 */
 	IM_MANUAL = 1,
-	Force_4b_idle_mode = ENUM_32_BITS,
+	Force_4_bytes_size_idle_mode = ENUM_32_BITS,
 } idle_mode_e;
 
 typedef enum {
@@ -401,12 +420,12 @@ typedef enum {
 	OM_OPENDRAIN = 2,
 	OM_OPENDRAIN_INVERTED = 3,
 
-	Force_4b_pin_output_mode = ENUM_32_BITS,
+	Force_4_bytes_size_pin_output_mode = ENUM_32_BITS,
 } pin_output_mode_e;
 
 typedef enum {
 	// todo: drop this unused enum?
-	Force_4b_gpio_mode = ENUM_32_BITS,
+	Force_4_bytes_size_gpio_mode = ENUM_32_BITS,
 } gpio_mode_e;
 
 typedef enum {
@@ -414,7 +433,7 @@ typedef enum {
 	PI_PULLUP = 1,
 	PI_PULLDOWN = 2,
 
-	Force_4b_pin_input_mode = ENUM_32_BITS,
+	Force_4_bytes_size_pin_input_mode = ENUM_32_BITS,
 } pin_input_mode_e;
 
 #define CRANK_MODE_MULTIPLIER 2.0f
@@ -442,7 +461,7 @@ typedef enum {
 	 */
 	FOUR_STROKE_SYMMETRICAL_CRANK_SENSOR = 4,
 
-	Force_4b_operation_mode_e = ENUM_32_BITS,
+	Force_4_bytes_size_operation_mode_e = ENUM_32_BITS,
 } operation_mode_e;
 
 /**
@@ -459,7 +478,7 @@ typedef enum {
 	IM_INDIVIDUAL_COILS = 1,
 	IM_WASTED_SPARK = 2,
 
-	Force_4b_ignition_mode = ENUM_32_BITS,
+	Force_4_bytes_size_ignition_mode = ENUM_32_BITS,
 } ignition_mode_e;
 
 /**
@@ -484,7 +503,7 @@ typedef enum {
 	IM_SINGLE_POINT = 3,
 
 
-	Force_4b_injection_mode = ENUM_32_BITS,
+	Force_4_bytes_size_injection_mode = ENUM_32_BITS,
 } injection_mode_e;
 
 /**
@@ -494,7 +513,7 @@ typedef enum {
 	CIM_DEFAULT = 0,
 	CIM_FIXED_ANGLE = 1,
 
-	Force_4b_cranking_ignition_mode = ENUM_32_BITS,
+	Force_4_bytes_size_cranking_ignition_mode = ENUM_32_BITS,
 } cranking_ignition_mode_e;
 
 typedef enum {
@@ -504,7 +523,7 @@ typedef enum {
 	UART_DEVICE_3 = 3,
 	UART_DEVICE_4 = 4,
 
-	Force_4b_uart_device = ENUM_32_BITS,
+	Force_4_bytes_size_uart_device = ENUM_32_BITS,
 } uart_device_e;
 
 
@@ -515,7 +534,7 @@ typedef enum {
 	SPI_DEVICE_3 = 3,
 	SPI_DEVICE_4 = 4,
 
-	Force_4b_spi_device = ENUM_32_BITS,
+	Force_4_bytes_size_spi_device = ENUM_32_BITS,
 } spi_device_e;
 
 /**
@@ -555,14 +574,14 @@ typedef enum {
 	EFI_ADC_NONE = 16,
 	EFI_ADC_ERROR = 999,
 
-	Force_4b_cranking_adc_channel = ENUM_32_BITS,
+	Force_4_bytes_size_cranking_adc_channel = ENUM_32_BITS,
 } adc_channel_e;
 
 typedef enum {
 	MS_AUTO = 0,
 	MS_ALWAYS = 1,
 	MS_NEVER = 2,
-	Force_4b_mass_storage = ENUM_32_BITS,
+	Force_4_bytes_size_mass_storage = ENUM_32_BITS,
 } mass_storage_e;
 
 typedef enum {
@@ -585,7 +604,7 @@ typedef enum {
 
 	ES_Custom = 5,
 
-	Force_4b_ego_sensor = ENUM_32_BITS,
+	Force_4_bytes_size_ego_sensor = ENUM_32_BITS,
 } ego_sensor_e;
 
 /**
@@ -731,7 +750,7 @@ typedef enum {
 	GPIO_UNASSIGNED = 80,
 	GPIO_INVALID = 81,
 
-	Force_4b_brain_pin_e = ENUM_32_BITS,
+	Force_4_bytes_size_brain_pin_e = ENUM_32_BITS,
 } brain_pin_e;
 
 /**
@@ -745,9 +764,12 @@ typedef enum {
 	DBG_EL_ACCEL = 4,
 	DBG_TRIGGER_INPUT = 5,
 	DBG_FSIO_ADC = 6,
+	/**
+	 * VVT valve control often uses AUX pid #1
+	 */
 	DBG_AUX_PID_1 = 7,
 	/**
-	 * VVT position debugging - not VVT valve control
+	 * VVT position debugging - not VVT valve control. See AUX pid #1 debug for valve position.
 	 */
 	DBG_VVT = 8,
 	DBG_CRANKING_DETAILS = 9,
@@ -758,7 +780,10 @@ typedef enum {
 	DBG_SR5_PROTOCOL = 14,
 	DBG_KNOCK = 15,
 	DBG_TRIGGER_SYNC = 16,
-	DBG_ELECTRONIC_THROTTLE = 17,
+	/**
+	 * See also DBG_ELECTRONIC_THROTTLE_EXTRA
+	 */
+	DBG_ELECTRONIC_THROTTLE_PID = 17,
 	DBG_EXECUTOR = 18,
 	DBG_BENCH_TEST = 19,
 	DBG_AUX_VALVES = 20,
@@ -770,10 +795,15 @@ typedef enum {
 	DBG_CJ125 = 25,
 	DBG_CAN = 26,
 	DBG_MAP = 27,
-	DBG_28 = 28,
-	DBG_29 = 29,
+	DBG_METRICS = 28,
+	DBG_ELECTRONIC_THROTTLE_EXTRA = 29,
+	DBG_ION = 30,
+	DBG_31 = 31,
+	DBG_32 = 32,
+	DBG_33 = 33,
+	DBG_34 = 34,
 
-	Force_4b_debug_mode_e = ENUM_32_BITS,
+	Force_4_bytes_size_debug_mode_e = ENUM_32_BITS,
 } debug_mode_e;
 
 typedef enum {
@@ -813,7 +843,7 @@ typedef enum {
 	 */
 	MT_MPX4250A = 9, 
 	
-	Force_4b_cranking_map_type = ENUM_32_BITS,
+	Force_4_bytes_size_cranking_map_type = ENUM_32_BITS,
 } air_pressure_sensor_type_e;
 
 typedef enum {
@@ -913,5 +943,30 @@ typedef enum {
 	 */
 	IS_SENDING_SPI_COMMAND,
 } hip_state_e;
+
+typedef enum {
+	TCHARGE_MODE_RPM_TPS = 0,
+	TCHARGE_MODE_AIR_INTERP = 1,
+	Force_4bytes_size_tChargeMode_e = ENUM_32_BITS,
+} tChargeMode_e;
+
+// peak type
+typedef enum {
+  MINIMUM = -1,
+  NOT_A_PEAK = 0,
+  MAXIMUM = 1
+} PidAutoTune_Peak;
+
+// auto tuner state
+typedef enum {
+  AUTOTUNER_OFF = 0,
+  STEADY_STATE_AT_BASELINE = 1,
+  STEADY_STATE_AFTER_STEP_UP = 2,
+  RELAY_STEP_UP = 4,
+  RELAY_STEP_DOWN = 8,
+  CONVERGED = 16,
+  FAILED = 128
+} PidAutoTune_AutoTunerState;
+
 
 #endif /* RUSEFI_ENUMS_H_ */

@@ -1,7 +1,7 @@
 /*
  * @file chevrolet_camaro_4.cpp
  *
- *
+ * CAMARO_4
  * set engine_type 35
  *
  * @date Oct 16, 2015
@@ -20,7 +20,7 @@ void setCamaro4(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	setCustomEngineConfiguration(PASS_ENGINE_PARAMETER_SIGNATURE);
 
 
-	setAlgorithm(LM_SPEED_DENSITY PASS_ENGINE_PARAMETER_SUFFIX);
+	setAlgorithm(LM_SPEED_DENSITY PASS_CONFIG_PARAMETER_SUFFIX);
 
 	engineConfiguration->specs.displacement = 5.7;
 	engineConfiguration->specs.cylindersCount = 8;

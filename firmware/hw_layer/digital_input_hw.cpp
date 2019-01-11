@@ -2,16 +2,34 @@
  * @file	digital_input_hw.cpp
  * @brief	Helper methods related to Input Capture Unit (ICU)
  *
+ * There are some ChibiOS limitation or STM32 limitations or limitations of my brain
+ *
+ * See http://www.chibios.com/forum/viewtopic.php?t=1461
+ *    "PWM input requires a whole timer on the STM32.
+ *    You could use channel 1 and channel 2 of the same timer but not simultaneously.
+ *    Giovanni"
+ *
+ * See http://www.chibios.com/forum/viewtopic.php?f=2&t=247&hilit=icu+channel&start=50
+ *    "It is not possible, the TIM timers support one ICU channel at time.
+ *    Giovanni"
+ *
+ * See https://stackoverflow.com/questions/43440599/stm32-multi-channel-input-capture-overcapturing-on-all-channels-interrupts-not
+ *    where they seem to be capturing something on multiple channels maybe not PWM mode of ICU is the key difference?
+ *
+ * rus084 is reminding that EXTI could be enough for our needs
+ * See joystick.cpp
+ * See trigger_input.cpp
+ *
  * @date Jun 23, 2013
  * @author Andrey Belomutskiy, (c) 2012-2018
  */
 
 #include "digital_input_hw.h"
-#include "mpu_util.h"
 #include "fl_stack.h"
 
-#if EFI_WAVE_ANALYZER || defined(__DOXYGEN__)
+#if EFI_ICU_INPUTS || defined(__DOXYGEN__)
 
+#include "mpu_util.h"
 #include "eficonsole.h"
 #include "pin_repository.h"
 
@@ -126,6 +144,8 @@ icuchannel_t getInputCaptureChannel(brain_pin_e hwPin) {
  * ChibiOS limitation is that only channels #1 and #2 could be used for input capture
  *
  * TODO: migrate slow ADC to software timer so that TIM8 is also available for input capture
+ * todo: https://github.com/rusefi/rusefi/issues/630 ?
+ *
  */
 ICUDriver * getInputCaptureDriver(const char *msg, brain_pin_e hwPin) {
 	if (hwPin == GPIO_UNASSIGNED || hwPin == GPIO_INVALID) {
@@ -252,4 +272,4 @@ void startInputDriver(digital_input_s *hw, bool isActiveHigh) {
 	hw->started = true;
 }
 
-#endif
+#endif /* EFI_ICU_INPUTS */

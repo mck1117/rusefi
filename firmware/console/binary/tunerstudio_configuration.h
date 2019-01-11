@@ -106,7 +106,7 @@ typedef struct {
 	float engineLoadAccelExtra; // offset 124
 	float tpsAccelFuel; // offset 128
 	float baroCorrection; // 132
-	float pedalPosition; // 138
+	float pedalPosition; // 136
 	/**
 	 * @see coilDutyCycle
 	 */
@@ -167,7 +167,9 @@ typedef struct {
 	float oilPressure;	// 280
 	float fuelConsumptionPerHour; // 284
 	float injectionOffset; // 288
-	int unused3[16];
+	int16_t debugIntField4; // 292
+	int16_t debugIntField5; // 294
+	int unused3[15];
 	/* see also [OutputChannels] in rusefi.input */
 } TunerStudioOutputChannels;
 

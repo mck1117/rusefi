@@ -32,18 +32,22 @@
  * @Spilly
  */
 
-#include "main.h"
+#include "global.h"
 #include "engine.h"
 #include "settings.h"
-#include "pin_repository.h"
 #include "hardware.h"
 #include "rpm_calculator.h"
 #include "trigger_central.h"
+#include "HIP9011_logic.h"
 #include "hip9011_lookup.h"
 #include "HIP9011.h"
 #include "adc_inputs.h"
 #include "efilib2.h"
 #include "engine_controller.h"
+
+#if EFI_PROD_CODE
+#include "pin_repository.h"
+#endif
 
 #if EFI_HIP_9011 || defined(__DOXYGEN__)
 
@@ -54,35 +58,21 @@ extern EnginePins enginePins;
 
 uint32_t hipLastExecutionCount;
 
-/**
- * band index is only send to HIP chip on startup
- */
-static int currentBandIndex;
-static int currentGainIndex = -1;
-static int currentIntergratorIndex = -1;
-static int settingUpdateCount = 0;
-static int totalKnockEventsCount = 0;
-static int currentPrescaler;
+
+class Hip9011Hardware: public Hip9011HardwareInterface {
+	void sendSyncCommand(unsigned char command);
+	void sendCommand(unsigned char command);
+};
+
+static Hip9011Hardware hardware;
+
 static float hipValueMax = 0;
+
+HIP9011 instance(&hardware);
 
 static unsigned char tx_buff[1];
 static unsigned char rx_buff[1];
-int correctResponsesCount = 0;
-int invalidHip9011ResponsesCount = 0;
 static char pinNameBuffer[16];
-static float currentAngleWindowWidth;
-
-/**
- * Int/Hold pin is controlled from scheduler call-backs which are set according to current RPM
- *
- * The following state makes sure that we only have SPI communication while not integrating and that we take
- * a good ADC reading after integrating.
- *
- * Once integration window is over, we wait for the 2nd ADC callback and then initiate SPI communication if needed
- *
- * hipOutput should be set to used FAST adc device
- */
-static hip_state_e state = NOT_READY;
 
 static scheduling_s startTimer[2];
 static scheduling_s endTimer[2];
@@ -93,18 +83,20 @@ static Logging *logger;
 // SPI_CR1_CPHA Clock Phase
 // todo: nicer method which would mention SPI speed explicitly?
 
+#if EFI_PROD_CODE
 static SPIConfig hipSpiCfg = { NULL,
 /* HW dependent part.*/
 NULL, 0,
 SPI_CR1_MSTR |
 //SPI_CR1_BR_1 // 5MHz
 		SPI_CR1_CPHA | SPI_CR1_BR_0 | SPI_CR1_BR_1 | SPI_CR1_BR_2 };
+#endif /* EFI_PROD_CODE */
 
 static void checkResponse(void) {
 	if (tx_buff[0] == rx_buff[0]) {
-		correctResponsesCount++;
+		instance.correctResponsesCount++;
 	} else {
-		invalidHip9011ResponsesCount++;
+		instance.invalidHip9011ResponsesCount++;
 	}
 }
 
@@ -116,57 +108,68 @@ static void checkResponse(void) {
 	spiUnselect(driver); \
 	checkResponse();
 
+
 static SPIDriver *driver;
+
+void Hip9011Hardware::sendSyncCommand(unsigned char command) {
+	SPI_SYNCHRONOUS(command);
+	chThdSleepMilliseconds(10);
+}
+
+void Hip9011Hardware::sendCommand(unsigned char command) {
+	tx_buff[0] = command;
+
+	spiSelectI(driver);
+	spiStartExchangeI(driver, 1, tx_buff, rx_buff);
+}
 
 EXTERN_ENGINE
 ;
 
-static float getBand(void) {
-	return engineConfiguration->knockBandCustom == 0 ?
-			BAND(engineConfiguration->cylinderBore) : engineConfiguration->knockBandCustom;
-}
 
 static char hipPinNameBuffer[16];
 
 static void showHipInfo(void) {
-	if (!boardConfiguration->isHip9011Enabled) {
+	if (!CONFIGB(isHip9011Enabled)) {
 		scheduleMsg(logger, "hip9011 driver not active");
 		return;
 	}
 
 	printSpiState(logger, boardConfiguration);
 	scheduleMsg(logger, "enabled=%s state=%s bore=%.2fmm freq=%.2fkHz PaSDO=%d",
-			boolToString(boardConfiguration->isHip9011Enabled),
-			getHip_state_e(state),
-			engineConfiguration->cylinderBore, getBand(),
+			boolToString(CONFIGB(isHip9011Enabled)),
+			getHip_state_e(instance.state),
+			engineConfiguration->cylinderBore, getHIP9011Band(PASS_HIP_PARAMS),
 			engineConfiguration->hip9011PrescalerAndSDO);
 
 	char *outputName = getPinNameByAdcChannel("hip", engineConfiguration->hipOutputChannel, hipPinNameBuffer);
 
-	scheduleMsg(logger, "band_index=%d gain %.2f/index=%d output=%s", currentBandIndex, boardConfiguration->hip9011Gain, currentGainIndex,
+	scheduleMsg(logger, "band_index=%d gain %.2f/index=%d output=%s", instance.currentBandIndex, engineConfiguration->hip9011Gain, instance.currentGainIndex,
 			outputName);
 	scheduleMsg(logger, "integrator index=%d knockVThreshold=%.2f knockCount=%d maxKnockSubDeg=%.2f",
-	            currentIntergratorIndex, engineConfiguration->knockVThreshold,
+	            instance.currentIntergratorIndex, engineConfiguration->knockVThreshold,
 	            engine->knockCount, engineConfiguration->maxKnockSubDeg);
 
-	const char * msg = invalidHip9011ResponsesCount > 0 ? "NOT GOOD" : "ok";
+	const char * msg = instance.invalidHip9011ResponsesCount > 0 ? "NOT GOOD" : "ok";
 	scheduleMsg(logger, "spi=%s IntHold@%s/%d response count=%d incorrect response=%d %s",
 			getSpi_device_e(engineConfiguration->hip9011SpiDevice),
-			hwPortname(boardConfiguration->hip9011IntHoldPin),
-			boardConfiguration->hip9011IntHoldPinMode,
-			correctResponsesCount, invalidHip9011ResponsesCount,
+			hwPortname(CONFIGB(hip9011IntHoldPin)),
+			CONFIGB(hip9011IntHoldPinMode),
+			instance.correctResponsesCount, instance.invalidHip9011ResponsesCount,
 			msg);
-	scheduleMsg(logger, "CS@%s updateCount=%d", hwPortname(boardConfiguration->hip9011CsPin), settingUpdateCount);
+	scheduleMsg(logger, "CS@%s updateCount=%d", hwPortname(CONFIGB(hip9011CsPin)), instance.settingUpdateCount);
 
+#if EFI_PROD_CODE
 	scheduleMsg(logger, "hip %.2fv/last=%.2f@%s/max=%.2f adv=%d",
 			engine->knockVolts,
 			getVoltage("hipinfo", engineConfiguration->hipOutputChannel),
 			getPinNameByAdcChannel("hip", engineConfiguration->hipOutputChannel, pinNameBuffer),
 			hipValueMax,
-			boardConfiguration->useTpicAdvancedMode);
+			CONFIGB(useTpicAdvancedMode));
 	scheduleMsg(logger, "mosi=%s", hwPortname(getMosiPin(engineConfiguration->hip9011SpiDevice)));
 	scheduleMsg(logger, "miso=%s", hwPortname(getMisoPin(engineConfiguration->hip9011SpiDevice)));
 	scheduleMsg(logger, "sck=%s", hwPortname(getSckPin(engineConfiguration->hip9011SpiDevice)));
+#endif /* EFI_PROD_CODE */
 
 	scheduleMsg(logger, "start %.2f end %.2f", engineConfiguration->knockDetectionWindowStart,
 			engineConfiguration->knockDetectionWindowEnd);
@@ -179,37 +182,41 @@ void setHip9011FrankensoPinout(void) {
 	/**
 	 * SPI on PB13/14/15
 	 */
-	//	boardConfiguration->hip9011CsPin = GPIOD_0; // rev 0.1
+	//	CONFIGB(hip9011CsPin) = GPIOD_0; // rev 0.1
 
-	boardConfiguration->isHip9011Enabled = true;
-	boardConfiguration->hip9011CsPin = GPIOB_0; // rev 0.4
-	boardConfiguration->hip9011CsPinMode = OM_OPENDRAIN;
-	engineConfiguration->hip9011PrescalerAndSDO = 6; // 8MHz chip
-	boardConfiguration->hip9011IntHoldPin = GPIOB_11;
-	boardConfiguration->hip9011IntHoldPinMode = OM_OPENDRAIN;
-	boardConfiguration->is_enabled_spi_2 = true;
+	CONFIGB(isHip9011Enabled) = true;
+	engineConfiguration->hip9011PrescalerAndSDO = _8MHZ_PRESCALER; // 8MHz chip
+	CONFIGB(is_enabled_spi_2) = true;
 	// todo: convert this to rusEfi, hardware-independent enum
+#if EFI_PROD_CODE
+	CONFIGB(hip9011CsPin) = GPIOB_0; // rev 0.4
+	CONFIGB(hip9011CsPinMode) = OM_OPENDRAIN;
+
+	CONFIGB(hip9011IntHoldPin) = GPIOB_11;
+	CONFIGB(hip9011IntHoldPinMode) = OM_OPENDRAIN;
+
 	engineConfiguration->spi2SckMode = PAL_STM32_OTYPE_OPENDRAIN; // 4
 	engineConfiguration->spi2MosiMode = PAL_STM32_OTYPE_OPENDRAIN; // 4
 	engineConfiguration->spi2MisoMode = PAL_STM32_PUPDR_PULLUP; // 32
+#endif /* EFI_PROD_CODE */
 
-	boardConfiguration->hip9011Gain = 1;
+	engineConfiguration->hip9011Gain = 1;
 	engineConfiguration->knockVThreshold = 4;
 	engineConfiguration->maxKnockSubDeg = 20;
 
 
-	if (!boardConfiguration->useTpicAdvancedMode) {
+	if (!CONFIGB(useTpicAdvancedMode)) {
 	    engineConfiguration->hipOutputChannel = EFI_ADC_10; // PC0
 	}
 }
 
 static void startIntegration(void) {
-	if (state == READY_TO_INTEGRATE) {
+	if (instance.state == READY_TO_INTEGRATE) {
 		/**
 		 * SPI communication is only allowed while not integrating, so we postpone the exchange
 		 * until we are done integrating
 		 */
-		state = IS_INTEGRATING;
+		instance.state = IS_INTEGRATING;
 		intHold.setHigh();
 	}
 }
@@ -219,9 +226,9 @@ static void endIntegration(void) {
 	 * isIntegrating could be 'false' if an SPI command was pending thus we did not integrate during this
 	 * engine cycle
 	 */
-	if (state == IS_INTEGRATING) {
+	if (instance.state == IS_INTEGRATING) {
 		intHold.setLow();
-		state = WAITING_FOR_ADC_TO_SKIP;
+		instance.state = WAITING_FOR_ADC_TO_SKIP;
 	}
 }
 
@@ -242,7 +249,9 @@ static void intHoldCallback(trigger_event_e ckpEventType, uint32_t index DECLARE
 	// todo: schedule this based on closest trigger event, same as ignition works
 	scheduleByAngle(rpm, &startTimer[structIndex], engineConfiguration->knockDetectionWindowStart,
 			(schfunc_t) &startIntegration, NULL, &engine->rpmCalculator);
+#if EFI_PROD_CODE
 	hipLastExecutionCount = lastExecutionCount;
+#endif /* EFI_PROD_CODE */
 	scheduleByAngle(rpm, &endTimer[structIndex], engineConfiguration->knockDetectionWindowEnd,
 			(schfunc_t) &endIntegration,
 			NULL, &engine->rpmCalculator);
@@ -269,7 +278,7 @@ void setHipBand(float value) {
 }
 
 void setHipGain(float value) {
-	boardConfiguration->hip9011Gain = value;
+	engineConfiguration->hip9011Gain = value;
 	showHipInfo();
 }
 
@@ -278,71 +287,29 @@ void setHipGain(float value) {
  */
 static void endOfSpiExchange(SPIDriver *spip) {
 	spiUnselectI(driver);
-	state = READY_TO_INTEGRATE;
+	instance.state = READY_TO_INTEGRATE;
 	checkResponse();
 }
 
-static int getBandIndex(void) {
-	float freq = getBand();
-	return getHip9011BandIndex(freq);
-}
-
-void hipAdcCallback(adcsample_t value) {
-	if (state == WAITING_FOR_ADC_TO_SKIP) {
-		state = WAITING_FOR_RESULT_ADC;
-	} else if (state == WAITING_FOR_RESULT_ADC) {
-		engine->knockVolts = adcToVoltsDivided(value);
+void hipAdcCallback(adcsample_t adcValue) {
+	if (instance.state == WAITING_FOR_ADC_TO_SKIP) {
+		instance.state = WAITING_FOR_RESULT_ADC;
+	} else if (instance.state == WAITING_FOR_RESULT_ADC) {
+		engine->knockVolts = adcValue * engine->adcToVoltageInputDividerCoefficient;
 		hipValueMax = maxF(engine->knockVolts, hipValueMax);
 		engine->knockLogic(engine->knockVolts);
 
 		float angleWindowWidth =
 		engineConfiguration->knockDetectionWindowEnd - engineConfiguration->knockDetectionWindowStart;
 
-		if (angleWindowWidth != currentAngleWindowWidth) {
-			currentAngleWindowWidth = angleWindowWidth;
-		prepareHip9011RpmLookup(currentAngleWindowWidth);
-		}
+		instance.setAngleWindowWidth(angleWindowWidth);
 
-		int integratorIndex = getIntegrationIndexByRpm(GET_RPM());
-		int gainIndex = getHip9011GainIndex(boardConfiguration->hip9011Gain);
-		int bandIndex = getBandIndex();
 		int prescalerIndex = engineConfiguration->hip9011PrescalerAndSDO;
 
+		instance.handleValue(GET_RPM(), prescalerIndex DEFINE_PARAM_SUFFIX(PASS_HIP_PARAMS));
 
-		if (currentGainIndex != gainIndex) {
-			currentGainIndex = gainIndex;
-			tx_buff[0] = SET_GAIN_CMD + gainIndex;
-
-			state = IS_SENDING_SPI_COMMAND;
-			spiSelectI(driver);
-			spiStartExchangeI(driver, 1, tx_buff, rx_buff);
-		} else if (currentIntergratorIndex != integratorIndex) {
-			currentIntergratorIndex = integratorIndex;
-			tx_buff[0] = SET_INTEGRATOR_CMD + integratorIndex;
-
-			state = IS_SENDING_SPI_COMMAND;
-			spiSelectI(driver);
-			spiStartExchangeI(driver, 1, tx_buff, rx_buff);
-		} else if (currentBandIndex != bandIndex) {
-			currentBandIndex = bandIndex;
-			tx_buff[0] = SET_BAND_PASS_CMD + bandIndex;
-
-			state = IS_SENDING_SPI_COMMAND;
-			spiSelectI(driver);
-			spiStartExchangeI(driver, 1, tx_buff, rx_buff);
-		} else if (currentPrescaler != prescalerIndex) {
-			currentPrescaler = prescalerIndex;
-			tx_buff[0] = SET_PRESCALER_CMD + prescalerIndex;
-
-			state = IS_SENDING_SPI_COMMAND;
-			spiSelectI(driver);
-			spiStartExchangeI(driver, 1, tx_buff, rx_buff);
-		} else {
-			state = READY_TO_INTEGRATE;
-		}
 	}
 }
-static bool needToInit = true;
 
 static void hipStartupCode(void) {
 //	D[4:1] = 0000 : 4 MHz
@@ -358,30 +325,24 @@ static void hipStartupCode(void) {
 
 // 0 for 4MHz
 // 6 for 8 MHz
-	currentPrescaler = engineConfiguration->hip9011PrescalerAndSDO;
-	SPI_SYNCHRONOUS(SET_PRESCALER_CMD + currentPrescaler);
+	instance.currentPrescaler = engineConfiguration->hip9011PrescalerAndSDO;
+	instance.hardware->sendSyncCommand(SET_PRESCALER_CMD + instance.currentPrescaler);
 
-	chThdSleepMilliseconds(10);
 
 	// '0' for channel #1
-	SPI_SYNCHRONOUS(SET_CHANNEL_CMD + 0);
-
-	chThdSleepMilliseconds(10);
+	instance.hardware->sendSyncCommand(SET_CHANNEL_CMD + 0);
 
 	// band index depends on cylinder bore
-	SPI_SYNCHRONOUS(SET_BAND_PASS_CMD + currentBandIndex);
+	instance.hardware->sendSyncCommand(SET_BAND_PASS_CMD + instance.currentBandIndex);
 
-	chThdSleepMilliseconds(10);
 
-	if (correctResponsesCount == 0) {
+	if (instance.correctResponsesCount == 0) {
 		warning(CUSTOM_OBD_KNOCK_PROCESSOR, "TPIC/HIP does not respond");
 	}
 
-	if (boardConfiguration->useTpicAdvancedMode) {
+	if (CONFIGB(useTpicAdvancedMode)) {
 		// enable advanced mode for digital integrator output
-		SPI_SYNCHRONOUS(SET_ADVANCED_MODE);
-
-    	chThdSleepMilliseconds(10);
+		instance.hardware->sendSyncCommand(SET_ADVANCED_MODE);
 	}
 
 	/**
@@ -389,9 +350,11 @@ static void hipStartupCode(void) {
 	 * asynchronous mode
 	 */
 	spiStop(driver);
+#if EFI_PROD_CODE
 	hipSpiCfg.end_cb = endOfSpiExchange;
+#endif
 	spiStart(driver, &hipSpiCfg);
-	state = READY_TO_INTEGRATE;
+	instance.state = READY_TO_INTEGRATE;
 }
 
 static THD_WORKING_AREA(hipTreadStack, UTILITY_THREAD_STACK_SIZE);
@@ -409,9 +372,9 @@ static msg_t hipThread(void *arg) {
 	while (true) {
 		chThdSleepMilliseconds(100);
 
-		if (needToInit) {
+		if (instance.needToInit) {
 			hipStartupCode();
-			needToInit = false;
+			instance.needToInit = false;
 		}
 	}
 	return -1;
@@ -420,29 +383,28 @@ static msg_t hipThread(void *arg) {
 void initHip9011(Logging *sharedLogger) {
 	logger = sharedLogger;
 	addConsoleAction("hipinfo", showHipInfo);
-	if (!boardConfiguration->isHip9011Enabled)
+	if (!CONFIGB(isHip9011Enabled))
 		return;
 
 
-	currentAngleWindowWidth =
-	engineConfiguration->knockDetectionWindowEnd - engineConfiguration->knockDetectionWindowStart;
+	instance.setAngleWindowWidth(engineConfiguration->knockDetectionWindowEnd - engineConfiguration->knockDetectionWindowStart);
 
-	prepareHip9011RpmLookup(currentAngleWindowWidth);
-
+#if EFI_PROD_CODE
 	driver = getSpiDevice(engineConfiguration->hip9011SpiDevice);
 
-	hipSpiCfg.ssport = getHwPort("hip", boardConfiguration->hip9011CsPin);
-	hipSpiCfg.sspad = getHwPin("hip", boardConfiguration->hip9011CsPin);
+	hipSpiCfg.ssport = getHwPort("hip", CONFIGB(hip9011CsPin));
+	hipSpiCfg.sspad = getHwPin("hip", CONFIGB(hip9011CsPin));
+#endif
 
-	intHold.initPin("hip int/hold", boardConfiguration->hip9011IntHoldPin,
-			&boardConfiguration->hip9011IntHoldPinMode);
-	enginePins.hipCs.initPin("hip CS", boardConfiguration->hip9011CsPin,
-			&boardConfiguration->hip9011CsPinMode);
+	intHold.initPin("hip int/hold", CONFIGB(hip9011IntHoldPin),
+			&CONFIGB(hip9011IntHoldPinMode));
+	enginePins.hipCs.initPin("hip CS", CONFIGB(hip9011CsPin),
+			&CONFIGB(hip9011CsPinMode));
 
 	scheduleMsg(logger, "Starting HIP9011/TPIC8101 driver");
 	spiStart(driver, &hipSpiCfg);
 
-	currentBandIndex = getBandIndex();
+	instance.currentBandIndex = getBandIndex();
 
 	/**
 	 * this engine cycle callback would be scheduling actual integration start and end callbacks
@@ -459,7 +421,7 @@ void initHip9011(Logging *sharedLogger) {
 	addConsoleActionI("set_hip_prescalerandsdo", setPrescalerAndSDO);
     addConsoleActionF("set_knock_threshold", setKnockThresh);
     addConsoleActionI("set_max_knock_sub_deg", setMaxKnockSubDeg);
-	chThdCreateStatic(hipTreadStack, sizeof(hipTreadStack), NORMALPRIO, (tfunc_t) hipThread, NULL);
+	chThdCreateStatic(hipTreadStack, sizeof(hipTreadStack), NORMALPRIO, (tfunc_t)(void*) hipThread, NULL);
 }
 
 #endif /* EFI_HIP_9011 */

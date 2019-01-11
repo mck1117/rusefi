@@ -21,14 +21,15 @@
  * If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "main.h"
+#include "global.h"
+
+#if EFI_PROD_CODE
+#include "engine.h"
 #include "board_test.h"
-#include "rusefi_enums.h"
 #include "pin_repository.h"
 #include "efiGpio.h"
 #include "adc_inputs.h"
 #include "AdcConfiguration.h"
-#include "engine.h"
 
 static volatile int stepCoutner = 0;
 static volatile brain_pin_e currentPin = GPIO_UNASSIGNED;
@@ -200,7 +201,7 @@ void initBoardTest(void) {
 	btInitOutputPins();
 	blinkAllOutputPins();
 
-	chThdCreateStatic(btThreadStack, sizeof(btThreadStack), NORMALPRIO, (tfunc_t) ivThread, NULL);
+	chThdCreateStatic(btThreadStack, sizeof(btThreadStack), NORMALPRIO, (tfunc_t)(void*) ivThread, NULL);
 	// this code is ugly as hell, I had no time to think. Todo: refactor
 
 #if HAL_USE_ADC || defined(__DOXYGEN__)
@@ -230,3 +231,4 @@ void initBoardTest(void) {
 		chThdSleepSeconds(1);
 	}
 }
+#endif  /* EFI_PROD_CODE */

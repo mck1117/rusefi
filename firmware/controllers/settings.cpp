@@ -6,7 +6,7 @@
  * @author Andrey Belomutskiy, (c) 2012-2018
  */
 
-#include "main.h"
+#include "global.h"
 #include "settings.h"
 #include "eficonsole.h"
 #include "engine_configuration.h"
@@ -630,7 +630,7 @@ static void setWholeFuelMapCmd(float value) {
 	if (engineConfiguration->fuelAlgorithm == LM_SPEED_DENSITY) {
 		scheduleMsg(&logger, "WARNING: setting fuel map in SD mode is pointless");
 	}
-	setWholeFuelMap(value PASS_ENGINE_PARAMETER_SUFFIX);
+	setWholeFuelMap(value PASS_CONFIG_PARAMETER_SUFFIX);
 }
 
 #if EFI_PROD_CODE
@@ -877,7 +877,9 @@ static void enableOrDisable(const char *param, bool isEnabled) {
 		boardConfiguration->enabledStep1Limiter = isEnabled;
 #if EFI_PROD_CODE || defined(__DOXYGEN__)
 	} else if (strEqualCaseInsensitive(param, "auto_idle")) {
+#if EFI_IDLE_CONTROL || defined(__DOXYGEN__)
 		setIdleMode(isEnabled ? IM_MANUAL : IM_AUTO);
+#endif /* EFI_IDLE_CONTROL */
 #endif /* EFI_PROD_CODE */
 	} else if (strEqualCaseInsensitive(param, "serial")) {
 		boardConfiguration->useSerialPort = isEnabled;
@@ -968,7 +970,11 @@ static void disableSpi(int index) {
 	setSpiMode(index, false);
 }
 
-void stopEngine(void) {
+/**
+ * See 'Engine::needToStopEngine' for code which actually stops engine
+ * weird: we stop pins from here? we probably should stop engine from the code which is actually stopping engine?
+ */
+void scheduleStopEngine(void) {
 	engine->stopEngineRequestTimeNt = getTimeNowNt();
 	// let's close injectors or else if these happen to be open right now
 	enginePins.stopPins();
@@ -999,12 +1005,12 @@ typedef struct {
 
 
 #if ! EFI_UNIT_TEST || defined(__DOXYGEN__)
-plain_get_short_s getS_plain[] = {
+const plain_get_short_s getS_plain[] = {
 		{"idle_pid_min", (uint16_t *)&engineConfiguration->idleRpmPid.minValue},
 		{"idle_pid_max", (uint16_t *)&engineConfiguration->idleRpmPid.maxValue},
 };
 
-plain_get_integer_s getI_plain[] = {
+const plain_get_integer_s getI_plain[] = {
 //		{"cranking_rpm", &engineConfiguration->cranking.rpm},
 //		{"cranking_injection_mode", setCrankingInjectionMode},
 //		{"injection_mode", setInjectionMode},
@@ -1041,7 +1047,7 @@ plain_get_integer_s getI_plain[] = {
 		//		{"", },
 };
 
-plain_get_float_s getF_plain[] = {
+const plain_get_float_s getF_plain[] = {
 		{"cranking_dwell", &engineConfiguration->ignitionDwellForCrankingMs},
 		{"idle_position", &boardConfiguration->manIdlePosition},
 		{"ignition_offset", &engineConfiguration->ignitionOffset},
@@ -1058,7 +1064,7 @@ plain_get_float_s getF_plain[] = {
 static void getValue(const char *paramStr) {
 #if ! EFI_UNIT_TEST || defined(__DOXYGEN__)
 	{
-		plain_get_integer_s *currentI = &getI_plain[0];
+		const plain_get_integer_s *currentI = &getI_plain[0];
 		while (currentI < getI_plain + sizeof(getI_plain)/sizeof(getI_plain[0])) {
 			if (strEqualCaseInsensitive(paramStr, currentI->token)) {
 				scheduleMsg(&logger, "%s value: %d", currentI->token, *currentI->value);
@@ -1068,7 +1074,7 @@ static void getValue(const char *paramStr) {
 		}
 	}
 
-	plain_get_float_s *currentF = &getF_plain[0];
+	const plain_get_float_s *currentF = &getF_plain[0];
 	while (currentF < getF_plain + sizeof(getF_plain)/sizeof(getF_plain[0])) {
 		if (strEqualCaseInsensitive(paramStr, currentF->token)) {
 			float value = *currentF->value;
@@ -1124,7 +1130,7 @@ typedef struct {
 	VoidFloat callback;
 } command_f_s;
 
-command_f_s commandsF[] = {{"mock_iat_voltage", setMockIatVoltage},
+const command_f_s commandsF[] = {{"mock_iat_voltage", setMockIatVoltage},
 		{"mock_pedal_position", setMockPedalPosition},
 		{"mock_maf_voltage", setMockMafVoltage},
 		{"mock_afr_voltage", setMockAfrVoltage},
@@ -1155,14 +1161,22 @@ command_f_s commandsF[] = {{"mock_iat_voltage", setMockIatVoltage},
 		{"engine_decel_multiplier", setDecelMult},
 		{"flat_injector_lag", setFlatInjectorLag},
 #if EFI_PROD_CODE || defined(__DOXYGEN__)
+#if EFI_VEHICLE_SPEED || defined(__DOXYGEN__)
 		{"mock_vehicle_speed", setMockVehicleSpeed},
+#endif /* EFI_VEHICLE_SPEED */
+#if EFI_IDLE_CONTROL || defined(__DOXYGEN__)
 		{"idle_offset", setIdleOffset},
 		{"idle_p", setIdlePFactor},
 		{"idle_i", setIdleIFactor},
 		{"idle_d", setIdleDFactor},
+#endif /* EFI_IDLE_CONTROL */
+#endif /* EFI_PROD_CODE */
+
+#if EFI_ELECTRONIC_THROTTLE_BODY
 		{"etb_p", setEtbPFactor},
 		{"etb_i", setEtbIFactor},
-#endif /* EFI_PROD_CODE */
+		{"etb_d", setEtbDFactor},
+#endif /* EFI_ELECTRONIC_THROTTLE_BODY */
 
 		//		{"", },
 //		{"", },
@@ -1180,7 +1194,7 @@ static void setTpsErrorDetectionTooHigh(int v) {
 	engineConfiguration->tpsErrorDetectionTooHigh = v;
 }
 
-command_i_s commandsI[] = {{"ignition_mode", setIgnitionMode},
+const command_i_s commandsI[] = {{"ignition_mode", setIgnitionMode},
 		{"call_from_pitstop", setCallFromPitStop},
 		{"cranking_rpm", setCrankingRpm},
 		{"cranking_injection_mode", setCrankingInjectionMode},
@@ -1207,11 +1221,20 @@ command_i_s commandsI[] = {{"ignition_mode", setIgnitionMode},
 		{"engine_load_accel_len", setEngineLoadAccelLen},
 #if EFI_PROD_CODE || defined(__DOXYGEN__)
 		{"bor", setBor},
+#if EFI_CAN_SUPPORT || defined(__DOXYGEN__)
 		{"can_mode", setCanType},
+#endif /* EFI_CAN_SUPPORT */
+#if EFI_IDLE_CONTROL || defined(__DOXYGEN__)
 		{"idle_position", setIdleValvePosition},
 		{"idle_rpm", setTargetIdleRpm},
 		{"idle_dt", setIdleDT},
+#endif /* EFI_IDLE_CONTROL */
 #endif /* EFI_PROD_CODE */
+
+#if EFI_ELECTRONIC_THROTTLE_BODY
+		{"etb_o", setEtbOffset},
+#endif /* EFI_ELECTRONIC_THROTTLE_BODY */
+
 		//		{"", },
 		//		{"", },
 		//		{"", },
@@ -1223,7 +1246,7 @@ static void setValue(const char *paramStr, const char *valueStr) {
 	float valueF = atoff(valueStr);
 	int valueI = atoi(valueStr);
 
-	command_f_s *currentF = &commandsF[0];
+	const command_f_s *currentF = &commandsF[0];
 	while (currentF < commandsF + sizeof(commandsF)/sizeof(commandsF[0])) {
 		if (strEqualCaseInsensitive(paramStr, currentF->token)) {
 			currentF->callback(valueF);
@@ -1232,7 +1255,7 @@ static void setValue(const char *paramStr, const char *valueStr) {
 		currentF++;
 	}
 
-	command_i_s *currentI = &commandsI[0];
+	const command_i_s *currentI = &commandsI[0];
 	while (currentI < commandsI + sizeof(commandsI)/sizeof(commandsI[0])) {
 		if (strEqualCaseInsensitive(paramStr, currentI->token)) {
 			currentI->callback(valueI);
@@ -1279,10 +1302,10 @@ static void setValue(const char *paramStr, const char *valueStr) {
 		engineConfiguration->step1timing = valueI;
 	} else if (strEqualCaseInsensitive(paramStr, "operation_mode")) {
 		engineConfiguration->operationMode = (operation_mode_e)valueI;
-	} else if (strEqualCaseInsensitive(paramStr, "suckedOffCoef")) {
-		engineConfiguration->suckedOffCoef = valueF;
-	} else if (strEqualCaseInsensitive(paramStr, "addedToWallCoef")) {
-		engineConfiguration->addedToWallCoef = valueF;
+	} else if (strEqualCaseInsensitive(paramStr, "wwaeTau")) {
+		engineConfiguration->wwaeTau = valueF;
+	} else if (strEqualCaseInsensitive(paramStr, "wwaeBeta")) {
+		engineConfiguration->wwaeBeta = valueF;
 	} else if (strEqualCaseInsensitive(paramStr, "cranking_dwell")) {
 		engineConfiguration->ignitionDwellForCrankingMs = valueF;
 	} else if (strEqualCaseInsensitive(paramStr, "targetvbatt")) {
@@ -1320,7 +1343,7 @@ void initSettings(void) {
 
 	addConsoleActionSSS("set_timing_map", setTimingMap);
 
-	addConsoleAction("stopengine", (Void) stopEngine);
+	addConsoleAction("stopengine", (Void) scheduleStopEngine);
 
 	// todo: refactor this - looks like all boolean flags should be controlled with less code duplication
 	addConsoleActionI("enable_spi", enableSpi);

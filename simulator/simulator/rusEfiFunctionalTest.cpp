@@ -45,9 +45,6 @@ int getRemainingStack(thread_t *otp) {
 	return 99999;
 }
 
-void idleDebug(const char *msg, percent_t value) {
-}
-
 float getMap(void) {
 	return getRawMap();
 }
@@ -112,7 +109,7 @@ void rusEfiFunctionalTest(void) {
 
 	// todo: reduce code duplication with initEngineContoller
 
-	resetConfigurationExt(NULL, DEFAULT_ENGINE_TYPE PASS_ENGINE_PARAMETER_SUFFIX);
+	resetConfigurationExt(NULL, FORD_ESCORT_GT PASS_ENGINE_PARAMETER_SUFFIX);
 	prepareShapes(PASS_ENGINE_PARAMETER_SIGNATURE);
 
 	initAlgo(&sharedLogger);

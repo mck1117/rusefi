@@ -5,12 +5,12 @@
  * @author Andrey Belomutskiy, (c) 2012-2018
  */
 
-#include "main.h"
+#include "global.h"
 #include "engine_math.h"
 #include "interpolation.h"
 #include "unit_test_framework.h"
 
-static int testIndex(const int expected, const float array[], int size, float value) {
+static void testIndex(const int expected, const float array[], int size, float value) {
 	assertEquals(expected, findIndex(array, size, value));
 	assertEquals(expected, findIndex2(array, size, value));
 }
@@ -66,10 +66,6 @@ void testFindIndex(void) {
 	}
 }
 
-//static float getValue2(float key, float maf) {
-//
-//}
-
 void testInterpolate2d(void) {
 	printf("*************************************************** testInterpolate2d\r\n");
 
@@ -100,7 +96,6 @@ void testSetTableValue(void) {
 	printf("*************************************************** testSetTableValue\r\n");
 
 	persistent_config_s config;
-//	memset()
 
 	for (int i = 0; i < CLT_CURVE_SIZE; i++) {
 		config.cltFuelCorrBins[i] = -40 + i * 10;

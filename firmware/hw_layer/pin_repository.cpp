@@ -9,12 +9,12 @@
  * @author Andrey Belomutskiy, (c) 2012-2018
  */
 
-#include "main.h"
+#include "global.h"
+#if EFI_PROD_CODE
 #include "pin_repository.h"
 #include "eficonsole.h"
 #include "memstreams.h"
 #include "chprintf.h"
-#include "rusefi.h"
 
 #define PIN_REPO_SIZE 7 * PORT_SIZE
 // todo: move this into PinRepository class
@@ -46,13 +46,13 @@ static int getPortIndex(ioportid_t port) {
 		return 2;
 	if (port == GPIOD)
 		return 3;
-#if defined(STM32F4XX)
+#if defined(STM32F4XX) || defined(STM32F7XX)
 	if (port == GPIOE)
 		return 4;
 #endif /* defined(STM32F4XX) */
 	if (port == GPIOF)
 		return 5;
-#if defined(STM32F4XX)
+#if defined(STM32F4XX) || defined(STM32F7XX)
 	if (port == GPIOH)
 		return 6;
 #endif /* defined(STM32F4XX) */
@@ -185,3 +185,4 @@ void unmarkPin(brain_pin_e brainPin) {
 	}
 }
 
+#endif

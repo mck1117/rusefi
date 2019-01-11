@@ -10,7 +10,6 @@
 
 #include "global.h"
 #include "engine_configuration_generated_structures.h"
-#include "datalogging.h"
 
 #if EFI_PROD_CODE || EFI_SIMULATOR
 #include "tunerstudio_configuration.h"
@@ -42,10 +41,10 @@ public:
 	float getIntegration(void);
 	float getPrevError(void);
 	void setErrorAmplification(float coef);
-#if EFI_PROD_CODE || EFI_SIMULATOR
+#if EFI_TUNER_STUDIO || defined(__DOXYGEN__)
 	void postState(TunerStudioOutputChannels *tsOutputChannels);
 	void postState(TunerStudioOutputChannels *tsOutputChannels, int pMult);
-#endif
+#endif /* EFI_TUNER_STUDIO */
 	float minResult;
 	float maxResult;
 	float iTerm;

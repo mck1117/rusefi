@@ -5,12 +5,11 @@
  *
  * @author Andrey Belomutskiy, (c) 2012-2018
  */
-#include "main.h"
+#include "global.h"
 #include "engine_configuration.h"
 #include "engine_math.h"
 #include "analog_input.h"
 #include "interpolation.h"
-#include "error_handling.h"
 #include "map.h"
 #include "engine_controller.h"
 
@@ -146,7 +145,7 @@ float getMapByVoltage(float voltage DECLARE_ENGINE_PARAMETER_SUFFIX) {
  */
 float getRawMap(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	if (engineConfiguration->hasFrequencyReportingMapSensor) {
-		return interpolateMsg("rmap", boardConfiguration->mapFrequency0Kpa, 0, boardConfiguration->mapFrequency100Kpa, 100, mapFreq);
+		return interpolateMsg("rmap", CONFIGB(mapFrequency0Kpa), 0, CONFIGB(mapFrequency100Kpa), 100, mapFreq);
 	}
 
 	float voltage = getVoltageDivided("map", engineConfiguration->map.sensor.hwChannel);
@@ -223,7 +222,7 @@ static void printMAPInfo(void) {
 
 
 	if (engineConfiguration->hasFrequencyReportingMapSensor) {
-		scheduleMsg(logger, "instant value=%.2fHz @ %s", mapFreq, hwPortname(boardConfiguration->frequencyReportingMapInputPin));
+		scheduleMsg(logger, "instant value=%.2fHz @ %s", mapFreq, hwPortname(CONFIGB(frequencyReportingMapInputPin)));
 	} else {
 		scheduleMsg(logger, "map type=%d/%s MAP=%.2fkPa mapMinBufferLength=%d", engineConfiguration->map.sensor.type,
 				getAir_pressure_sensor_type_e(engineConfiguration->map.sensor.type),
@@ -266,7 +265,7 @@ void initMapDecoder(Logging *sharedLogger DECLARE_ENGINE_PARAMETER_SUFFIX) {
 
 #if EFI_PROD_CODE || defined(__DOXYGEN__)
 	if (engineConfiguration->hasFrequencyReportingMapSensor) {
-		digital_input_s* digitalMapInput = addWaveAnalyzerDriver("map freq", boardConfiguration->frequencyReportingMapInputPin);
+		digital_input_s* digitalMapInput = addWaveAnalyzerDriver("map freq", CONFIGB(frequencyReportingMapInputPin));
 		startInputDriver(digitalMapInput, true);
 
 		digitalMapInput->widthListeners.registerCallback((VoidInt) digitalMapWidthCallback, NULL);

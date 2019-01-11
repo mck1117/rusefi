@@ -17,7 +17,7 @@ import static com.rusefi.ConfigDefinition.EOL;
  * 1/15/15
  */
 public class ConfigField {
-    public static final ConfigField VOID = new ConfigField("", null, false, null, null, 1, null, false);
+    public static final ConfigField VOID = new ConfigField(null, "", null, false, null, null, 1, null, false);
 
     private static final String typePattern = "([\\w\\d_]+)(\\[([\\w\\d]+)(\\s([\\w\\d]+))?\\])?";
     private static final String namePattern = "[[\\w\\d\\s_]]+";
@@ -37,20 +37,22 @@ public class ConfigField {
      */
     public final String name;
     public final String comment;
-    public final boolean isBit;
-    public final String arraySizeAsText;
+    final boolean isBit;
+    private final String arraySizeAsText;
     public final String type;
     public final int arraySize;
 
     public final String tsInfo;
-    public final int elementSize;
+    private final int elementSize;
     /**
      * this property of array expands field into a bunch of variables like field1 field2 field3 etc
      */
     public final boolean isIterate;
+    private final ReaderState state;
 
-    public ConfigField(String name, String comment, boolean isBit, String arraySizeAsText, String type,
+    public ConfigField(ReaderState state, String name, String comment, boolean isBit, String arraySizeAsText, String type,
                        int arraySize, String tsInfo, boolean isIterate) {
+        this.state = state;
         if (name == null)
             throw new NullPointerException(comment + " " + isBit + " " + type);
         assertNoWhitespaces(name);
@@ -59,11 +61,7 @@ public class ConfigField {
         this.isBit = isBit;
         this.arraySizeAsText = arraySizeAsText;
         this.type = type;
-        if (type == null) {
-            elementSize = 0;
-        } else {
-            elementSize = TypesHelper.getElementSize(type);
-        }
+        elementSize = TypesHelper.getElementSize(state, type);
         this.arraySize = arraySize;
         this.tsInfo = tsInfo;
         this.isIterate = isIterate;
@@ -77,7 +75,7 @@ public class ConfigField {
     /**
      * @see ConfigDefinitionTest#testParseLine()
      */
-    public static ConfigField parse(String line) {
+    public static ConfigField parse(ReaderState state, String line) {
         Matcher matcher = FIELD.matcher(line);
         if (!matcher.matches())
             return null;
@@ -97,7 +95,7 @@ public class ConfigField {
         String tsInfo = matcher.group(10);
 
         boolean isIterate = "iterate".equalsIgnoreCase(matcher.group(5));
-        ConfigField field = new ConfigField(name, comment, false, arraySizeAsText, type, arraySize,
+        ConfigField field = new ConfigField(state, name, comment, false, arraySizeAsText, type, arraySize,
                 tsInfo, isIterate);
         System.out.println("type " + type);
         System.out.println("name " + name);
@@ -106,7 +104,7 @@ public class ConfigField {
         return field;
     }
 
-    int getSize(ConfigField next) {
+    public int getSize(ConfigField next) {
         if (isBit && next.isBit)
             return 0;
         if (isBit)
@@ -146,7 +144,7 @@ public class ConfigField {
 
         VariableRegistry.INSTANCE.register(nameWithPrefix + "_offset", tsPosition);
 
-        ConfigStructure cs = ConfigDefinition.structures.get(type);
+        ConfigStructure cs = state.structures.get(type);
         if (cs != null) {
             String extraPrefix = cs.withPrefix ? name + "_" : "";
             return cs.writeTunerStudio(prefix + extraPrefix, tsHeader, tsPosition);
@@ -164,10 +162,10 @@ public class ConfigField {
             return tsPosition;
         }
 
-        if (ConfigDefinition.tsCustomLine.containsKey(type)) {
-            String bits = ConfigDefinition.tsCustomLine.get(type);
+        if (state.tsCustomLine.containsKey(type)) {
+            String bits = state.tsCustomLine.get(type);
             tsHeader.write("\t" + addTabsUpTo(nameWithPrefix, LENGTH));
-            int size = ConfigDefinition.tsCustomSize.get(type);
+            int size = state.tsCustomSize.get(type);
 //            tsHeader.headerWrite("\t" + size + ",");
             //          tsHeader.headerWrite("\t" + tsPosition + ",");
             bits = bits.replaceAll("@OFFSET@", "" + tsPosition);
@@ -207,10 +205,10 @@ public class ConfigField {
     }
 
     public int writeJavaFields(String prefix, Writer javaFieldsWriter, int tsPosition, ConfigField next, int bitIndex) throws IOException {
-        ConfigStructure cs = ConfigDefinition.structures.get(type);
+        ConfigStructure cs = state.structures.get(type);
         if (cs != null) {
             String extraPrefix = cs.withPrefix ? name + "_" : "";
-            return cs.writeJavaFields(prefix + extraPrefix, javaFieldsWriter, tsPosition);
+            return cs.writeJavaFields(state, prefix + extraPrefix, javaFieldsWriter, tsPosition);
         }
 
         String nameWithPrefix = prefix + name;

@@ -7,7 +7,7 @@
 #ifndef EFI_WAVE_H_
 #define EFI_WAVE_H_
 
-#include "engine_configuration.h"
+#include "global.h"
 
 #define PWM_PHASE_MAX_COUNT 252
 #define PWM_PHASE_MAX_WAVE_PER_PWM 3
@@ -22,24 +22,40 @@
 typedef int8_t pin_state_t;
 
 /**
+ * This class represents one channel of a digital signal state sequence
+ * Each element represents either a HIGH or LOW state - while at the moment this
+ * is not implemented using a bit array, it could absolutely be a bit array
+ *
+ * This sequence does not know anything about signal lengths - only signal state at a given index
+ *
  * @brief   PWM configuration for the specific output pin
  */
-class single_wave_s {
+class SingleWave {
 public:
-	single_wave_s();
-	single_wave_s(pin_state_t *pinStates);
+	SingleWave();
+	SingleWave(pin_state_t *pinStates);
 	void init(pin_state_t *pinStates);
+	/**
+	 * todo: confirm that we only deal with two states here, no magic '-1'?
+	 * @return HIGH or LOW state at given index
+	 */
+	int getState(int index);
+	void setState(int index, int state);
+
+	// todo: make this private by using 'getState' and 'setState' methods
 	pin_state_t *pinStates;
 };
 
-class TriggerShape;
-
-class multi_wave_s {
+/**
+ * This class represents multi-channel logical signals with shared time axis
+ *
+ */
+class MultiWave {
 public:
 	void baseConstructor();
-	multi_wave_s();
-	multi_wave_s(float *st, single_wave_s *waves);
-	void init(float *st, single_wave_s *waves);
+	MultiWave();
+	MultiWave(float *switchTimes, SingleWave *waves);
+	void init(float *switchTimes, SingleWave *waves);
 	void reset(void);
 	float getSwitchTime(int phaseIndex) const;
 	void setSwitchTime(int phaseIndex, float value);
@@ -50,10 +66,10 @@ public:
 	int findInsertionAngle(float angle, int size) const;
 
 	/**
-	 * Number of signal wires
+	 * Number of signal channels
 	 */
 	int waveCount;
-	single_wave_s *waves;
+	SingleWave *channels;
 //private:
 	/**
 	 * values in the (0..1] range which refer to points within the period at at which pin state should be changed
@@ -61,7 +77,5 @@ public:
 	 */
 	float *switchTimes;
 };
-
-void checkSwitchTimes2(int size, float *switchTimes);
 
 #endif /* EFI_WAVE_H_ */

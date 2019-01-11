@@ -9,7 +9,7 @@
 #ifndef POTEN_H_
 #define POTEN_H_
 
-#include "main.h"
+#include "global.h"
 
 #if HAL_USE_SPI || defined(__DOXYGEN__)
 
@@ -21,7 +21,7 @@ typedef struct {
 } Mcp42010Driver;
 
 //void initPotentiometer(Mcp42010Driver *driver, SPIDriver *spi, ioportid_t port, ioportmask_t pin);
-void initPotentiometers(Logging *sharedLogger, board_configuration_s *boardConfiguration);
+void initPotentiometers(Logging *sharedLogger DECLARE_ENGINE_PARAMETER_SUFFIX);
 void setPotResistance(Mcp42010Driver *driver, int channel, int resistance);
 
 #endif

@@ -6,13 +6,17 @@
  * @author Andrey Belomutskiy, (c) 2012-2018
  */
 
-#include "main.h"
+#include "global.h"
 #include "poten.h"
 #include "eficonsole.h"
 #include "pin_repository.h"
 #include "engine_configuration.h"
 #include "hardware.h"
 #include "mpu_util.h"
+
+#if HAL_USE_SPI || defined(__DOXYGEN__)
+
+EXTERN_ENGINE;
 
 /**
  * MCP42010 digital potentiometer driver
@@ -38,7 +42,12 @@
  */
 
 /* Low speed SPI configuration (281.250kHz, CPHA=0, CPOL=0, MSb first).*/
+
+#if defined(STM32F7XX)
+#define SPI_POT_CONFIG SPI_CR1_BR_2 | SPI_CR1_BR_1 | SPI_CR1_CRCL
+#else /* defined(STM32F4XX) */
 #define SPI_POT_CONFIG SPI_CR1_BR_2 | SPI_CR1_BR_1 | SPI_CR1_DFF
+#endif /* defined(STM32F4XX) */
 
 static Logging * logger;
 
@@ -83,22 +92,22 @@ static void setPotValue1(int value) {
 
 #endif /* EFI_POTENTIOMETER */
 
-void initPotentiometers(Logging *sharedLogger, board_configuration_s *boardConfiguration) {
+void initPotentiometers(Logging *sharedLogger DECLARE_ENGINE_PARAMETER_SUFFIX) {
 	logger = sharedLogger;
 #if EFI_POTENTIOMETER
-	if (boardConfiguration->digitalPotentiometerSpiDevice == SPI_NONE) {
+	if (CONFIGB(digitalPotentiometerSpiDevice) == SPI_NONE) {
 		scheduleMsg(logger, "digiPot spi disabled");
 		return;
 	}
-	turnOnSpi(boardConfiguration->digitalPotentiometerSpiDevice);
+	turnOnSpi(CONFIGB(digitalPotentiometerSpiDevice));
 
 	for (int i = 0; i < DIGIPOT_COUNT; i++) {
-		brain_pin_e csPin = boardConfiguration->digitalPotentiometerChipSelect[i];
+		brain_pin_e csPin = CONFIGB(digitalPotentiometerChipSelect)[i];
 		if (csPin == GPIO_UNASSIGNED) {
 			continue;
                 }
 
-		initPotentiometer(&potConfig[i], getSpiDevice(boardConfiguration->digitalPotentiometerSpiDevice),
+		initPotentiometer(&potConfig[i], getSpiDevice(CONFIGB(digitalPotentiometerSpiDevice)),
 				csPin);
 	}
 
@@ -112,3 +121,5 @@ void initPotentiometers(Logging *sharedLogger, board_configuration_s *boardConfi
 	print("digiPot logic disabled\r\n");
 #endif
 }
+
+#endif /* HAL_USE_SPI */

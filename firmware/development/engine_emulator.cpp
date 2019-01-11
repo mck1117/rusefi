@@ -6,7 +6,7 @@
  * @author Andrey Belomutskiy, (c) 2012-2018
  */
 
-#include "main.h"
+#include "global.h"
 #include "engine_emulator.h"
 
 #include "advance_map.h"
@@ -91,15 +91,17 @@ static void initECUstimulator(Engine *engine) {
 
 	setDiag(1);
 
-	chThdCreateStatic(eeThreadStack, sizeof(eeThreadStack), NORMALPRIO, (tfunc_t) eeThread, engine);
+	chThdCreateStatic(eeThreadStack, sizeof(eeThreadStack), NORMALPRIO, (tfunc_t)(void*) eeThread, engine);
 }
 
-void initEngineEmulator(Logging *sharedLogger, Engine *engine) {
+void initEngineEmulator(Logging *sharedLogger DECLARE_ENGINE_PARAMETER_SUFFIX) {
 	if (hasFirmwareError())
 		return;
 
 #if EFI_POTENTIOMETER
-	initPotentiometers(sharedLogger, &engine->engineConfiguration->bc);
+#if HAL_USE_SPI || defined(__DOXYGEN__)
+	initPotentiometers(sharedLogger PASS_ENGINE_PARAMETER_SUFFIX);
+#endif /* HAL_USE_SPI */
 #endif /* EFI_POTENTIOMETER */
 
 	//initECUstimulator();

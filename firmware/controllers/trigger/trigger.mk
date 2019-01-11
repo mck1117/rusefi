@@ -3,7 +3,7 @@ TRIGGER_DECODERS_SRC_CPP = \
 	$(PROJECT_DIR)/controllers/trigger/decoders/trigger_bmw.cpp \
 	$(PROJECT_DIR)/controllers/trigger/decoders/trigger_mazda.cpp \
 	$(PROJECT_DIR)/controllers/trigger/decoders/trigger_chrysler.cpp \
-	$(PROJECT_DIR)/controllers/trigger/trigger_structure.cpp \
+	$(PROJECT_DIR)/controllers/trigger/decoders/trigger_structure.cpp \
 	$(PROJECT_DIR)/controllers/trigger/trigger_decoder.cpp \
 	$(PROJECT_DIR)/controllers/trigger/trigger_simulator.cpp \
 	$(PROJECT_DIR)/controllers/trigger/decoders/trigger_mitsubishi.cpp \
@@ -13,6 +13,8 @@ TRIGGER_DECODERS_SRC_CPP = \
 	$(PROJECT_DIR)/controllers/trigger/decoders/trigger_gm.cpp \
 	$(PROJECT_DIR)/controllers/trigger/decoders/trigger_honda.cpp \
 	$(PROJECT_DIR)/controllers/trigger/decoders/trigger_rover.cpp \
+	$(PROJECT_DIR)/controllers/trigger/decoders/trigger_vw.cpp \
+	$(PROJECT_DIR)/controllers/trigger/decoders/trigger_misc.cpp \
 	$(PROJECT_DIR)/controllers/trigger/decoders/trigger_universal.cpp
 
 TRIGGER_SRC_CPP = \

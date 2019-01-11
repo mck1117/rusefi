@@ -7,6 +7,9 @@
 #ifndef CONTROLLERS_ALGO_RUSEFI_TYPES_H_
 #define CONTROLLERS_ALGO_RUSEFI_TYPES_H_
 
+#include <string.h>
+#include <stdbool.h>
+#include <float.h>
 #include <stdint.h>
 #if defined __GNUC__
 // GCC
@@ -17,6 +20,7 @@ typedef unsigned int time_t;
 #endif
 
 #include "rusefi_enums.h"
+#include "firing_order.h"
 #include "rusefi_generated.h"
 
 // time in seconds
@@ -74,6 +78,7 @@ typedef uint8_t afr_table_t[FUEL_LOAD_COUNT][FUEL_RPM_COUNT];
 // todo: merge these two types together? but these tables have different TS parameters like ranges etc
 typedef float fuel_table_t[FUEL_LOAD_COUNT][FUEL_RPM_COUNT];
 typedef float ignition_table_t[IGN_LOAD_COUNT][IGN_RPM_COUNT];
+typedef int16_t ignition_tps_table_t[IGN_LOAD_COUNT][IGN_RPM_COUNT];
 
 typedef float baro_corr_table_t[BARO_CORR_SIZE][BARO_CORR_SIZE];
 
