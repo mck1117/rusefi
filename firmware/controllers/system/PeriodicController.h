@@ -45,8 +45,9 @@ protected:
 
     /**
      * @brief Called before running the periodic task.  Optionally override this method to set up.
+	 * @return Returns true if the task should be run, and false if not.
      */
-    virtual void OnStarted() {};
+    virtual bool OnStarted() { return true; };
 
     /**
      * @brief Called periodically.  Override this method to do work for your controller.
@@ -56,7 +57,11 @@ protected:
 private:
     void ThreadTask() override final
     {
-        OnStarted();
+		// If OnStarted returns false, we shouldn't run.
+        if(!OnStarted())
+		{
+			return;
+		}
 
         while(true)
         {

@@ -444,6 +444,28 @@ struct idle_hardware_s
 	brain_pin_e stepperStepPin; 
 
 end_struct
+
+struct cj125_spi_config
+	spi_device_e spiDevice;
+	brain_pin_e csPin;
+	pin_output_mode_e csMode;
+end_struct
+
+struct cj125_config
+	bit enable;
+	bit isLsu49;
+
+	adc_channel_e adcUa;
+	adc_channel_e adcUr;
+	brain_pin_e heaterPin;
+	
+	float warmupTimeout; Try to heat the sensor for this long before failing;"sec",1, 0, 0, 30, 0
+	float warmupInitialVoltage; Initial voltage of the warmup ramp;"V", 1, 0, 0, 9, 1
+	float warmupRampRate; After jumping to the initial warmup voltage, ramp at this rate.;"V/s", 1, 0, 0, 1, 2
+	float vUrTarget; Target temperature measured on Ur pin; "V", 1, 0, 0.5, 2.0, 2
+
+	cj125_spi_config spi;
+end_struct
 	
 struct_no_prefix board_configuration_s
 	idle_hardware_s idle;
@@ -934,7 +956,9 @@ tChargeMode_e tChargeMode;
 		float[ETB_BIAS_CURVE_LENGTH] etbBiasValues;PWM bias, 0 to 100%;"ETB duty cycle bias",   1,   0.0,        -100,  100.0,   2
 	
 	float hip9011Gain;
-	int[574] unusedEnd;
+
+	cj125_config cj125;
+	int[568] unusedEnd;
 	
 
 end_struct
