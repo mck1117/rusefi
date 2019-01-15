@@ -1,4 +1,4 @@
-// this section was generated automatically by ConfigDefinition.jar based on rusefi_config.txt Mon Jan 14 01:38:21 PST 2019
+// this section was generated automatically by ConfigDefinition.jar based on rusefi_config.txt Mon Jan 14 22:46:26 PST 2019
 // begin
 #ifndef ENGINE_CONFIGURATION_GENERATED_H_
 #define ENGINE_CONFIGURATION_GENERATED_H_
@@ -2296,8 +2296,8 @@ typedef struct {
 	/**
 	 * offset 4228
 	 */
-	int unusedEnd[568];
-	/** total size 6500*/
+	int unusedEnd[563];
+	/** total size 6480*/
 } engine_configuration_s;
 
 // start of persistent_config_s
@@ -2308,239 +2308,239 @@ typedef struct {
 	engine_configuration_s engineConfiguration;
 	/**
 	 * CLT-based cranking position multiplier for simple manual idle controller
-	 * offset 6500
+	 * offset 6480
 	 */
 	float cltCrankingCorrBins[CLT_CRANKING_CURVE_SIZE];
 	/**
 	 * CLT-based cranking position multiplier for simple manual idle controller
-	 * offset 6532
+	 * offset 6512
 	 */
 	float cltCrankingCorr[CLT_CRANKING_CURVE_SIZE];
 	/**
 	 * Optional timing advance table for Idle (see useSeparateAdvanceForIdle)
-	 * offset 6564
+	 * offset 6544
 	 */
 	float idleAdvanceBins[IDLE_ADVANCE_CURVE_SIZE];
 	/**
 	 * Optional timing advance table for Idle (see useSeparateAdvanceForIdle)
-	 * offset 6596
+	 * offset 6576
 	 */
 	float idleAdvance[IDLE_ADVANCE_CURVE_SIZE];
 	/**
 	 * Optional VE table for Idle (see useSeparateVEForIdle)
-	 * offset 6628
+	 * offset 6608
 	 */
 	float idleVeBins[IDLE_VE_CURVE_SIZE];
 	/**
 	 *  Optional VE table for Idle (see useSeparateVEForIdle)
-	 * offset 6660
+	 * offset 6640
 	 */
 	float idleVe[IDLE_VE_CURVE_SIZE];
 	/**
-	 * offset 6692
+	 * offset 6672
 	 */
 	le_formula_t fsioFormulas[FSIO_COMMAND_COUNT];
 	/**
-	 * offset 9892
+	 * offset 9872
 	 */
 	le_formula_t timingMultiplier;
 	/**
-	 * offset 10092
+	 * offset 10072
 	 */
 	le_formula_t timingAdditive;
 	/**
-	 * offset 10292
+	 * offset 10272
 	 */
 	float cltFuelCorrBins[CLT_CURVE_SIZE];
 	/**
-	 * offset 10356
+	 * offset 10336
 	 */
 	float cltFuelCorr[CLT_CURVE_SIZE];
 	/**
-	 * offset 10420
+	 * offset 10400
 	 */
 	float iatFuelCorrBins[IAT_CURVE_SIZE];
 	/**
-	 * offset 10484
+	 * offset 10464
 	 */
 	float iatFuelCorr[IAT_CURVE_SIZE];
 	/**
-	 * offset 10548
+	 * offset 10528
 	 */
 	float crankingFuelCoef[CRANKING_CURVE_SIZE];
 	/**
-	 * offset 10580
+	 * offset 10560
 	 */
 	float crankingFuelBins[CRANKING_CURVE_SIZE];
 	/**
-	 * offset 10612
+	 * offset 10592
 	 */
 	float crankingCycleCoef[CRANKING_CURVE_SIZE];
 	/**
-	 * offset 10644
+	 * offset 10624
 	 */
 	float crankingCycleBins[CRANKING_CURVE_SIZE];
 	/**
 	 * CLT-based idle position multiplier for simple manual idle controller
-	 * offset 10676
+	 * offset 10656
 	 */
 	float cltIdleCorrBins[CLT_CURVE_SIZE];
 	/**
 	 *  CLT-based idle position multiplier for simple manual idle controller
-	 * offset 10740
+	 * offset 10720
 	 */
 	float cltIdleCorr[CLT_CURVE_SIZE];
 	/**
 	 * kg/hour value.
 	 * By the way 2.081989116 kg/h = 1 ft�/m
-	 * offset 10804
+	 * offset 10784
 	 */
 	float mafDecoding[MAF_DECODING_COUNT];
 	/**
-	 * offset 11828
+	 * offset 11808
 	 */
 	float mafDecodingBins[MAF_DECODING_COUNT];
 	/**
-	 * offset 12852
+	 * offset 12832
 	 */
 	angle_table_t ignitionIatCorrTable;
 	/**
-	 * offset 13876
+	 * offset 13856
 	 */
 	float ignitionIatCorrLoadBins[IGN_LOAD_COUNT];
 	/**
-	 * offset 13940
+	 * offset 13920
 	 */
 	float ignitionIatCorrRpmBins[IGN_RPM_COUNT];
 	/**
-	 * offset 14004
+	 * offset 13984
 	 */
 	angle_table_t injectionPhase;
 	/**
-	 * offset 15028
+	 * offset 15008
 	 */
 	float injPhaseLoadBins[FUEL_LOAD_COUNT];
 	/**
-	 * offset 15092
+	 * offset 15072
 	 */
 	float injPhaseRpmBins[FUEL_RPM_COUNT];
 	/**
-	 * offset 15156
+	 * offset 15136
 	 */
 	fuel_table_t fuelTable;
 	/**
-	 * offset 16180
+	 * offset 16160
 	 */
 	float fuelLoadBins[FUEL_LOAD_COUNT];
 	/**
 	 * RPM is float and not integer in order to use unified methods for interpolation
-	 * offset 16244
+	 * offset 16224
 	 */
 	float fuelRpmBins[FUEL_RPM_COUNT];
 	/**
-	 * offset 16308
+	 * offset 16288
 	 */
 	ignition_table_t ignitionTable;
 	/**
-	 * offset 17332
+	 * offset 17312
 	 */
 	float ignitionLoadBins[IGN_LOAD_COUNT];
 	/**
-	 * offset 17396
+	 * offset 17376
 	 */
 	float ignitionRpmBins[IGN_RPM_COUNT];
 	/**
-	 * offset 17460
+	 * offset 17440
 	 */
 	ve_table_t veTable;
 	/**
-	 * offset 18484
+	 * offset 18464
 	 */
 	float veLoadBins[FUEL_LOAD_COUNT];
 	/**
-	 * offset 18548
+	 * offset 18528
 	 */
 	float veRpmBins[FUEL_RPM_COUNT];
 	/**
-	 * offset 18612
+	 * offset 18592
 	 */
 	afr_table_t afrTable;
 	/**
-	 * offset 18868
+	 * offset 18848
 	 */
 	float afrLoadBins[FUEL_LOAD_COUNT];
 	/**
-	 * offset 18932
+	 * offset 18912
 	 */
 	float afrRpmBins[FUEL_RPM_COUNT];
 	/**
-	 * offset 18996
+	 * offset 18976
 	 */
 	tps_tps_table_t tpsTpsAccelTable;
 	/**
-	 * offset 19252
+	 * offset 19232
 	 */
 	float tpsTpsAccelFromRpmBins[TPS_TPS_ACCEL_TABLE];
 	/**
 	 * RPM is float and not integer in order to use unified methods for interpolation
-	 * offset 19284
+	 * offset 19264
 	 */
 	float tpsTpsAccelToRpmBins[TPS_TPS_ACCEL_TABLE];
 	/**
-	 * offset 19316
+	 * offset 19296
 	 */
 	fsio_table_8x8_f32t fsioTable1;
 	/**
-	 * offset 19572
+	 * offset 19552
 	 */
 	float fsioTable1LoadBins[FSIO_TABLE_8];
 	/**
 	 * RPM is float and not integer in order to use unified methods for interpolation
-	 * offset 19604
+	 * offset 19584
 	 */
 	float fsioTable1RpmBins[FSIO_TABLE_8];
 	/**
-	 * offset 19636
+	 * offset 19616
 	 */
 	fsio_table_8x8_u8t fsioTable2;
 	/**
-	 * offset 19700
+	 * offset 19680
 	 */
 	float fsioTable2LoadBins[FSIO_TABLE_8];
 	/**
 	 * RPM is float and not integer in order to use unified methods for interpolation
-	 * offset 19732
+	 * offset 19712
 	 */
 	float fsioTable2RpmBins[FSIO_TABLE_8];
 	/**
-	 * offset 19764
+	 * offset 19744
 	 */
 	fsio_table_8x8_u8t fsioTable3;
 	/**
-	 * offset 19828
+	 * offset 19808
 	 */
 	float fsioTable3LoadBins[FSIO_TABLE_8];
 	/**
 	 * RPM is float and not integer in order to use unified methods for interpolation
-	 * offset 19860
+	 * offset 19840
 	 */
 	float fsioTable3RpmBins[FSIO_TABLE_8];
 	/**
-	 * offset 19892
+	 * offset 19872
 	 */
 	fsio_table_8x8_u8t fsioTable4;
 	/**
-	 * offset 19956
+	 * offset 19936
 	 */
 	float fsioTable4LoadBins[FSIO_TABLE_8];
 	/**
 	 * RPM is float and not integer in order to use unified methods for interpolation
-	 * offset 19988
+	 * offset 19968
 	 */
 	float fsioTable4RpmBins[FSIO_TABLE_8];
-	/** total size 20020*/
+	/** total size 20000*/
 } persistent_config_s;
 
 #endif
 // end
-// this section was generated automatically by ConfigDefinition.jar based on rusefi_config.txt Mon Jan 14 01:38:21 PST 2019
+// this section was generated automatically by ConfigDefinition.jar based on rusefi_config.txt Mon Jan 14 22:46:26 PST 2019

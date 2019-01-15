@@ -958,7 +958,7 @@ tChargeMode_e tChargeMode;
 	float hip9011Gain;
 
 	cj125_config cj125;
-	int[568] unusedEnd;
+	int[563] unusedEnd;
 	
 
 end_struct
