@@ -40,6 +40,7 @@ class Cj125_new : public PeriodicController<UTILITY_THREAD_STACK_SIZE>
         float heaterDuty;
         State state;
         ErrorType lastError;
+		uint8_t diag;
     };
 
     DiagnosticChannels m_diagChannels;

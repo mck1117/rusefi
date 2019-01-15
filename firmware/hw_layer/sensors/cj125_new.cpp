@@ -4,6 +4,9 @@
 #include "adc_inputs.h"
 #include "adc_math.h"
 #include "voltage.h"
+#include "pwm_generator.h"
+
+extern TunerStudioOutputChannels tsOutputChannels;
 
 EXTERN_ENGINE
 ;
@@ -37,7 +40,7 @@ void Cj125_new::PeriodicTask(efitime_t nowNt)
 {
     // Handle heater state machine
     {
-        float vUr = getVoltageDivided("cj125ur", m_config.adcUr);
+        float vUr = getVoltageDivided("cj125ur", m_config.adcUr) / 2;
         m_diagChannels.vUr = vUr;
 
         // Figure out which state we should be in
@@ -60,13 +63,25 @@ void Cj125_new::PeriodicTask(efitime_t nowNt)
 
     // Handle lambda conversion
     {
-        float vUa = getVoltageDivided("cj125ua", m_config.adcUa);
+        float vUa = getVoltageDivided("cj125ua", m_config.adcUa) / 2;
         m_diagChannels.vUa = vUa;
 
         //float pumpCurrent = (vUa - 1.5f) * amplCoeff * (CJ125_PUMP_CURRENT_FACTOR / CJ125_PUMP_SHUNT_RESISTOR);
         //m_convertedLambda =  = interpolate2d("cj125Lsu", pumpCurrent, (float *)cjLSUBins[sensorType], (float *)cjLSULambda[sensorType], cjLSUTableSize[sensorType]);
         m_convertedLambda = 0.89f;
     }
+
+	m_diagChannels.diag = m_spi.Diagnostic();
+
+	tsOutputChannels.debugFloatField1 = m_diagChannels.heaterDuty;
+	tsOutputChannels.debugFloatField2 = 0;
+	tsOutputChannels.debugFloatField3 = 0;
+	tsOutputChannels.debugFloatField4 = m_diagChannels.vUr;
+	tsOutputChannels.debugFloatField5 = m_diagChannels.vUa;
+	tsOutputChannels.debugFloatField6 = 0;
+	tsOutputChannels.debugFloatField7 = m_config.vUrTarget;
+	tsOutputChannels.debugIntField1 = static_cast<int>(m_diagChannels.state);
+	tsOutputChannels.debugIntField2 = static_cast<int>(m_diagChannels.diag);
 }
 
 /* static */ Cj125_new::State Cj125_new::TransitionFunction(Cj125_new::State currentState, float vUr, Cj125_new::ErrorType& outError)
@@ -229,7 +244,7 @@ bool Cj125_new::OnStarted()
 
 	// Init heater pin
 	startSimplePwmExt(
-		m_heaterPwm,
+		&m_heaterPwm,
 		"cj125 heater",
 		&engine->executor,
 		m_config.heaterPin,
@@ -256,6 +271,8 @@ bool Cj125_new::OnStarted()
 
 		// If ident was successful, then we'll use SPI later.
 	}
+
+	//m_spi.BeginCalibration();
 
 	return true;
 }
