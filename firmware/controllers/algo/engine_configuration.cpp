@@ -996,6 +996,25 @@ void setDefaultConfiguration(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 
 	engineConfiguration->cj125isUaDivided = true;
 
+	engineConfiguration->cj125 =
+	{
+		false,	// disable
+		true,	// lsu 4.9
+		EFI_ADC_NONE,	// don't set pins
+		EFI_ADC_NONE,
+		GPIO_UNASSIGNED,
+		30.0f,	// 30 second heater timeout
+		7.0f,	// 7v initial
+		0.4f,	// 0.4v/s
+		1.0f,	// 1.0v target Ur
+		// SPI config
+		{
+			SPI_NONE,	// SPI device
+			GPIO_UNASSIGNED,	// CS pin
+			OM_DEFAULT	// CS pin mode
+		}
+	};
+
 	engineConfiguration->isAlternatorControlEnabled = true;
 
 //	boardConfiguration->gps_rx_pin = GPIOB_7;
