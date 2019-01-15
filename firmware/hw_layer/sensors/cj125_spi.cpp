@@ -50,6 +50,11 @@ void Cj125Spi::WriteRegister(uint8_t reg, uint8_t value)
     spiUnselect(m_driver);
 }
 
+void Cj125Spi::SetMode(uint8_t mode)
+{
+	WriteRegister(INIT_REG1_WR, mode);
+}
+
 Cj125Spi::Cj125Spi(const cj125_spi_config& config)
     : m_config(config)
 	, m_spiConfig(
@@ -75,6 +80,8 @@ bool Cj125Spi::Init()
 		return false;
 	}
 
+	m_hasSpi = true;
+
 	m_csPin.initPin("cj125 cs", m_config.csPin, &m_config.csMode);
 	// CS idles high
 	m_csPin.setValue(true);
@@ -90,6 +97,12 @@ bool Cj125Spi::Init()
 
 bool Cj125Spi::Identify()
 {
+	// If we don't have SPI, lie and claim all is well.
+	if(!m_hasSpi)
+	{
+		return true;
+	}
+
 	// read Ident register
 	uint8_t ident = ReadRegister(IDENT_REG_RD) & CJ125_IDENT_MASK;
 	if (CJ125_IDENT != ident) {
@@ -120,4 +133,36 @@ bool Cj125Spi::Identify()
 	}
 
 	return true;
+}
+
+uint8_t Cj125Spi::Diagnostic() const
+{
+	// If we don't have SPI, lie and claim all is well.
+	if(!m_hasSpi)
+	{
+		return 0xFF;
+	}
+
+	return ReadRegister(DIAG_REG_RD);
+}
+
+bool Cj125Spi::BeginCalibration()
+{
+	if(m_hasSpi)
+	{
+		SetMode(CJ125_INIT1_CALBRT);
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+void Cj125Spi::EndCalibration()
+{
+	if(m_hasSpi)
+	{
+		SetMode(CJ125_INIT1_NORMAL_17);
+	}
 }
