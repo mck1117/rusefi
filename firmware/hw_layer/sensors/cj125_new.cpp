@@ -28,8 +28,15 @@ EXTERN_ENGINE
 #define CJ125_PREHEAT_DURATION (US2NT(US_PER_SECOND_LL) * 5)	// Heat for this long (gently) to heat off condensation before switching to the ramp
 #define CJ125_WARMUP_TIMEOUT (US2NT(US_PER_SECOND_LL) * 20)		// We try to warm up for this long before giving up
 
+// Pump current amplifier parameters
 #define CJ125_PUMP_SHUNT_RESISTOR		(61.9f)
 #define CJ125_PUMP_CURRENT_FACTOR		(1000.0f)
+
+// Calibration limits
+#define CJ125_UA_CAL_MIN 	(1.4f)	// minimum acceptable vUa (1.5v typ)
+#define CJ125_UA_CAL_MAX 	(1.6f)	// maximum acceptable vUa (1.5v typ)
+#define CJ125_UR_CAL_MIN 	(0.9f)	// minimum acceptable vUr (1.0v typ)
+#define CJ125_UR_CAL_MAX 	(1.1f)	// maximum acceptable vUr (1.0v typ)
 
 // Some experimental magic values for heater PID regulator
 #define CJ125_PID_LSU42_P				(80.0f / 16.0f * 5.0f / 1024.0f)
@@ -350,6 +357,14 @@ void Cj125_new::Calibrate()
 	}
 
 	m_vUaOffset = sum / 50;
+
+	// Check that the measured vUa @ lambda=1 value is reasonable
+	if(m_vUaOffset > CJ125_UA_CAL_MAX ||
+		m_vUaOffset < CJ125_UA_CAL_MIN)
+	{
+		m_state = State::Error;
+		m_lastError = ErrorType::CalibrationFailureUa;
+	}
 
 	m_spi.EndCalibration();
 }
