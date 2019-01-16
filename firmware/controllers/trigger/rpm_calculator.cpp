@@ -54,19 +54,14 @@ RpmCalculator::RpmCalculator() {
 	mockRpm = MOCK_UNDEFINED;
 #endif /* EFI_PROD_CODE */
 	// todo: reuse assignRpmValue() method which needs PASS_ENGINE_PARAMETER_SUFFIX
-	// which we cannot provide inside this parameter-less consutructor. need a solution for this minor mess
-	previousRpmValue = rpmValue = 0;
-	oneDegreeUs = NAN;
-	state = STOPPED;
-	isSpinning = false;
+	// which we cannot provide inside this parameter-less constructor. need a solution for this minor mess
 
 	// we need this initial to have not_running at first invocation
 	lastRpmEventTimeNt = (efitime_t) -10 * US2NT(US_PER_SECOND_LL);
-	revolutionCounterSinceStart = 0;
-	revolutionCounterSinceBootForUnitTest = revolutionCounterSinceBoot = 0;
+	revolutionCounterSinceBootForUnitTest = 0;
 
+	// WAT? this was just assigned a non-zero value a few lines above? which one is right?
 	lastRpmEventTimeNt = 0;
-	oneDegreeUs = NAN;
 }
 
 bool RpmCalculator::isStopped(DECLARE_ENGINE_PARAMETER_SIGNATURE) {

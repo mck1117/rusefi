@@ -5,14 +5,13 @@
  */
 
 #include "engine_math.h"
-#include "test_trigger_decoder.h"
+#include "engine_test_helper.h"
 #include "event_queue.h"
 #include "tps.h"
 
 extern int timeNowUs;
 
 TEST(fuelCut, coasting) {
-	// this is just a reference unit test implementation
 	printf("*************************************************** testCoastingFuelCut\r\n");
 
 	EngineTestHelper eth(TEST_ENGINE);

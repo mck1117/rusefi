@@ -594,10 +594,8 @@ static void setBlinkingPeriod(int value) {
 
 #if EFI_PROD_CODE || defined(__DOXYGEN__)
 
-extern efitick_t lastDecodingErrorTime;
-
 static bool isTriggerErrorNow() {
-	bool justHadError = (getTimeNowNt() - lastDecodingErrorTime) < US2NT(2 * 1000 * 3 * blinkingPeriod);
+	bool justHadError = (getTimeNowNt() - engine->triggerCentral.triggerState.lastDecodingErrorTime) < US2NT(2 * 1000 * 3 * blinkingPeriod);
 	return justHadError || isTriggerDecoderError();
 }
 
@@ -911,6 +909,9 @@ void updateTunerStudioState(TunerStudioOutputChannels *tsOutputChannels DECLARE_
 	
 	tsOutputChannels->warningCounter = engine->engineState.warnings.warningCounter;
 	tsOutputChannels->lastErrorCode = engine->engineState.warnings.lastErrorCode;
+	for (int i = 0; i < 8;i++) {
+		tsOutputChannels->recentErrorCodes[i] = engine->engineState.warnings.recentWarnings.get(i);
+	}
 
 	tsOutputChannels->knockNowIndicator = engine->knockCount > 0;
 	tsOutputChannels->knockEverIndicator = engine->knockEver;

@@ -213,21 +213,6 @@ efitimesec_t getTimeNowSeconds(void) {
 
 #endif /* EFI_PROD_CODE */
 
-static void cylinderCleanupControl(Engine *engine) {
-#if EFI_ENGINE_CONTROL || defined(__DOXYGEN__)
-	bool newValue;
-	if (engineConfiguration->isCylinderCleanupEnabled) {
-		newValue = !engine->rpmCalculator.isRunning(PASS_ENGINE_PARAMETER_SIGNATURE) && getTPS(PASS_ENGINE_PARAMETER_SIGNATURE) > CLEANUP_MODE_TPS;
-	} else {
-		newValue = false;
-	}
-	if (newValue != engine->isCylinderCleanupMode) {
-		engine->isCylinderCleanupMode = newValue;
-		scheduleMsg(&logger, "isCylinderCleanupMode %s", boolToString(newValue));
-	}
-#endif
-}
-
 static LocalVersionHolder versionForConfigurationListeners;
 
 static void periodicSlowCallback(Engine *engine);
@@ -291,7 +276,6 @@ static void invokePerSecond(void) {
 
 }
 
-
 static void periodicSlowCallback(Engine *engine) {
 	efiAssertVoid(CUSTOM_ERR_6661, getRemainingStack(chThdGetSelfX()) > 64, "lowStckOnEv");
 #if EFI_PROD_CODE
@@ -324,26 +308,18 @@ static void periodicSlowCallback(Engine *engine) {
 		updatePrimeInjectionPulseState(PASS_ENGINE_PARAMETER_SIGNATURE);
 	}
 
-	if (versionForConfigurationListeners.isOld(getGlobalConfigurationVersion())) {
+	if (versionForConfigurationListeners.isOld(engine->getGlobalConfigurationVersion())) {
 		updateAccelParameters();
 		engine->engineState.warmupAfrPid.reset();
 	}
 
-	engine->watchdog();
-	engine->updateSlowSensors();
-	engine->checkShutdown();
-
-#if EFI_FSIO || defined(__DOXYGEN__)
-	runFsio(PASS_ENGINE_PARAMETER_SIGNATURE);
-#endif /* EFI_PROD_CODE && EFI_FSIO */
-
-	cylinderCleanupControl(engine);
+	engine->periodicSlowCallback(PASS_ENGINE_PARAMETER_SIGNATURE);
 
 	scheduleNextSlowInvocation();
 }
 
 void initPeriodicEvents(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
-	scheduleNextSlowInvocation();
+	periodicSlowCallback(engine);
 	periodicFastCallback(PASS_ENGINE_PARAMETER_SIGNATURE);
 }
 
@@ -770,8 +746,10 @@ void initEngineContoller(Logging *sharedLogger DECLARE_ENGINE_PARAMETER_SUFFIX) 
 #endif /* EFI_PROD_CODE */
 }
 
+// these two variables are here only to let us know how much RAM is available, also these
+// help to notice when RAM usage goes up - if a code change adds to RAM usage these variables would fail
+// linking process which is the way to raise the alarm
 static char UNUSED_RAM_SIZE[10200];
-
 static char UNUSED_CCM_SIZE[7100] CCM_OPTIONAL;
 
 /**

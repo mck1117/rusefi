@@ -5,38 +5,33 @@
  * @author Andrey Belomutskiy, (c) 2012-2018
  */
 
-#include "test_startOfCrankingPrimingPulse.h"
-#include "test_trigger_decoder.h"
+#include "engine_test_helper.h"
 
-extern int timeNowUs;
-extern EnginePins enginePins;
-
-void testPlainCrankingWithoutAdvancedFeatures() {
-	// this is just a reference unit test implementation
+TEST(engine, testPlainCrankingWithoutAdvancedFeatures) {
 	printf("*************************************************** testPlainCrankingWithoutAdvancedFeatures\r\n");
 
 	EngineTestHelper eth(TEST_ENGINE);
 	EXPAND_EngineTestHelper
 
 	setupSimpleTestEngineWithMafAndTT_ONE_trigger(&eth);
-	assertEqualsM("RPM=0", 0, engine->rpmCalculator.getRpm(PASS_ENGINE_PARAMETER_SIGNATURE));
+	ASSERT_EQ( 0,  engine->rpmCalculator.getRpm(PASS_ENGINE_PARAMETER_SIGNATURE)) << "RPM=0";
 
 	eth.fireTriggerEventsWithDuration(/* durationMs */ 200);
 	// still no RPM since need to cycles measure cycle duration
-	assertEqualsM("RPM#1", 0, engine->rpmCalculator.getRpm(PASS_ENGINE_PARAMETER_SIGNATURE));
+	ASSERT_EQ( 0,  engine->rpmCalculator.getRpm(PASS_ENGINE_PARAMETER_SIGNATURE)) << "start-RPM#1";
 
 
 	eth.fireRise(/* delayMs */ 200);
-	assertEqualsM("RPM#2", 300, engine->rpmCalculator.getRpm(PASS_ENGINE_PARAMETER_SIGNATURE));
+	ASSERT_EQ( 300,  engine->rpmCalculator.getRpm(PASS_ENGINE_PARAMETER_SIGNATURE)) << "RPM#2";
 	// two simultaneous injections
-	assertEqualsM("plain#2", 4, engine->executor.size());
+	ASSERT_EQ( 4,  engine->executor.size()) << "plain#2";
 
-	eth.assertEvent5(&engine->executor, "sim start", 0, (void*)startSimultaniousInjection, timeNowUs, 97975);
-	eth.assertEvent5(&engine->executor, "sim end", 1, (void*)endSimultaniousInjection, timeNowUs, 100000);
+	eth.assertEvent5(&engine->executor, "sim start", 0, (void*)startSimultaniousInjection, eth.getTimeNowUs(), 97975);
+	eth.assertEvent5(&engine->executor, "sim end", 1, (void*)endSimultaniousInjection, eth.getTimeNowUs(), 100000);
 }
 
 
-void testStartOfCrankingPrimingPulse() {
+TEST(engine, testStartOfCrankingPrimingPulse) {
 	printf("*************************************************** testStartOfCrankingPrimingPulse\r\n");
 
 	EngineTestHelper eth(TEST_ENGINE);
@@ -45,10 +40,10 @@ void testStartOfCrankingPrimingPulse() {
 	engineConfiguration->startOfCrankingPrimingPulse = 4;
 
 	setupSimpleTestEngineWithMafAndTT_ONE_trigger(&eth);
-	assertEqualsM("RPM=0", 0, engine->rpmCalculator.getRpm(PASS_ENGINE_PARAMETER_SIGNATURE));
+	ASSERT_EQ( 0,  engine->rpmCalculator.getRpm(PASS_ENGINE_PARAMETER_SIGNATURE)) << "RPM=0";
 
 	// this -70 value comes from CLT error handling code
-	assertEqualsM("CLT#1", 70, engine->sensors.clt);
+	ASSERT_NEAR( 70,  engine->sensors.clt, EPS4D) << "CLT#1";
 
 	// we need below freezing temperature to get prime fuel
 	// todo: less cruel CLT value assignment which would survive 'updateSlowSensors'
@@ -58,6 +53,6 @@ void testStartOfCrankingPrimingPulse() {
 	startPrimeInjectionPulse(PASS_ENGINE_PARAMETER_SIGNATURE);
 
 
-	assertEqualsM("prime fuel", 1, engine->executor.size());
+	ASSERT_EQ( 1,  engine->executor.size()) << "prime fuel";
 }
 

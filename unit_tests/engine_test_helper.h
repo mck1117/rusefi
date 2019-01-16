@@ -13,11 +13,18 @@
 #include "main_trigger_callback.h"
 #include "unit_test_framework.h"
 
+class EngineTestHelperBase
+{
+public:
+	// we have the base method and base constructor in order to better control order if initialization
+	// base constructor contains things which need to be executed first
+	EngineTestHelperBase();
+};
 
 /**
  * Mock engine with trigger signal simulation infrastructure
  */
-class EngineTestHelper {
+class EngineTestHelper : public EngineTestHelperBase {
 public:
 	EngineTestHelper(engine_type_e engineType);
 	void applyTriggerShape();
@@ -43,5 +50,9 @@ public:
 	Engine engine;
 	persistent_config_s persistentConfig;
 };
+
+void assertRpm(const char *msg, int expectedRpm DECLARE_ENGINE_PARAMETER_SUFFIX);
+
+void setupSimpleTestEngineWithMafAndTT_ONE_trigger(EngineTestHelper *eth, injection_mode_e injMode = IM_BATCH);
 
 #endif /* ENGINE_TEST_HELPER_H_ */

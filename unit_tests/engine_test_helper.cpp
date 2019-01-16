@@ -23,11 +23,13 @@ extern float testCltValue;
 extern float testIatValue;
 extern engine_configuration_s activeConfiguration;
 
+EngineTestHelperBase::EngineTestHelperBase() { 
+	// todo: make this not a global variable, we need currentTimeProvider interface on engine
+	timeNowUs = 0; 
+}
+
 EngineTestHelper::EngineTestHelper(engine_type_e engineType) : engine (&persistentConfig) {
 	unitTestWarningCodeState.clear();
-
-	// todo: make this not a global variable, we need currentTimeProvider interface on engine
-	timeNowUs = 0;
 
 	testMafValue = 0;
 	memset(&activeConfiguration, 0, sizeof(activeConfiguration));
@@ -67,7 +69,8 @@ EngineTestHelper::EngineTestHelper(engine_type_e engineType) : engine (&persiste
 	testIatValue = 4.03646;
 
 	// this is needed to have valid CLT and IAT.
-	engine->updateSlowSensors(PASS_ENGINE_PARAMETER_SIGNATURE);
+//todo: reuse 	initPeriodicEvents(PASS_ENGINE_PARAMETER_SIGNATURE) method
+	engine->periodicSlowCallback(PASS_ENGINE_PARAMETER_SIGNATURE);
 
 	engine->initializeTriggerShape(NULL PASS_ENGINE_PARAMETER_SUFFIX);
 	engine->triggerCentral.addEventListener(rpmShaftPositionCallback, "rpm reporter", engine);
@@ -75,11 +78,17 @@ EngineTestHelper::EngineTestHelper(engine_type_e engineType) : engine (&persiste
 	resetTriggerConfigChangedForUnitTest();
 }
 
+/**
+ * mock a change of time and fire single RISE front event
+ */
 void EngineTestHelper::fireRise(int delayMs) {
 	moveTimeForwardUs(MS2US(delayMs));
 	firePrimaryTriggerRise();
 }
 
+/**
+ * fire single RISE front event
+ */
 void EngineTestHelper::firePrimaryTriggerRise() {
 	board_configuration_s * boardConfiguration = &engine.engineConfigurationPtr->bc;
 	engine.triggerCentral.handleShaftSignal(SHAFT_PRIMARY_RISING, &engine, engine.engineConfigurationPtr, &persistentConfig, boardConfiguration);
@@ -113,7 +122,7 @@ void EngineTestHelper::fireTriggerEvents2(int count, int durationMs) {
 
 void EngineTestHelper::clearQueue() {
 	engine.executor.executeAll(99999999); // this is needed to clear 'isScheduled' flag
-	assertEqualsM("queue size/0", 0, engine.executor.size());
+	ASSERT_EQ( 0,  engine.executor.size()) << "queue size/0";
 	engine.iHead = NULL; // let's drop whatever was scheduled just to start from a clean state
 }
 
@@ -144,7 +153,7 @@ void EngineTestHelper::assertInjectorDownEvent(const char *msg, int eventIndex, 
 }
 
 scheduling_s * EngineTestHelper::assertEvent5(TestExecutor *executor, const char *msg, int index, void *callback, efitime_t start, efitime_t momentX) {
-	assertTrueM(msg, executor->size() > index);
+	EXPECT_TRUE(executor->size() > index) << msg;
 	scheduling_s *event = executor->getForUnitTest(index);
 	assertEqualsM4(msg, " up/down", (void*)event->callback == (void*) callback, 1);
 	assertEqualsM(msg, momentX, event->momentX - start);
@@ -171,4 +180,38 @@ void EngineTestHelper::applyTriggerShape() {
 	ENGINE(initializeTriggerShape(NULL PASS_ENGINE_PARAMETER_SUFFIX));
 
 	incrementGlobalConfigurationVersion(PASS_ENGINE_PARAMETER_SIGNATURE);
+}
+
+void assertRpm(const char *msg, int expectedRpm DECLARE_ENGINE_PARAMETER_SUFFIX) {
+	EXPECT_EQ(expectedRpm, engine->rpmCalculator.getRpm(PASS_ENGINE_PARAMETER_SIGNATURE)) << msg;
+}
+
+void setupSimpleTestEngineWithMafAndTT_ONE_trigger(EngineTestHelper *eth, injection_mode_e injMode) {
+	Engine *engine = &eth->engine;
+	EXPAND_Engine
+
+	timeNowUs = 0;
+	eth->clearQueue();
+
+	ASSERT_EQ(LM_PLAIN_MAF, engineConfiguration->fuelAlgorithm);
+	engineConfiguration->isIgnitionEnabled = false; // let's focus on injection
+	engineConfiguration->specs.cylindersCount = 4;
+	// a bit of flexibility - the mode may be changed by some tests
+	engineConfiguration->injectionMode = injMode;
+	// set cranking mode (it's used by getCurrentInjectionMode())
+	engineConfiguration->crankingInjectionMode = IM_SIMULTANEOUS;
+
+	setArrayValues(config->cltFuelCorrBins, CLT_CURVE_SIZE, 1);
+	setArrayValues(engineConfiguration->injector.battLagCorr, VBAT_INJECTOR_CURVE_SIZE, 0);
+	// this is needed to update injectorLag
+	engine->updateSlowSensors(PASS_ENGINE_PARAMETER_SIGNATURE);
+
+	ASSERT_NEAR( 70,  engine->sensors.clt, EPS4D) << "CLT";
+	ASSERT_EQ( 0,  readIfTriggerConfigChangedForUnitTest()) << "trigger #1";
+
+	engineConfiguration->trigger.type = TT_ONE;
+	incrementGlobalConfigurationVersion(PASS_ENGINE_PARAMETER_SIGNATURE);
+	ASSERT_EQ( 1,  readIfTriggerConfigChangedForUnitTest()) << "trigger #2";
+
+	eth->applyTriggerShape();
 }

@@ -58,7 +58,7 @@ void WarningCodeState::addWarningCode(obd_code_e code) {
 /**
  * @param forIndicator if we want to retrieving value for TS indicator, this case a minimal period is applued
  */
-bool WarningCodeState::isWarningNow(efitimesec_t now, bool forIndicator DECLARE_ENGINE_PARAMETER_SUFFIX) {
+bool WarningCodeState::isWarningNow(efitimesec_t now, bool forIndicator DECLARE_ENGINE_PARAMETER_SUFFIX) const {
 	int period = forIndicator ? maxI(3, engineConfiguration->warningPeriod) : engineConfiguration->warningPeriod;
 	return absI(now - timeOfPreviousWarning) < period;
 }
@@ -77,8 +77,6 @@ void MockAdcState::setMockVoltage(int hwChannel, float voltage) {
 #endif /* EFI_ENABLE_MOCK_ADC */
 
 FuelConsumptionState::FuelConsumptionState() {
-	perSecondConsumption = perSecondAccumulator = 0;
-	perMinuteConsumption = perMinuteAccumulator = 0;
 	accumulatedSecondPrevNt = accumulatedMinutePrevNt = getTimeNowNt();
 }
 
@@ -106,33 +104,10 @@ void FuelConsumptionState::update(efitick_t nowNt DECLARE_ENGINE_PARAMETER_SUFFI
 }
 
 TransmissionState::TransmissionState() {
-
 }
 
 EngineState::EngineState() {
-	dwellAngle = NAN;
-	engineNoiseHipLevel = 0;
-	injectorLag = 0;
-	crankingTime = 0;
-	timeSinceCranking = 0;
-	vssEventCounter = 0;
-	targetAFR = 0;
-	tpsAccelEnrich = 0;
-	tCharge = tChargeK = 0;
 	timeSinceLastTChargeK = getTimeNowNt();
-	airFlow = 0;
-	cltTimingCorrection = 0;
-	runningFuel = baseFuel = currentVE = 0;
-	baseTableFuel = iatFuelCorrection = 0;
-	fuelPidCorrection = 0;
-	cltFuelCorrection = postCrankingFuelCorrection = 0;
-	warmupTargetAfr = airMass = 0;
-	baroCorrection = timingAdvance = 0;
-	sparkDwell = mapAveragingDuration = 0;
-	totalLoggedBytes = injectionOffset = 0;
-	auxValveStart = auxValveEnd = 0;
-	fuelCutoffCorrection = 0;
-	coastingFuelCutStartTime = 0;
 }
 
 void EngineState::updateSlowSensors(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
@@ -145,6 +120,9 @@ void EngineState::updateSlowSensors(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 }
 
 void EngineState::periodicFastCallback(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
+	if (!engine->slowCallBackWasInvoked) {
+		warning(CUSTOM_ERR_6696, "Slow not invoked yet");
+	}
 	efitick_t nowNt = getTimeNowNt();
 	if (ENGINE(rpmCalculator).isCranking(PASS_ENGINE_PARAMETER_SIGNATURE)) {
 		crankingTime = nowNt;
@@ -251,19 +229,14 @@ SensorsState::SensorsState() {
 	reset();
 }
 
-int MockAdcState::getMockAdcValue(int hwChannel) {
+int MockAdcState::getMockAdcValue(int hwChannel) const {
 	return fakeAdcValues[hwChannel];
-}
-
-Accelerometer::Accelerometer() {
-	x = y = z = 0;
 }
 
 void SensorsState::reset() {
 	fuelTankGauge = vBatt = 0;
 	iat = clt = NAN;
 }
-
 
 StartupFuelPumping::StartupFuelPumping() {
 	isTpsAbove50 = false;
