@@ -72,7 +72,7 @@ private:
     void PeriodicTask(efitime_t nowNt) override;
 
     // Heater control state machine
-    static State TransitionFunction(State currentState, float vUr, ErrorType& outError);
+    static State TransitionFunction(State currentState, float vUr, efitime_t timeInState, ErrorType& outError);
     void OnStateChanged(State nextState);
     void OutputFunction(State state, float vUr);
 

@@ -16,23 +16,27 @@ EXTERN_ENGINE
 // Heater params for Idle(cold), Preheating and Control stages
 // See http://www.waltech.com/wideband-files/boschsensordatasheet.htm
 #define CJ125_MAXIMUM_HEATER_VOLTAGE	12.0f	// Do not allow more than 12v effective heater voltage
-#define CJ125_HEATER_IDLE_VOLTAGE       0.0f    // Disable heat during idle state
-#define CJ125_HEATER_PREHEAT_VOLTAGE    2.0f    // 2v preheat until condensation period is over
+#define CJ125_HEATER_IDLE_VOLTAGE		0.0f	// Disable heat during idle state
+#define CJ125_HEATER_PREHEAT_VOLTAGE	2.0f	// 2v preheat until condensation period is over
 
+// Parameters for heater closed loop transition and limits
 #define CJ125_UR_PREHEAT_THR			2.0f	// Ur > 2.0 Volts is too cold to control with PID
-#define CJ125_UR_OVERHEAT_THR			0.5f	// Ur < 0.5 Volts is overheat
-#define CJ125_UR_UNDERHEAT_THR          2.2f    // Ur > 2.2v after closed loop = something went wrong
+#define CJ125_UR_OVERHEAT_THR			0.5f	// Ur < 0.5 Volts is overheat: after closed loop = something went wrong
+#define CJ125_UR_UNDERHEAT_THR			2.2f	// Ur > 2.2v Volts is too cold: after closed loop = something went wrong
 
-#define CJ125_PUMP_SHUNT_RESISTOR		61.9f
-#define CJ125_STOICH_RATIO				14.7f
-#define CJ125_PUMP_CURRENT_FACTOR		1000.0f
+// Timeout parameters
+#define CJ125_PREHEAT_DURATION (US2NT(US_PER_SECOND_LL) * 5)	// Heat for this long (gently) to heat off condensation before switching to the ramp
+#define CJ125_WARMUP_TIMEOUT (US2NT(US_PER_SECOND_LL) * 20)		// We try to warm up for this long before giving up
+
+#define CJ125_PUMP_SHUNT_RESISTOR		(61.9f)
+#define CJ125_PUMP_CURRENT_FACTOR		(1000.0f)
 
 // Some experimental magic values for heater PID regulator
 #define CJ125_PID_LSU42_P				(80.0f / 16.0f * 5.0f / 1024.0f)
 #define CJ125_PID_LSU42_I				(25.0f / 16.0f * 5.0f / 1024.0f)
 
-#define CJ125_PID_LSU49_P               (8.0f)
-#define CJ125_PID_LSU49_I               (0.003f)
+#define CJ125_PID_LSU49_P				(8.0f)
+#define CJ125_PID_LSU49_I				(0.003f)
 
 
 
@@ -56,36 +60,36 @@ void Cj125_new::PeriodicTask(efitime_t nowNt)
 	// TODO: hack hack hack
 	memcpy(&m_heaterPidConfig, &m_config.heaterPid, sizeof(pid_s));
 
-    // Handle heater state machine
-    {
-        float vUr = GetUr();
-        m_diagChannels.vUr = vUr;
+	// Handle heater state machine
+	{
+		float vUr = GetUr();
+		m_diagChannels.vUr = vUr;
 
-        // Figure out which state we should be in
-        State nextState = TransitionFunction(m_state, vUr, m_lastError);
+		// Figure out which state we should be in
+		State nextState = TransitionFunction(m_state, vUr, nowNt - m_lastStateChangeTime, m_lastError);
 
-        // Handle state change if necessary
-        if(m_state != nextState)
-        {
-            m_lastStateChangeTime = nowNt;
+		// Handle state change if necessary
+		if(m_state != nextState)
+		{
+			m_lastStateChangeTime = nowNt;
 
-            OnStateChanged(nextState);
-            m_state = nextState;
-        }
+			OnStateChanged(nextState);
+			m_state = nextState;
+		}
 
-        m_diagChannels.state = m_state;
-        m_diagChannels.lastError = m_lastError;
+		m_diagChannels.state = m_state;
+		m_diagChannels.lastError = m_lastError;
 
-        OutputFunction(m_state, vUr);
-    }
+		OutputFunction(m_state, vUr);
+	}
 
-    // Handle lambda conversion
-    {
-        float vUa = GetUa();
-        m_diagChannels.vUa = vUa;
+	// Handle lambda conversion
+	{
+		float vUa = GetUa();
+		m_diagChannels.vUa = vUa;
 
 		m_convertedLambda = ConvertLambda(vUa);
-    }
+	}
 
 	m_diagChannels.diag = m_spi.Diagnostic();
 
@@ -100,13 +104,13 @@ void Cj125_new::PeriodicTask(efitime_t nowNt)
 	tsOutputChannels.debugIntField2 = static_cast<int>(m_diagChannels.diag);
 }
 
-/* static */ Cj125_new::State Cj125_new::TransitionFunction(Cj125_new::State currentState, float vUr, Cj125_new::ErrorType& outError)
+/* static */ Cj125_new::State Cj125_new::TransitionFunction(Cj125_new::State currentState, float vUr, efitime_t timeInState, Cj125_new::ErrorType& outError)
 {
 	bool isStopped = engine->rpmCalculator.isStopped(PASS_ENGINE_PARAMETER_SIGNATURE);
 
 	switch (currentState) {
-        case State::Disabled:
-            return State::Disabled;
+		case State::Disabled:
+			return State::Disabled;
 		case State::Idle:
 			// If the engine's turning, time to heat the sensor.
 			if(!isStopped) {
@@ -114,19 +118,32 @@ void Cj125_new::PeriodicTask(efitime_t nowNt)
 			}
 
 			return State::Idle;
-        case State::Preheat:
-            // If the engine stopped, turn off the sensor!
-			if(isStopped) {
+		case State::Preheat:
+			// If the engine stopped, turn off the sensor!
+			if (isStopped)
+			{
 				return State::Idle;
-            }
+			}
 
-            // TODO check for timeout
+			// After preheat delay, switch to warmup.
+			if(timeInState > CJ125_PREHEAT_DURATION)
+			{
+				return State::Warmup;
+			}
 
-            return State::Preheat;
+			return State::Preheat;
 		case State::Warmup:
 			// If the engine stopped, turn off the sensor!
-			if(isStopped) {
+			if (isStopped)
+			{
 				return State::Idle;
+			}
+
+			// If it's been too long, something's wrong
+			if(timeInState > CJ125_WARMUP_TIMEOUT)
+			{
+				outError = ErrorType::HeaterTimeout;
+				return State::Error;
 			}
 
 			// If the sensor is sufficiently warm for PID, switch to that
@@ -134,16 +151,17 @@ void Cj125_new::PeriodicTask(efitime_t nowNt)
 				return State::Running;
 			}
 
-            return State::Warmup;
+			return State::Warmup;
 		case State::Running:
 			// If the engine stopped, turn off the sensor!
-			if(isStopped) {
+			if (isStopped)
+			{
 				return State::Idle;
 			}
 
 			// If the sensor is very hot, turn it off because something's wrong
 			if(vUr < CJ125_UR_OVERHEAT_THR)	{
-                outError = ErrorType::Overheat;
+				outError = ErrorType::Overheat;
 				return State::Error;
 			}
 
@@ -155,55 +173,55 @@ void Cj125_new::PeriodicTask(efitime_t nowNt)
 
 			return State::Running;
 		case State::Error:
-            // Never leave error state.
+			// Never leave error state.
 			return State::Error;
 	}
 
-    // should never get here!
-    return State::Disabled;
+	// should never get here!
+	return State::Disabled;
 }
 
 void Cj125_new::OnStateChanged(State nextState)
 {
-    // TODO: handle state changes here
+	// TODO: handle state changes here
 
-    switch(nextState)
-    {
-        case State::Warmup:
-            m_warmupRampVoltage = m_config.warmupInitialVoltage;
-            break;
-        default:
-            // Other states don't need anything special
-            break;
-    }
+	switch(nextState)
+	{
+		case State::Warmup:
+			m_warmupRampVoltage = m_config.warmupInitialVoltage;
+			break;
+		default:
+			// Other states don't need anything special
+			break;
+	}
 }
 
 void Cj125_new::OutputFunction(Cj125_new::State state, float vUr)
 {
-    switch (state)
-    {
-        case State::Idle:
-            SetHeaterEffectiveVoltage(CJ125_HEATER_IDLE_VOLTAGE);
-            break;
-        case State::Preheat:
-            SetHeaterEffectiveVoltage(CJ125_HEATER_PREHEAT_VOLTAGE);
-            break;
-        case State::Warmup:
-            // Increase voltage at the configured ramp rate
-            m_warmupRampVoltage += m_config.warmupRampRate * m_periodSeconds;
+	switch (state)
+	{
+		case State::Idle:
+			SetHeaterEffectiveVoltage(CJ125_HEATER_IDLE_VOLTAGE);
+			break;
+		case State::Preheat:
+			SetHeaterEffectiveVoltage(CJ125_HEATER_PREHEAT_VOLTAGE);
+			break;
+		case State::Warmup:
+			// Increase voltage at the configured ramp rate
+			m_warmupRampVoltage += m_config.warmupRampRate * m_periodSeconds;
 
-            SetHeaterEffectiveVoltage(m_warmupRampVoltage);
-            break;
-        case State::Running:
-            // Run in closed loop
-            SetHeaterEffectiveVoltage(m_heaterPid.getValue(vUr, m_config.vUrTarget, m_periodSeconds));
-            break;
-        case State::Error:
-            // Disable if we had an error
-            SetHeaterEffectiveVoltage(0.0f);
-        case State::Disabled:
-            break;
-    }
+			SetHeaterEffectiveVoltage(m_warmupRampVoltage);
+			break;
+		case State::Running:
+			// Run in closed loop
+			SetHeaterEffectiveVoltage(m_heaterPid.getValue(vUr, m_config.vUrTarget, m_periodSeconds));
+			break;
+		case State::Error:
+			// Disable if we had an error
+			SetHeaterEffectiveVoltage(0.0f);
+		case State::Disabled:
+			break;
+	}
 }
 
 float Cj125_new::GetUa() const
@@ -218,7 +236,7 @@ float Cj125_new::GetUr() const
 
 float Cj125_new::ConvertLambda(float vUa) const
 {
-	constexpr float currentPerVolt = 1000 / 61.9f / 17;
+	constexpr float currentPerVolt = CJ125_PUMP_CURRENT_FACTOR / CJ125_PUMP_SHUNT_RESISTOR / 17;
 
 	// Offset by lambda=1 point (1.5v typ)
 	vUa = vUa - m_vUaOffset;
@@ -230,34 +248,34 @@ float Cj125_new::ConvertLambda(float vUa) const
 
 float Cj125_new::GetLambda() const
 {
-    if(m_state == State::Running)
-    {
-        return m_convertedLambda;
-    }
-    else
-    {
-        return 0.0f;
-    }
+	if(m_state == State::Running)
+	{
+		return m_convertedLambda;
+	}
+	else
+	{
+		return 0.0f;
+	}
 }
 
 void Cj125_new::SetHeaterEffectiveVoltage(float volts)
 {
-    if(volts > CJ125_MAXIMUM_HEATER_VOLTAGE)
-    {
-        volts = CJ125_MAXIMUM_HEATER_VOLTAGE;
-    }
+	if(volts > CJ125_MAXIMUM_HEATER_VOLTAGE)
+	{
+		volts = CJ125_MAXIMUM_HEATER_VOLTAGE;
+	}
 
-    if(volts < 0)
-    {
-        volts = 0;
-    }
+	if(volts < 0)
+	{
+		volts = 0;
+	}
 
-    // Because this is a resistive heater, duty = (V_eff / V_batt) ^ 2
-    float powerRatio = volts / getVBatt();
-    float dutyCycle = powerRatio * powerRatio;
+	// Because this is a resistive heater, duty = (V_eff / V_batt) ^ 2
+	float powerRatio = volts / getVBatt();
+	float dutyCycle = powerRatio * powerRatio;
 
-    m_heaterPwm.setSimplePwmDutyCycle(dutyCycle);
-    m_diagChannels.heaterDuty = dutyCycle;
+	m_heaterPwm.setSimplePwmDutyCycle(dutyCycle);
+	m_diagChannels.heaterDuty = dutyCycle;
 }
 
 bool Cj125_new::OnStarted()
@@ -292,13 +310,6 @@ bool Cj125_new::OnStarted()
 		applyPinState);
 
 	// Init PID
-	m_heaterPidConfig.pFactor = 0;
-	m_heaterPidConfig.iFactor = 0;
-	m_heaterPidConfig.dFactor = 0;
-	m_heaterPidConfig.minValue = 0;
-	m_heaterPidConfig.maxValue = CJ125_MAXIMUM_HEATER_VOLTAGE;
-	m_heaterPidConfig.offset = 0;
-	m_heaterPidConfig.period = m_periodSeconds;
 	m_heaterPid.reset();
 
 	// Try to init SPI
@@ -314,6 +325,8 @@ bool Cj125_new::OnStarted()
 	{
 		Calibrate();
 	}
+
+	m_lastStateChangeTime = getTimeNowNt();
 
 	return true;
 }
@@ -333,7 +346,7 @@ void Cj125_new::Calibrate()
 	for (int i = 0; i < 50; i++)
 	{
 		chThdSleepMilliseconds(10);
-		sum += getVoltageDivided("cj125ua", m_config.adcUa) / 2;
+		sum += GetUa();
 	}
 
 	m_vUaOffset = sum / 50;
