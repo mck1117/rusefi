@@ -53,6 +53,9 @@ static const float cjLSULambda[] = {
 
 void Cj125_new::PeriodicTask(efitime_t nowNt)
 {
+	// TODO: hack hack hack
+	memcpy(&m_heaterPidConfig, &m_config.heaterPid, sizeof(pid_s));
+
     // Handle heater state machine
     {
         float vUr = GetUr();
@@ -346,6 +349,16 @@ const cj125_config defaultConfig
 	EFI_ADC_NONE,	// don't set pins
 	EFI_ADC_NONE,
 	GPIO_UNASSIGNED,
+	// Heater PID
+	{
+		8,		// kP
+		0.003f,	// kI
+		0,		// kD
+		0,		// offset
+		0,		// period
+		0,		// min
+		12		// max
+	},
 	30.0f,	// 30 second heater timeout
 	7.0f,	// 7v initial
 	0.4f,	// 0.4v/s

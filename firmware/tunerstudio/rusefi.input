@@ -1774,6 +1774,11 @@ cmd_stop_engine              = "w\x00\x99\x00\x00"
 		field = "SPI3miso mode",						spi3MisoMode, {isHip9011Enabled == 1}
 		panel = knockThresholdCurve
 		
+	dialog = cj125HeaterPid, "CJ125 Heater PID", yAxis
+		field = "kP",							cj125_heaterPid_pFactor
+		field = "kI",							cj125_heaterPid_iFactor
+		field = "kD",							cj125_heaterPid_dFactor
+
 	dialog = cj125Main, "CJ125 Main", yAxis
 		field = "Enable",						cj125_enable
 		field = "Is LSU4.9? (false for 4.2)",	cj125_isLsu49, {cj125_enable == 1}
@@ -1781,6 +1786,7 @@ cmd_stop_engine              = "w\x00\x99\x00\x00"
 		field = "Warmup initial voltage",		cj125_warmupInitialVoltage, {cj125_enable == 1}
 		field = "Warmup voltage ramp rate",		cj125_warmupRampRate, {cj125_enable == 1}
 		field = "Ur target voltage",			cj125_vUrTarget, {cj125_enable == 1}
+		panel = cj125HeaterPid
 
 	dialog = cj125Pins, "CJ125 Pinout", yAxis
 		field = "UA input pin",			cj125_adcUa, {cj125_enable == 1}

@@ -1004,6 +1004,16 @@ void setDefaultConfiguration(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 		EFI_ADC_NONE,	// don't set pins
 		EFI_ADC_NONE,
 		GPIO_UNASSIGNED,
+		// Heater PID
+		{
+			8,		// kP
+			0.003f,	// kI
+			0,		// kD
+			0,		// offset
+			0,		// period
+			0,		// min
+			12		// max
+		},
 		30.0f,	// 30 second heater timeout
 		7.0f,	// 7v initial
 		0.4f,	// 0.4v/s

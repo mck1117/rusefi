@@ -459,7 +459,8 @@ struct cj125_config
 	adc_channel_e adcUa;
 	adc_channel_e adcUr;
 	brain_pin_e heaterPin;
-	
+	pid_s heaterPid;
+
 	float warmupTimeout; Try to heat the sensor for this long before failing;"sec",1, 0, 0, 30, 0
 	float warmupInitialVoltage; Initial voltage of the warmup ramp;"V", 1, 0, 0, 9, 1
 	float warmupRampRate; After jumping to the initial warmup voltage, ramp at this rate.;"V/s", 1, 0, 0, 1, 2
@@ -959,7 +960,7 @@ tChargeMode_e tChargeMode;
 	float hip9011Gain;
 
 	cj125_config cj125;
-	int[563] unusedEnd;
+	int[558] unusedEnd;
 	
 
 end_struct

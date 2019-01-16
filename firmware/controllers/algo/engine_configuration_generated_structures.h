@@ -1,4 +1,4 @@
-// this section was generated automatically by ConfigDefinition.jar based on rusefi_config.txt Tue Jan 15 23:00:01 PST 2019
+// this section was generated automatically by ConfigDefinition.jar based on rusefi_config.txt Wed Jan 16 00:03:32 PST 2019
 // begin
 #ifndef ENGINE_CONFIGURATION_GENERATED_H_
 #define ENGINE_CONFIGURATION_GENERATED_H_
@@ -391,30 +391,34 @@ typedef struct {
 	 */
 	brain_pin_e heaterPin;
 	/**
-	 *  Try to heat the sensor for this long before failing
 	 * offset 16
+	 */
+	pid_s heaterPid;
+	/**
+	 *  Try to heat the sensor for this long before failing
+	 * offset 36
 	 */
 	float warmupTimeout;
 	/**
 	 *  Initial voltage of the warmup ramp
-	 * offset 20
+	 * offset 40
 	 */
 	float warmupInitialVoltage;
 	/**
 	 *  After jumping to the initial warmup voltage, ramp at this rate.
-	 * offset 24
+	 * offset 44
 	 */
 	float warmupRampRate;
 	/**
 	 *  Target temperature measured on Ur pin
-	 * offset 28
+	 * offset 48
 	 */
 	float vUrTarget;
 	/**
-	 * offset 32
+	 * offset 52
 	 */
 	cj125_spi_config spi;
-	/** total size 44*/
+	/** total size 64*/
 } cj125_config;
 
 // start of board_configuration_s
@@ -2297,9 +2301,9 @@ typedef struct {
 	 */
 	cj125_config cj125;
 	/**
-	 * offset 4228
+	 * offset 4248
 	 */
-	int unusedEnd[563];
+	int unusedEnd[558];
 	/** total size 6480*/
 } engine_configuration_s;
 
@@ -2546,4 +2550,4 @@ typedef struct {
 
 #endif
 // end
-// this section was generated automatically by ConfigDefinition.jar based on rusefi_config.txt Tue Jan 15 23:00:01 PST 2019
+// this section was generated automatically by ConfigDefinition.jar based on rusefi_config.txt Wed Jan 16 00:03:32 PST 2019
