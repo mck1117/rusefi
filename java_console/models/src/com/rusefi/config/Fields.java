@@ -1,6 +1,6 @@
 package com.rusefi.config;
 
-// this file was generated automatically by ConfigDefinition.jar based on rusefi_config.txt Mon Jan 14 22:46:26 PST 2019
+// this file was generated automatically by ConfigDefinition.jar based on rusefi_config.txt Tue Jan 15 23:00:01 PST 2019
 public class Fields {
 	public static final int LE_COMMAND_LENGTH = 200;
 	public static final int BLOCKING_FACTOR = 400;
@@ -1065,6 +1065,8 @@ public class Fields {
 	public static final int cj125_enable_offset_hex = 1058;
 	public static final int cj125_isLsu49_offset = 4184;
 	public static final int cj125_isLsu49_offset_hex = 1058;
+	public static final int cj125_enableCalibration_offset = 4184;
+	public static final int cj125_enableCalibration_offset_hex = 1058;
 	public static final int cj125_adcUa_offset = 4188;
 	public static final int cj125_adcUr_offset = 4192;
 	public static final int cj125_adcUr_offset_hex = 1060;
@@ -1931,6 +1933,7 @@ public class Fields {
 	public static final Field HIP9011GAIN = Field.create("HIP9011GAIN", 4180, FieldType.FLOAT);
 	public static final Field CJ125_ENABLE = Field.create("CJ125_ENABLE", 4184, FieldType.BIT, 0);
 	public static final Field CJ125_ISLSU49 = Field.create("CJ125_ISLSU49", 4184, FieldType.BIT, 1);
+	public static final Field CJ125_ENABLECALIBRATION = Field.create("CJ125_ENABLECALIBRATION", 4184, FieldType.BIT, 2);
 	public static final Field CJ125_ADCUA = Field.create("CJ125_ADCUA", 4188, FieldType.INT, adc_channel_e);
 	public static final Field CJ125_ADCUR = Field.create("CJ125_ADCUR", 4192, FieldType.INT, adc_channel_e);
 	public static final Field CJ125_HEATERPIN = Field.create("CJ125_HEATERPIN", 4196, FieldType.INT, brain_pin_e);

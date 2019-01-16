@@ -454,6 +454,7 @@ end_struct
 struct cj125_config
 	bit enable;
 	bit isLsu49;
+	bit enableCalibration;
 
 	adc_channel_e adcUa;
 	adc_channel_e adcUr;

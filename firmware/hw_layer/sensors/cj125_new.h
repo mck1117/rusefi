@@ -64,6 +64,7 @@ class Cj125_new : public PeriodicController<UTILITY_THREAD_STACK_SIZE>
 
     float m_warmupRampVoltage;
 
+	float m_vUaOffset = 1.5f;
     volatile float m_convertedLambda;
 private:
     // PeriodicController implementation
@@ -77,8 +78,18 @@ private:
 
     // Individual functions
 
+	// analog inputs
+	float GetUr() const;
+	float GetUa() const;
+
+	// Lambda conversion
+	float ConvertLambda(float vUa) const;
+
     // heater
     void SetHeaterEffectiveVoltage(float volts);
+
+	// Calibration
+	void Calibrate();
 public:
     Cj125_new(const cj125_config& config)
         : PeriodicController("cj125", LOWPRIO, 50)

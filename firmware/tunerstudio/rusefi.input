@@ -1791,8 +1791,9 @@ cmd_stop_engine              = "w\x00\x99\x00\x00"
 		field = "#CJ125 is functional without SPI, but cannot perform fault detection,  "
 		field = "#so sensor harm is possible. You've been warned!"
 		field = "SPI Device", 		cj125_spi_spiDevice, {cj125_enable == 1}
-		field = "SPI CS Pin",		cj125_spi_csPin, {cj125_enable == 1 && cj125_spi_spiDevice != 0}
-		field = "SPI CS Pin Mode",	cj125_spi_csPin, {cj125_enable == 1 && cj125_spi_spiDevice != 0}
+		field = "SPI CS Pin",		cj125_spi_csPin,  {cj125_enable == 1 && cj125_spi_spiDevice != 0}
+		field = "SPI CS Pin Mode",	cj125_spi_csMode, {cj125_enable == 1 && cj125_spi_spiDevice != 0}
+		field = "Enable calibration", cj125_enableCalibration, {cj125_enable == 1 && cj125_spi_spiDevice != 0}
 
 	dialog = cj125Function, "CJ125 Wideband O2", yAxis
 		panel = cj125Main

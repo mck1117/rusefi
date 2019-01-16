@@ -1605,6 +1605,8 @@
 #define cj125_enable_offset_hex 1058
 #define cj125_isLsu49_offset 4184
 #define cj125_isLsu49_offset_hex 1058
+#define cj125_enableCalibration_offset 4184
+#define cj125_enableCalibration_offset_hex 1058
 #define cj125_adcUa_offset 4188
 #define cj125_adcUa_offset_hex 105c
 #define cj125_adcUr_offset 4192

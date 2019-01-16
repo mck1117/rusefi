@@ -1,4 +1,4 @@
-// this section was generated automatically by ConfigDefinition.jar based on rusefi_config.txt Mon Jan 14 22:46:26 PST 2019
+// this section was generated automatically by ConfigDefinition.jar based on rusefi_config.txt Tue Jan 15 23:00:01 PST 2019
 // begin
 #ifndef ENGINE_CONFIGURATION_GENERATED_H_
 #define ENGINE_CONFIGURATION_GENERATED_H_
@@ -375,6 +375,9 @@ typedef struct {
 	/**
 	offset 0 bit 1 */
 	bool isLsu49 : 1;
+	/**
+	offset 0 bit 2 */
+	bool enableCalibration : 1;
 	/**
 	 * offset 4
 	 */
@@ -2543,4 +2546,4 @@ typedef struct {
 
 #endif
 // end
-// this section was generated automatically by ConfigDefinition.jar based on rusefi_config.txt Mon Jan 14 22:46:26 PST 2019
+// this section was generated automatically by ConfigDefinition.jar based on rusefi_config.txt Tue Jan 15 23:00:01 PST 2019

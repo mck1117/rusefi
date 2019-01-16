@@ -1000,6 +1000,7 @@ void setDefaultConfiguration(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	{
 		false,	// disable
 		true,	// lsu 4.9
+		false,	// disable calibration
 		EFI_ADC_NONE,	// don't set pins
 		EFI_ADC_NONE,
 		GPIO_UNASSIGNED,

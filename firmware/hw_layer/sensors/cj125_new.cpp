@@ -19,8 +19,6 @@ EXTERN_ENGINE
 #define CJ125_HEATER_IDLE_VOLTAGE       0.0f    // Disable heat during idle state
 #define CJ125_HEATER_PREHEAT_VOLTAGE    2.0f    // 2v preheat until condensation period is over
 
-
-
 #define CJ125_UR_PREHEAT_THR			2.0f	// Ur > 2.0 Volts is too cold to control with PID
 #define CJ125_UR_OVERHEAT_THR			0.5f	// Ur < 0.5 Volts is overheat
 #define CJ125_UR_UNDERHEAT_THR          2.2f    // Ur > 2.2v after closed loop = something went wrong
@@ -36,11 +34,28 @@ EXTERN_ENGINE
 #define CJ125_PID_LSU49_P               (8.0f)
 #define CJ125_PID_LSU49_I               (0.003f)
 
+
+
+// Pump current, mA
+static const float cjLSUBins[] = { 
+	// LSU 4.9
+	-2.0f, -1.602f, -1.243f, -0.927f, -0.8f, -0.652f, -0.405f, -0.183f, -0.106f, -0.04f, 0, 0.015f, 0.097f, 0.193f, 0.250f, 0.329f, 0.671f, 0.938f, 1.150f, 1.385f, 1.700f, 2.000f, 2.150f, 2.250f
+};
+// Lambda value
+static const float cjLSULambda[] = {
+	// LSU 4.9
+	0.65f, 0.7f, 0.75f, 0.8f, 0.822f, 0.85f, 0.9f, 0.95f, 0.97f, 0.99f, 1.003f, 1.01f, 1.05f, 1.1f, 1.132f, 1.179f, 1.429f, 1.701f, 1.990f, 2.434f, 3.413f, 5.391f, 7.506f, 10.119f
+};
+
+
+
+
+
 void Cj125_new::PeriodicTask(efitime_t nowNt)
 {
     // Handle heater state machine
     {
-        float vUr = getVoltageDivided("cj125ur", m_config.adcUr) / 2;
+        float vUr = GetUr();
         m_diagChannels.vUr = vUr;
 
         // Figure out which state we should be in
@@ -63,12 +78,10 @@ void Cj125_new::PeriodicTask(efitime_t nowNt)
 
     // Handle lambda conversion
     {
-        float vUa = getVoltageDivided("cj125ua", m_config.adcUa) / 2;
+        float vUa = GetUa();
         m_diagChannels.vUa = vUa;
 
-        //float pumpCurrent = (vUa - 1.5f) * amplCoeff * (CJ125_PUMP_CURRENT_FACTOR / CJ125_PUMP_SHUNT_RESISTOR);
-        //m_convertedLambda =  = interpolate2d("cj125Lsu", pumpCurrent, (float *)cjLSUBins[sensorType], (float *)cjLSULambda[sensorType], cjLSUTableSize[sensorType]);
-        m_convertedLambda = 0.89f;
+		m_convertedLambda = ConvertLambda(vUa);
     }
 
 	m_diagChannels.diag = m_spi.Diagnostic();
@@ -78,7 +91,7 @@ void Cj125_new::PeriodicTask(efitime_t nowNt)
 	tsOutputChannels.debugFloatField3 = 0;
 	tsOutputChannels.debugFloatField4 = m_diagChannels.vUr;
 	tsOutputChannels.debugFloatField5 = m_diagChannels.vUa;
-	tsOutputChannels.debugFloatField6 = 0;
+	tsOutputChannels.debugFloatField6 = m_convertedLambda;
 	tsOutputChannels.debugFloatField7 = m_config.vUrTarget;
 	tsOutputChannels.debugIntField1 = static_cast<int>(m_diagChannels.state);
 	tsOutputChannels.debugIntField2 = static_cast<int>(m_diagChannels.diag);
@@ -190,6 +203,28 @@ void Cj125_new::OutputFunction(Cj125_new::State state, float vUr)
     }
 }
 
+float Cj125_new::GetUa() const
+{
+	return getVoltageDivided("cj125ua", m_config.adcUa) / 2;
+}
+
+float Cj125_new::GetUr() const
+{
+	return getVoltageDivided("cj125ur", m_config.adcUr) / 2;
+}
+
+float Cj125_new::ConvertLambda(float vUa) const
+{
+	constexpr float currentPerVolt = 1000 / 61.9f / 17;
+
+	// Offset by lambda=1 point (1.5v typ)
+	vUa = vUa - m_vUaOffset;
+
+	float pumpCurrent = vUa * currentPerVolt;
+
+	return interpolate2d("cj125Lsu", pumpCurrent, cjLSUBins, cjLSULambda, sizeof(cjLSUBins) / (sizeof(cjLSUBins[0])));
+}
+
 float Cj125_new::GetLambda() const
 {
     if(m_state == State::Running)
@@ -272,15 +307,42 @@ bool Cj125_new::OnStarted()
 		// If ident was successful, then we'll use SPI later.
 	}
 
-	//m_spi.BeginCalibration();
+	if(m_config.enableCalibration)
+	{
+		Calibrate();
+	}
 
 	return true;
 }
 
-cj125_config defaultConfig
+void Cj125_new::Calibrate()
+{
+	// If we couldn't go in to cal mode, return.
+	if(!m_spi.BeginCalibration())
+	{
+		return;
+	}
+
+	chThdSleepMilliseconds(50);
+
+	float sum = 0;
+
+	for (int i = 0; i < 50; i++)
+	{
+		chThdSleepMilliseconds(10);
+		sum += getVoltageDivided("cj125ua", m_config.adcUa) / 2;
+	}
+
+	m_vUaOffset = sum / 50;
+
+	m_spi.EndCalibration();
+}
+
+const cj125_config defaultConfig
 {
 	false,	// disable
 	true,	// lsu 4.9
+	false,
 	EFI_ADC_NONE,	// don't set pins
 	EFI_ADC_NONE,
 	GPIO_UNASSIGNED,
