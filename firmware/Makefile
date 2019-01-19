@@ -264,6 +264,8 @@ INCDIR = $(CHIBIOS)/os/license \
 	controllers/algo \
 	controllers/core \
 	controllers/math \
+	controllers/trigger/CrankDecoders \
+	controllers/trigger/CamDecoders \
 	controllers/trigger/decoders \
 	controllers/trigger
 

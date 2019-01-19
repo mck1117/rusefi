@@ -201,7 +201,8 @@ void hwHandleShaftSignal(trigger_event_e signal) {
 }
 #endif /* EFI_PROD_CODE */
 
-TriggerCentral::TriggerCentral() {
+TriggerCentral::TriggerCentral()
+	: testDecoder(60, 2) {
 	nowNt = 0;
 	vvtPosition = 0;
 	timeAtVirtualZeroNt = 0;
@@ -324,6 +325,10 @@ void TriggerCentral::handleShaftSignal(trigger_event_e signal DECLARE_ENGINE_PAR
 	}
 
 	nowNt = getTimeNowNt();
+
+
+	testDecoder.HandleTriggerEdge(signal, nowNt);
+
 
 	// This code gathers some statistics on signals and compares accumulated periods to filter interference
 	if (boardConfiguration->useNoiselessTriggerDecoder) {

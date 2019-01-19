@@ -20,6 +20,10 @@
 
 #include "global.h"
 
+#ifndef EFI_SHAFT_POSITION_INPUT
+#define EFI_SHAFT_POSITION_INPUT 1
+#endif
+
 #if EFI_SHAFT_POSITION_INPUT || defined(__DOXYGEN__)
 
 #include "obd_error_codes.h"

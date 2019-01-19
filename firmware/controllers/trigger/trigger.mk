@@ -5,8 +5,8 @@ TRIGGER_DECODERS_SRC_CPP = \
 	$(PROJECT_DIR)/controllers/trigger/decoders/trigger_chrysler.cpp \
 	$(PROJECT_DIR)/controllers/trigger/trigger_structure.cpp \
 	$(PROJECT_DIR)/controllers/trigger/trigger_decoder.cpp \
-	$(PROJECT_DIR)/controllers/trigger/CamlessDecoder.cpp \
-	$(PROJECT_DIR)/controllers/trigger/MissingToothTriggerDecoder.cpp \
+	$(PROJECT_DIR)/controllers/trigger/CamDecoders/CamAdders/CamlessDecoder.cpp \
+	$(PROJECT_DIR)/controllers/trigger/CrankDecoders/MissingToothTriggerDecoder.cpp \
 	$(PROJECT_DIR)/controllers/trigger/trigger_simulator.cpp \
 	$(PROJECT_DIR)/controllers/trigger/decoders/trigger_mitsubishi.cpp \
 	$(PROJECT_DIR)/controllers/trigger/decoders/trigger_nissan.cpp \

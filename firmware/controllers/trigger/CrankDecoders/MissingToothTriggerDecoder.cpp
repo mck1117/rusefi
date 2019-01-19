@@ -1,29 +1,7 @@
 
-#include "TriggerDecoder.h"
+#include "MissingToothCrankDecoder.h"
 
 #include "global.h"
-
-void test1(TriggerDecoder& dec)
-{
-    dec.HandleTriggerEdge(SHAFT_PRIMARY_FALLING, 27);
-}
-
-
-
-void test2()
-{
-    MissingToothTriggerDecoder decoder(60, 2);
-    test1(decoder);
-
-
-
-
-
-
-    CamlessDecoder<MissingToothTriggerDecoder> csa(60, 2);
-
-    csa.HandleTriggerEdge(SHAFT_PRIMARY_FALLING, 100);
-}
 
 std::optional<TriggerResult> TriggerDecoder::HandleTriggerEdge(trigger_event_e const signal, const efitime_t nowNt)
 {

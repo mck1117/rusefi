@@ -12,6 +12,8 @@
 #include "listener_array.h"
 #include "trigger_decoder.h"
 
+#include "MissingToothCrankDecoder.h"
+
 class Engine;
 typedef void (*ShaftPositionListener)(trigger_event_e signal, uint32_t index DECLARE_ENGINE_PARAMETER_SUFFIX);
 
@@ -53,6 +55,8 @@ private:
 	efitick_t lastSignalTimes[HW_EVENT_TYPES];
 	efitick_t accumSignalPeriods[HW_EVENT_TYPES];
 	efitick_t accumSignalPrevPeriods[HW_EVENT_TYPES];
+
+	MissingToothTriggerDecoder testDecoder;
 };
 #endif
 

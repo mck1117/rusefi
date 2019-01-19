@@ -25,4 +25,6 @@ void testNoiselessDecoder(void);
 
 void assertRpm(const char *msg, int expectedRpm DECLARE_ENGINE_PARAMETER_SUFFIX);
 
+void testNewDecoder();
+
 #endif /* TEST_TRIGGER_DECODER_H_ */

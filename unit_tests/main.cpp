@@ -60,7 +60,7 @@ extern bool printTriggerDebug;
 
 int main(void) {
 //	printTriggerDebug = true;
-
+/*
 	testDifferentInjectionModes();
 	testPidAutoZigZag();
 	testMissedSpark299();
@@ -115,8 +115,11 @@ int main(void) {
 
 	//	resizeMap();
 	printf("Success 20180120\r\n");
-	printAllTriggers();
+	printAllTriggers();*/
 //	printConvertedTable();
+
+	testNewDecoder();
+
 	return EXIT_SUCCESS;
 }
 
