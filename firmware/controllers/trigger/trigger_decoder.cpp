@@ -116,7 +116,7 @@ void calculateTriggerSynchPoint(TriggerShape *shape, TriggerState *state DECLARE
 	}
 }
 
-efitime_t TriggerState::getTotalEventCounter() {
+efitime_t TriggerState::getTotalEventCounter() const {
 	return totalEventCountBase + currentCycle.current_index;
 }
 
@@ -236,10 +236,10 @@ static trigger_value_e eventType[6] = { TV_FALL, TV_RISE, TV_FALL, TV_RISE, TV_F
 #define isLessImportant(type) (needToSkipFall(type) || needToSkipRise(type) || (!considerEventForGap()) )
 
 TriggerState::TriggerState() {
-	reset();
+	resetTriggerState();
 }
 
-void TriggerState::reset() {
+void TriggerState::resetTriggerState() {
 	triggerCycleCallback = NULL;
 	shaft_is_synchronized = false;
 	toothed_previous_time = 0;
@@ -257,7 +257,6 @@ void TriggerState::reset() {
 	prevSignal = SHAFT_PRIMARY_FALLING;
 	startOfCycleNt = 0;
 
-	resetRunningCounters();
 	resetCurrentCycleState();
 	memset(expectedTotalTime, 0, sizeof(expectedTotalTime));
 
@@ -290,6 +289,77 @@ void TriggerState::onSynchronizationLost(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	engine->rpmCalculator.setStopSpinning(PASS_ENGINE_PARAMETER_SIGNATURE);
 }
 
+bool TriggerState::validateEventCounters(DECLARE_ENGINE_PARAMETER_SIGNATURE) const {
+	bool isDecodingError = currentCycle.eventCount[0] != TRIGGER_SHAPE(expectedEventCount[0])
+					|| currentCycle.eventCount[1] != TRIGGER_SHAPE(expectedEventCount[1])
+					|| currentCycle.eventCount[2] != TRIGGER_SHAPE(expectedEventCount[2]);
+
+#if EFI_UNIT_TEST
+			printf("sync point: isDecodingError=%d isInit=%d\r\n", isDecodingError, engine->isInitializingTrigger);
+			if (isDecodingError) {
+				printf("count: cur=%d exp=%d\r\n", currentCycle.eventCount[0],  TRIGGER_SHAPE(expectedEventCount[0]));
+				printf("count: cur=%d exp=%d\r\n", currentCycle.eventCount[1],  TRIGGER_SHAPE(expectedEventCount[1]));
+				printf("count: cur=%d exp=%d\r\n", currentCycle.eventCount[2],  TRIGGER_SHAPE(expectedEventCount[2]));
+			}
+#endif /* EFI_UNIT_TEST */
+
+	return isDecodingError;
+}
+
+void TriggerState::handleTriggerError(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
+	if (engineConfiguration->debugMode == DBG_TRIGGER_SYNC) {
+#if EFI_TUNER_STUDIO || defined(__DOXYGEN__)
+		tsOutputChannels.debugIntField1 = currentCycle.eventCount[0];
+		tsOutputChannels.debugIntField2 = currentCycle.eventCount[1];
+		tsOutputChannels.debugIntField3 = currentCycle.eventCount[2];
+#endif /* EFI_TUNER_STUDIO */
+	}
+
+	warning(CUSTOM_SYNC_COUNT_MISMATCH, "trigger not happy current %d/%d/%d expected %d/%d/%d",
+			currentCycle.eventCount[0],
+			currentCycle.eventCount[1],
+			currentCycle.eventCount[2],
+			TRIGGER_SHAPE(expectedEventCount[0]),
+			TRIGGER_SHAPE(expectedEventCount[1]),
+			TRIGGER_SHAPE(expectedEventCount[2]));
+	lastDecodingErrorTime = getTimeNowNt();
+	someSortOfTriggerError = true;
+
+	totalTriggerErrorCounter++;
+	if (CONFIG(isPrintTriggerSynchDetails) || someSortOfTriggerError) {
+#if EFI_PROD_CODE || defined(__DOXYGEN__)
+		scheduleMsg(logger, "error: synchronizationPoint @ index %d expected %d/%d/%d got %d/%d/%d",
+				currentCycle.current_index, TRIGGER_SHAPE(expectedEventCount[0]),
+				TRIGGER_SHAPE(expectedEventCount[1]), TRIGGER_SHAPE(expectedEventCount[2]),
+				currentCycle.eventCount[0], currentCycle.eventCount[1], currentCycle.eventCount[2]);
+#endif /* EFI_PROD_CODE */
+	}
+}
+
+void TriggerState::onShaftSynchronization(efitime_t nowNt, trigger_wheel_e triggerWheel DECLARE_ENGINE_PARAMETER_SUFFIX) {
+	shaft_is_synchronized = true;
+	// this call would update duty cycle values
+	nextTriggerEvent()
+	;
+
+	if (triggerCycleCallback != NULL) {
+		triggerCycleCallback(this);
+	}
+
+	startOfCycleNt = nowNt;
+	resetCurrentCycleState();
+	incrementTotalEventCounter();
+	totalEventCountBase += getTriggerSize();
+
+#if EFI_UNIT_TEST || defined(__DOXYGEN__)
+	if (printTriggerDebug) {
+		printf("index=%d %d\r\n",
+				currentCycle.current_index,
+				totalRevolutionCounter);
+	}
+#endif /* EFI_UNIT_TEST */
+}
+
 /**
  * @brief Trigger decoding happens here
  * This method is invoked every time we have a fall or rise on one of the trigger sensors.
@@ -315,6 +385,8 @@ void TriggerState::decodeTriggerEvent(trigger_event_e const signal, efitime_t no
 	curSignal = signal;
 
 	currentCycle.eventCount[triggerWheel]++;
+
+	efiAssertVoid(CUSTOM_OBD_93, toothed_previous_time <= nowNt, "toothed_previous_time after nowNt");
 
 	efitime_t currentDurationLong = getCurrentGapDuration(nowNt);
 
@@ -476,48 +548,11 @@ void TriggerState::decodeTriggerEvent(trigger_event_e const signal, efitime_t no
 			/**
 			 * We can check if things are fine by comparing the number of events in a cycle with the expected number of event.
 			 */
-			bool isDecodingError = currentCycle.eventCount[0] != TRIGGER_SHAPE(expectedEventCount[0])
-					|| currentCycle.eventCount[1] != TRIGGER_SHAPE(expectedEventCount[1])
-					|| currentCycle.eventCount[2] != TRIGGER_SHAPE(expectedEventCount[2]);
-
-#if EFI_UNIT_TEST
-			printf("sync point: isDecodingError=%d isInit=%d\r\n", isDecodingError, engine->isInitializingTrigger);
-			if (isDecodingError) {
-				printf("count: cur=%d exp=%d\r\n", currentCycle.eventCount[0],  TRIGGER_SHAPE(expectedEventCount[0]));
-				printf("count: cur=%d exp=%d\r\n", currentCycle.eventCount[1],  TRIGGER_SHAPE(expectedEventCount[1]));
-				printf("count: cur=%d exp=%d\r\n", currentCycle.eventCount[2],  TRIGGER_SHAPE(expectedEventCount[2]));
-			}
-#endif
+			bool isDecodingError = validateEventCounters(PASS_ENGINE_PARAMETER_SIGNATURE);
 
 			enginePins.triggerDecoderErrorPin.setValue(isDecodingError);
 			if (isDecodingError && !engine->isInitializingTrigger) {
-				if (engineConfiguration->debugMode == DBG_TRIGGER_SYNC) {
-#if EFI_TUNER_STUDIO || defined(__DOXYGEN__)
-					tsOutputChannels.debugIntField1 = currentCycle.eventCount[0];
-					tsOutputChannels.debugIntField2 = currentCycle.eventCount[1];
-					tsOutputChannels.debugIntField3 = currentCycle.eventCount[2];
-#endif /* EFI_TUNER_STUDIO */
-				}
-
-				warning(CUSTOM_SYNC_COUNT_MISMATCH, "trigger not happy current %d/%d/%d expected %d/%d/%d",
-						currentCycle.eventCount[0],
-						currentCycle.eventCount[1],
-						currentCycle.eventCount[2],
-						TRIGGER_SHAPE(expectedEventCount[0]),
-						TRIGGER_SHAPE(expectedEventCount[1]),
-						TRIGGER_SHAPE(expectedEventCount[2]));
-				lastDecodingErrorTime = getTimeNowNt();
-				someSortOfTriggerError = true;
-
-				totalTriggerErrorCounter++;
-				if (CONFIG(isPrintTriggerSynchDetails) || someSortOfTriggerError) {
-#if EFI_PROD_CODE || defined(__DOXYGEN__)
-					scheduleMsg(logger, "error: synchronizationPoint @ index %d expected %d/%d/%d got %d/%d/%d",
-							currentCycle.current_index, TRIGGER_SHAPE(expectedEventCount[0]),
-							TRIGGER_SHAPE(expectedEventCount[1]), TRIGGER_SHAPE(expectedEventCount[2]),
-							currentCycle.eventCount[0], currentCycle.eventCount[1], currentCycle.eventCount[2]);
-#endif /* EFI_PROD_CODE */
-				}
+				handleTriggerError(PASS_ENGINE_PARAMETER_SIGNATURE);
 			}
 
 			errorDetection.add(isDecodingError);
@@ -529,30 +564,8 @@ void TriggerState::decodeTriggerEvent(trigger_event_e const signal, efitime_t no
 						currentCycle.eventCount[2]);
 			}
 
-			shaft_is_synchronized = true;
-			// this call would update duty cycle values
-			nextTriggerEvent()
-			;
+			onShaftSynchronization(nowNt, triggerWheel PASS_ENGINE_PARAMETER_SUFFIX);
 
-
-			if (triggerCycleCallback != NULL) {
-				triggerCycleCallback(this);
-			}
-
-			startOfCycleNt = nowNt;
-			resetCurrentCycleState();
-			incrementTotalEventCounter();
-			runningRevolutionCounter++;
-			totalEventCountBase += getTriggerSize();
-
-
-#if EFI_UNIT_TEST || defined(__DOXYGEN__)
-			if (printTriggerDebug) {
-				printf("index=%d %d\r\n",
-						currentCycle.current_index,
-						runningRevolutionCounter);
-			}
-#endif /* EFI_UNIT_TEST */
 		} else {	/* if (!isSynchronizationPoint) */
 			nextTriggerEvent()
 			;
@@ -566,7 +579,7 @@ void TriggerState::decodeTriggerEvent(trigger_event_e const signal, efitime_t no
 	}
 	if (!isValidIndex(PASS_ENGINE_PARAMETER_SIGNATURE) && !engine->isInitializingTrigger) {
 		// let's not show a warning if we are just starting to spin
-		if (GET_RPM() != 0) {
+		if (GET_RPM_VALUE != 0) {
 			warning(CUSTOM_SYNC_ERROR, "sync error: index #%d above total size %d", currentCycle.current_index, getTriggerSize());
 			lastDecodingErrorTime = getTimeNowNt();
 			someSortOfTriggerError = true;
@@ -607,7 +620,7 @@ uint32_t findTriggerZeroEventIndex(TriggerState *state, TriggerShape * shape,
 	errorDetection.clear();
 	efiAssert(CUSTOM_ERR_ASSERT, state != NULL, "NULL state", -1);
 
-	state->reset();
+	state->resetTriggerState();
 
 	if (shape->shapeDefinitionError) {
 		return 0;
@@ -649,14 +662,8 @@ void initTriggerDecoderLogger(Logging *sharedLogger) {
 	logger = sharedLogger;
 }
 
-efitime_t TriggerState::getStartOfRevolutionIndex() {
+efitime_t TriggerState::getStartOfRevolutionIndex() const {
 	return totalEventCountBase;
-}
-
-void TriggerState::resetRunningCounters() {
-	runningRevolutionCounter = 0;
-	runningTriggerErrorCounter = 0;
-	runningOrderingErrorCounter = 0;
 }
 
 void TriggerState::runtimeStatistics(efitime_t nowNt DECLARE_ENGINE_PARAMETER_SUFFIX) {

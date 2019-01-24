@@ -113,6 +113,11 @@ EngineState::EngineState() {
 void EngineState::updateSlowSensors(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	engine->sensors.iat = getIntakeAirTemperature(PASS_ENGINE_PARAMETER_SIGNATURE);
 	engine->sensors.clt = getCoolantTemperature(PASS_ENGINE_PARAMETER_SIGNATURE);
+#if EFI_UNIT_TEST
+	if (!cisnan(engine->sensors.mockClt)) {
+		engine->sensors.clt = engine->sensors.mockClt;
+	}
+#endif
 	engine->sensors.oilPressure = getOilPressure(PASS_ENGINE_PARAMETER_SIGNATURE);
 
 	warmupTargetAfr = interpolate2d("warm", engine->sensors.clt, engineConfiguration->warmupTargetAfrBins,
@@ -226,16 +231,10 @@ void EngineState::updateTChargeK(int rpm, float tps DECLARE_ENGINE_PARAMETER_SUF
 }
 
 SensorsState::SensorsState() {
-	reset();
 }
 
 int MockAdcState::getMockAdcValue(int hwChannel) const {
 	return fakeAdcValues[hwChannel];
-}
-
-void SensorsState::reset() {
-	fuelTankGauge = vBatt = 0;
-	iat = clt = NAN;
 }
 
 StartupFuelPumping::StartupFuelPumping() {
@@ -257,7 +256,7 @@ void StartupFuelPumping::setPumpsCounter(int newValue) {
 }
 
 void StartupFuelPumping::update(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
-	if (engine->rpmCalculator.getRpm(PASS_ENGINE_PARAMETER_SIGNATURE) == 0) {
+	if (GET_RPM() == 0) {
 		bool isTpsAbove50 = getTPS(PASS_ENGINE_PARAMETER_SIGNATURE) >= 50;
 
 		if (this->isTpsAbove50 != isTpsAbove50) {

@@ -10,8 +10,8 @@
  * @author Andrey Belomutskiy, (c) 2012-2018
  */
 
-#include "global.h"
 #include "rpm_calculator.h"
+#include "engine.h"
 
 #if EFI_SHAFT_POSITION_INPUT || defined(__DOXYGEN__)
 
@@ -59,9 +59,6 @@ RpmCalculator::RpmCalculator() {
 	// we need this initial to have not_running at first invocation
 	lastRpmEventTimeNt = (efitime_t) -10 * US2NT(US_PER_SECOND_LL);
 	revolutionCounterSinceBootForUnitTest = 0;
-
-	// WAT? this was just assigned a non-zero value a few lines above? which one is right?
-	lastRpmEventTimeNt = 0;
 }
 
 bool RpmCalculator::isStopped(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
@@ -89,11 +86,6 @@ bool RpmCalculator::isRunning(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
  * @return true if engine is spinning (cranking or running)
  */
 bool RpmCalculator::checkIfSpinning(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
-	if (lastRpmEventTimeNt == 0) {
-		// here we assume 64 bit time does not overflow
-		// zero value is the default meaning no RPM events since reboot
-		return false;
-	}
 	efitick_t nowNt = getTimeNowNt();
 	if (ENGINE(needToStopEngine(nowNt))) {
 		setStopped(PASS_ENGINE_PARAMETER_SIGNATURE);
@@ -208,18 +200,17 @@ void RpmCalculator::setSpinningUp(efitime_t nowNt DECLARE_ENGINE_PARAMETER_SUFFI
 	if (isSpinningUp(PASS_ENGINE_PARAMETER_SIGNATURE)) {
 		engine->triggerCentral.triggerState.setLastEventTimeForInstantRpm(nowNt PASS_ENGINE_PARAMETER_SUFFIX);
 	}
-	// Update ignition pin indices if needed
-	prepareIgnitionPinIndices(getIgnitionMode(PASS_ENGINE_PARAMETER_SIGNATURE) PASS_ENGINE_PARAMETER_SUFFIX);
+	/**
+	 * Update ignition pin indices if needed. Here we potentially switch to wasted spark temporarily.
+	 */
+	prepareIgnitionPinIndices(getCurrentIgnitionMode(PASS_ENGINE_PARAMETER_SIGNATURE) PASS_ENGINE_PARAMETER_SUFFIX);
 }
 
 /**
- * WARNING: this is a heavy method because 'getRpm()' is relatively heavy
- *
  * @return -1 in case of isNoisySignal(), current RPM otherwise
  */
 // todo: migrate to float return result or add a float version? this would have with calculations
-// todo: add a version which does not check time & saves time? need to profile
-int RpmCalculator::getRpm(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
+int RpmCalculator::getRpm(DECLARE_ENGINE_PARAMETER_SIGNATURE) const {
 #if !EFI_PROD_CODE
 	if (mockRpm != MOCK_UNDEFINED) {
 		return mockRpm;
@@ -305,7 +296,7 @@ static char rpmBuffer[_MAX_FILLER];
  * digital sniffer.
  */
 static void onTdcCallback(void) {
-	itoa10(rpmBuffer, getRpmE(engine));
+	itoa10(rpmBuffer, GET_RPM());
 	addEngineSnifferEvent(TOP_DEAD_CENTER_MESSAGE, (char* ) rpmBuffer);
 }
 
@@ -318,7 +309,7 @@ static void tdcMarkCallback(trigger_event_e ckpSignalType,
 	bool isTriggerSynchronizationPoint = index0 == 0;
 	if (isTriggerSynchronizationPoint && ENGINE(isEngineChartEnabled)) {
 		int revIndex2 = engine->rpmCalculator.getRevolutionCounter() % 2;
-		int rpm = ENGINE(rpmCalculator.getRpm(PASS_ENGINE_PARAMETER_SIGNATURE));
+		int rpm = GET_RPM();
 		// todo: use tooth event-based scheduling, not just time-based scheduling
 		if (isValidRpm(rpm)) {
 			scheduleByAngle(rpm, &tdcScheduler[revIndex2], tdcPosition(),
@@ -346,11 +337,11 @@ float getCrankshaftAngleNt(efitime_t timeNt DECLARE_ENGINE_PARAMETER_SUFFIX) {
 	 * compiler is not smart enough to figure out that "A / ( B / C)" could be optimized into
 	 * "A * C / B" in order to replace a slower division with a faster multiplication.
 	 */
-	int rpm = engine->rpmCalculator.getRpm(PASS_ENGINE_PARAMETER_SIGNATURE);
+	int rpm = GET_RPM();
 	return rpm == 0 ? NAN : timeSinceZeroAngleNt / getOneDegreeTimeNt(rpm);
 }
 
-void initRpmCalculator(Logging *sharedLogger, Engine *engine) {
+void initRpmCalculator(Logging *sharedLogger DECLARE_ENGINE_PARAMETER_SUFFIX) {
 	logger = sharedLogger;
 	if (hasFirmwareError()) {
 		return;

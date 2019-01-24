@@ -213,11 +213,11 @@ static percent_t automaticIdleController() {
 	} else {
 		targetRpm = interpolate2d("cltRpm", clt, CONFIG(cltIdleRpmBins), CONFIG(cltIdleRpm), CLT_CURVE_SIZE);
 	}
-	targetRpm += engine->fsioIdleTargetRPMAdjustment;
+	targetRpm += engine->fsioState.fsioIdleTargetRPMAdjustment;
 
 
 	// check if within the dead zone
-	int rpm = getRpmE(engine);
+	int rpm = GET_RPM();
 	if (absI(rpm - targetRpm) <= CONFIG(idlePidRpmDeadZone)) {
 		idleState = RPM_DEAD_ZONE;
 		// current RPM is close enough, no need to change anything
@@ -451,7 +451,7 @@ static void applyIdleSolenoidPinState(PwmConfig *state, int stateIndex) {
 	OutputPin *output = state->outputPins[0];
 	int value = state->multiWave.getChannelState(/*channelIndex*/0, stateIndex);
 	if (!value /* always allow turning solenoid off */ ||
-			(GET_RPM() != 0 || timeToStopIdleTest != 0) /* do not run solenoid unless engine is spinning or bench testing in progress */
+			(GET_RPM_VALUE != 0 || timeToStopIdleTest != 0) /* do not run solenoid unless engine is spinning or bench testing in progress */
 			) {
 		output->setValue(value);
 	}

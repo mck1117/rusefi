@@ -9,9 +9,7 @@
 
 #include "global.h"
 #include "pid.h"
-#include "engine_configuration.h"
 #include "rpm_calculator.h"
-#include "engine_configuration.h"
 #include "event_registry.h"
 #include "trigger_structure.h"
 #include "table_helper.h"
@@ -93,8 +91,11 @@ public:
 	 *
 	 * values are in Celsius
 	 */
-	float iat;
-	float clt;
+	float iat = NAN;
+#if EFI_UNIT_TEST
+	float mockClt = NAN;
+#endif
+	float clt = NAN;
 
 	/**
 	 * Oil pressure in kPa
@@ -103,14 +104,12 @@ public:
 
 	Accelerometer accelerometer;
 
-	float vBatt;
+	float vBatt = 0;
 	float currentAfr;
 	/**
 	 * that's fuel in tank - just a gauge
 	 */
-	percent_t fuelTankGauge;
-
-	void reset();
+	percent_t fuelTankGauge = 0;
 };
 
 class FuelConsumptionState {
@@ -299,14 +298,14 @@ typedef struct {
 	uint32_t rpmCbTime;
 } monitoring_timestamps_s;
 
-class Engine;
-class WallFuel;
-
-typedef void (*configuration_callback_t)(Engine*);
-
 class FsioState {
 public:
 	FsioState();
+	float fsioTimingAdjustment = 0;
+	float fsioIdleTargetRPMAdjustment = 0;
+	float servoValues[SERVO_COUNT];
+	float fsioLastValue[FSIO_COMMAND_COUNT];
+
 #if EFI_ENABLE_ENGINE_WARNING
 	/**
 	 * Shall we purposely miss on some cylinders in order to attract driver's attention to some problem
@@ -337,7 +336,6 @@ public:
 	Engine(persistent_config_s *config);
 	Engine();
 	void setConfig(persistent_config_s *config);
-	void reset();
 	injection_mode_e getCurrentInjectionMode(DECLARE_ENGINE_PARAMETER_SIGNATURE);
 
 	InjectionSignalPair fuelActuators[INJECTION_PIN_COUNT];
@@ -361,29 +359,27 @@ public:
 	FuelSchedule injectionEvents;
 #endif /* EFI_ENGINE_CONTROL */
 
-	float fsioLastValue[FSIO_COMMAND_COUNT];
-
 	WallFuel wallFuel;
 	bool needToStopEngine(efitick_t nowNt);
-	bool etbAutoTune;
+	bool etbAutoTune = false;
 	/**
 	 * That's the list of pending spark firing events
 	 */
-	IgnitionEvent *iHead;
+	IgnitionEvent *iHead = NULL;
 	/**
 	 * this is based on isEngineChartEnabled and engineSnifferRpmThreshold settings
 	 */
-	bool isEngineChartEnabled;
+	bool isEngineChartEnabled = false;
 	/**
 	 * this is based on sensorChartMode and sensorSnifferRpmThreshold settings
 	 */
-	sensor_chart_e sensorChartMode;
+	sensor_chart_e sensorChartMode = SC_OFF;
 	/**
 	 * based on current RPM and isAlternatorControlEnabled setting
 	 */
-	bool isAlternatorControlEnabled;
+	bool isAlternatorControlEnabled = false;
 
-	bool isCltBroken;
+	bool isCltBroken = false;
 	bool slowCallBackWasInvoked = false;
 
 
@@ -392,10 +388,10 @@ public:
 	/**
 	 * remote telemetry: if not zero, time to stop flashing 'CALL FROM PIT STOP' light
 	 */
-	efitime_t callFromPitStopEndTime;
+	efitime_t callFromPitStopEndTime = 0;
 
 	// timestamp of most recent time RPM hard limit was triggered
-	efitime_t rpmHardLimitTimestamp;
+	efitime_t rpmHardLimitTimestamp = 0;
 
 	// todo: should be a field on some other class, not Engine?
 	bool isInitializingTrigger = false;
@@ -404,20 +400,20 @@ public:
 	 * This flag indicated a big enough problem that engine control would be
 	 * prohibited if this flag is set to true.
 	 */
-	bool withError;
+	bool withError = false;
 
 	RpmCalculator rpmCalculator;
-	persistent_config_s *config;
+	persistent_config_s *config = NULL;
 	/**
 	 * we use funny unique name to make sure that compiler is not confused between global variable and class member
 	 * todo: this variable is probably a sign of some problem, should we even have it?
 	 */
-	engine_configuration_s *engineConfigurationPtr;
+	engine_configuration_s *engineConfigurationPtr = NULL;
 
 	/**
 	 * this is about 'stopengine' command
 	 */
-	efitick_t stopEngineRequestTimeNt;
+	efitick_t stopEngineRequestTimeNt = 0;
 
 	/**
 	 * always 360 or 720, never zero
@@ -434,60 +430,56 @@ public:
 	 * including everything including injector lag, both cranking and running
 	 * @see getInjectionDuration()
 	 */
-	floatms_t injectionDuration;
+	floatms_t injectionDuration = 0;
 	/**
 	 * fuel injection time correction to account for wall wetting effect, for current cycle
 	 */
-	floatms_t wallFuelCorrection;
+	floatms_t wallFuelCorrection = 0;
 
 	/**
 	 * This one with wall wetting accounted for, used for logging.
 	 */
-	floatms_t actualLastInjection;
+	floatms_t actualLastInjection = 0;
 
 	void periodicFastCallback(DECLARE_ENGINE_PARAMETER_SIGNATURE);
 	void periodicSlowCallback(DECLARE_ENGINE_PARAMETER_SIGNATURE);
 	void updateSlowSensors(DECLARE_ENGINE_PARAMETER_SIGNATURE);
 	void initializeTriggerShape(Logging *logger DECLARE_ENGINE_PARAMETER_SUFFIX);
 
-	bool clutchUpState;
-	bool clutchDownState;
-	bool brakePedalState;
+	bool clutchUpState = false;
+	bool clutchDownState = false;
+	bool brakePedalState = false;
 
-	bool isRunningPwmTest;
+	bool isRunningPwmTest = false;
 
-	// todo: move this into FsioState class
-	float fsioTimingAdjustment;
-	float fsioIdleTargetRPMAdjustment;
-	float servoValues[SERVO_COUNT];
 
 	FsioState fsioState;
 
 	/**
 	 * Are we experiencing knock right now?
 	 */
-	bool knockNow;
+	bool knockNow = false;
 	/**
 	 * Have we experienced knock since engine was started?
 	 */
-	bool knockEver;
+	bool knockEver = false;
 	/**
      * KnockCount is directly proportional to the degrees of ignition
      * advance removed
      */
-    int knockCount;
+    int knockCount = 0;
 
-    float knockVolts;
+    float knockVolts = 0;
 
-    bool knockDebug;
+    bool knockDebug = false;
 
-	efitimeus_t timeOfLastKnockEvent;
+	efitimeus_t timeOfLastKnockEvent = 0;
 
 	/**
 	 * are we running any kind of functional test? this affect
 	 * some areas
 	 */
-	bool isTestMode;
+	bool isTestMode = false;
 
 
 	/**
@@ -508,26 +500,26 @@ public:
 	void onTriggerSignalEvent(efitick_t nowNt);
 	EngineState engineState;
 	SensorsState sensors;
-	efitick_t lastTriggerToothEventTimeNt;
+	efitick_t lastTriggerToothEventTimeNt = 0;
 
 
 	/**
 	 * This coefficient translates ADC value directly into voltage adjusted according to
 	 * voltage divider configuration with just one multiplication. This is a future (?) performance optimization.
 	 */
-	float adcToVoltageInputDividerCoefficient;
+	float adcToVoltageInputDividerCoefficient = NAN;
 
 	/**
 	 * This field is true if we are in 'cylinder cleanup' state right now
 	 * see isCylinderCleanupEnabled
 	 */
-	bool isCylinderCleanupMode;
+	bool isCylinderCleanupMode = false;
 
 	/**
 	 * value of 'triggerShape.getLength()'
 	 * pre-calculating this value is a performance optimization
 	 */
-	uint32_t engineCycleEventCount;
+	uint32_t engineCycleEventCount = 0;
 
 	/**
 	 * fast spark dwell time interpolation helper
@@ -568,7 +560,8 @@ private:
 	 * 'running' means RPM are above crankingRpm
 	 * 'spinning' means the engine is not stopped
 	 */
-	bool isSpinning;
+	bool isSpinning = false;
+	void reset();
 };
 
 /**
@@ -592,5 +585,8 @@ void applyNonPersistentConfiguration(Logging * logger DECLARE_ENGINE_PARAMETER_S
 void prepareOutputSignals(DECLARE_ENGINE_PARAMETER_SIGNATURE);
 
 void validateConfiguration(DECLARE_ENGINE_PARAMETER_SIGNATURE);
+void doScheduleStopEngine(DECLARE_ENGINE_PARAMETER_SIGNATURE);
+
+typedef void (*configuration_callback_t)(Engine*);
 
 #endif /* H_ENGINE_H_ */

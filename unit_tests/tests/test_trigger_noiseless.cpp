@@ -85,10 +85,9 @@ static void fireNoisyCycle60_2(EngineTestHelper *eth, int numCycles, int duratio
 }
 
 static void resetTrigger(EngineTestHelper &eth) {
-	timeNowUs = 0;
 	eth.applyTriggerShape();
 	eth.engine.triggerCentral.resetAccumSignalData();
-	// reset error cnt
+	// reset error counter
 	eth.engine.triggerCentral.triggerState.totalTriggerErrorCounter = 0;
 }
 
@@ -106,7 +105,7 @@ static void testNoiselessDecoderProcedure(EngineTestHelper &eth, int errorTolera
 	// check if we're imitating the 60-2 signal correctly
 	ASSERT_EQ( 0,  eth.engine.triggerCentral.triggerState.getCurrentIndex()) << "index #1";
 	// check rpm (60secs / (1000us * 60teeth)) = 1000rpm
-	ASSERT_EQ( 1000,  eth.engine.rpmCalculator.getRpm(PASS_ENGINE_PARAMETER_SIGNATURE)) << "testNoiselessDecoder RPM";
+	ASSERT_EQ( 1000,  GET_RPM()) << "testNoiselessDecoder RPM";
 
 	// add noise1 - 1 spike in the middle of the 2nd rising pulse
 	fireNoisyCycle60_2(&eth, 2, 1000, 2, 10, 500, 1);
@@ -170,8 +169,7 @@ static void testNoiselessDecoderProcedure(EngineTestHelper &eth, int errorTolera
 TEST(big, testNoiselessDecoder) {
 	printf("====================================================================================== testNoiselessDecoder\r\n");
 
-	EngineTestHelper eth(TEST_ENGINE);
-	EXPAND_EngineTestHelper
+	WITH_ENGINE_TEST_HELPER(TEST_ENGINE);
 
 	engineConfiguration->ignitionMode = IM_WASTED_SPARK;
 	engineConfiguration->useOnlyRisingEdgeForTrigger = true;
@@ -183,7 +181,7 @@ TEST(big, testNoiselessDecoder) {
 	eth.applyTriggerShape();
 
 	ASSERT_EQ(0, engine->triggerCentral.triggerState.totalTriggerErrorCounter);
-	ASSERT_EQ( 0,  eth.engine.rpmCalculator.getRpm(PASS_ENGINE_PARAMETER_SIGNATURE)) << "testNoiselessDecoder RPM";
+	ASSERT_EQ( 0,  GET_RPM()) << "testNoiselessDecoder RPM";
 
 	//printTriggerDebug = true;
 

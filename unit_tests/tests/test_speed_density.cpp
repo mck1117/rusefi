@@ -11,14 +11,13 @@
 
 TEST(big, testSpeedDensity) {
 	printf("*************************************************** testSpeedDensity\r\n");
-	EngineTestHelper eth(FORD_INLINE_6_1995);
-	EXPAND_EngineTestHelper;
+	WITH_ENGINE_TEST_HELPER(FORD_INLINE_6_1995);
 
 	engineConfiguration->trigger.customTotalToothCount = 8;
 	eth.applyTriggerShape();
 
 	eth.fireTriggerEvents(36);
-	ASSERT_EQ( 1500,  eth.engine.rpmCalculator.getRpm(PASS_ENGINE_PARAMETER_SIGNATURE)) << "RPM";
+	ASSERT_EQ( 1500,  GET_RPM()) << "RPM";
 
 	// 427 cubic inches, that's a LOT of engine
 	engineConfiguration->specs.displacement = 6.99728;

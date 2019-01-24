@@ -26,9 +26,6 @@
  */
 #define NO_PWM 0
 
-#define MAGIC_OFFSET_FOR_ENGINE_WARNING 4
-#define MAGIC_OFFSET_FOR_CRITICAL_ENGINE 5
-
 // see useFSIO15ForIdleRpmAdjustment
 #define MAGIC_OFFSET_FOR_IDLE_TARGET_RPM 14
 // see useFSIO16ForTimingAdjustment
@@ -90,10 +87,7 @@ public:
 	LEElement * fsioLogics[FSIO_COMMAND_COUNT];
 };
 
-FsioPointers::FsioPointers() {
-	for (int i = 0; i < FSIO_COMMAND_COUNT; i++) {
-		fsioLogics[i] = NULL;
-	}
+FsioPointers::FsioPointers() : fsioLogics() {
 }
 
 static FsioPointers state;
@@ -325,7 +319,7 @@ float getFsioOutputValue(int index DECLARE_ENGINE_PARAMETER_SUFFIX) {
 		warning(CUSTOM_NO_FSIO, "no FSIO for #%d %s", index + 1, hwPortname(CONFIGB(fsioOutputPins)[index]));
 		return NAN;
 	} else {
-		return calc.getValue2(engine->fsioLastValue[index], state.fsioLogics[index] PASS_ENGINE_PARAMETER_SUFFIX);
+		return calc.getValue2(engine->fsioState.fsioLastValue[index], state.fsioLogics[index] PASS_ENGINE_PARAMETER_SUFFIX);
 	}
 }
 
@@ -334,14 +328,14 @@ float getFsioOutputValue(int index DECLARE_ENGINE_PARAMETER_SUFFIX) {
  */
 static void handleFsio(int index DECLARE_ENGINE_PARAMETER_SUFFIX) {
 	if (CONFIGB(fsioOutputPins)[index] == GPIO_UNASSIGNED) {
-		engine->fsioLastValue[index] = NAN;
+		engine->fsioState.fsioLastValue[index] = NAN;
 		return;
 	}
 
 	bool isPwmMode = CONFIGB(fsioFrequency)[index] != NO_PWM;
 
 	float fvalue = getFsioOutputValue(index PASS_ENGINE_PARAMETER_SUFFIX);
-	engine->fsioLastValue[index] = fvalue;
+	engine->fsioState.fsioLastValue[index] = fvalue;
 
 	if (isPwmMode) {
 		fsioPwm[index].setSimplePwmDutyCycle(fvalue);
@@ -441,7 +435,7 @@ static bool updateValueOrWarning(int fsioIndex, const char *msg, float *value DE
 }
 
 static void useFsioForServo(int servoIndex DECLARE_ENGINE_PARAMETER_SUFFIX) {
-	updateValueOrWarning(8 - 1 + servoIndex, "servo", &engine->servoValues[servoIndex] PASS_ENGINE_PARAMETER_SUFFIX);
+	updateValueOrWarning(8 - 1 + servoIndex, "servo", &engine->fsioState.servoValues[servoIndex] PASS_ENGINE_PARAMETER_SUFFIX);
 }
 
 /**
@@ -498,19 +492,17 @@ void runFsio(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	if (engineConfiguration->useFSIO5ForCriticalIssueEngineStop) {
 		bool changed = updateValueOrWarning(MAGIC_OFFSET_FOR_CRITICAL_ENGINE, "eng critical", &ENGINE(fsioState.isCriticalEngineCondition) PASS_ENGINE_PARAMETER_SUFFIX);
 		if (changed && float2bool(ENGINE(fsioState.isCriticalEngineCondition))) {
-#if EFI_PROD_CODE || EFI_SIMULATOR
-			scheduleStopEngine();
-#endif
+			doScheduleStopEngine(PASS_ENGINE_PARAMETER_SIGNATURE);
 		}
 	}
 #endif /* EFI_ENABLE_CRITICAL_ENGINE_STOP */
 
 	if (engineConfiguration->useFSIO15ForIdleRpmAdjustment) {
-		updateValueOrWarning(MAGIC_OFFSET_FOR_IDLE_TARGET_RPM, "RPM target", &ENGINE(fsioIdleTargetRPMAdjustment) PASS_ENGINE_PARAMETER_SUFFIX);
+		updateValueOrWarning(MAGIC_OFFSET_FOR_IDLE_TARGET_RPM, "RPM target", &ENGINE(fsioState.fsioIdleTargetRPMAdjustment) PASS_ENGINE_PARAMETER_SUFFIX);
 	}
 
 	if (engineConfiguration->useFSIO16ForTimingAdjustment) {
-		updateValueOrWarning(MAGIC_OFFSET_FOR_TIMING_FSIO, "timing", &ENGINE(fsioTimingAdjustment) PASS_ENGINE_PARAMETER_SUFFIX);
+		updateValueOrWarning(MAGIC_OFFSET_FOR_TIMING_FSIO, "timing", &ENGINE(fsioState.fsioTimingAdjustment) PASS_ENGINE_PARAMETER_SUFFIX);
 	}
 
 	if (engineConfiguration->useFSIO8ForServo1) {
@@ -572,7 +564,7 @@ static void showFsioInfo(void) {
 			 */
 			scheduleMsg(logger, "FSIO #%d [%s] at %s@%dHz value=%.2f", (i + 1), exp,
 					hwPortname(CONFIGB(fsioOutputPins)[i]), CONFIGB(fsioFrequency)[i],
-					engine->fsioLastValue[i]);
+					engine->fsioState.fsioLastValue[i]);
 //			scheduleMsg(logger, "user-defined #%d value=%.2f", i, engine->engineConfigurationPtr2->fsioLastValue[i]);
 			showFsio(NULL, state.fsioLogics[i]);
 		}

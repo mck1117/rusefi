@@ -130,6 +130,10 @@ int EngineTestHelper::executeActions() {
 	return engine.executor.executeAll(timeNowUs);
 }
 
+void EngineTestHelper::moveTimeForwardMs(float deltaTimeMs) {
+	moveTimeForwardUs(MS2US(deltaTimeMs));
+}
+
 void EngineTestHelper::moveTimeForwardUs(int deltaTimeUs) {
 	timeNowUs += deltaTimeUs;
 }
@@ -176,28 +180,30 @@ void EngineTestHelper::applyTriggerShape() {
 	Engine *engine = &this->engine;
 	EXPAND_Engine
 
-
 	ENGINE(initializeTriggerShape(NULL PASS_ENGINE_PARAMETER_SUFFIX));
 
 	incrementGlobalConfigurationVersion(PASS_ENGINE_PARAMETER_SIGNATURE);
 }
 
-void assertRpm(const char *msg, int expectedRpm DECLARE_ENGINE_PARAMETER_SUFFIX) {
-	EXPECT_EQ(expectedRpm, engine->rpmCalculator.getRpm(PASS_ENGINE_PARAMETER_SIGNATURE)) << msg;
+// todo: open question if this is worth a helper method or should be inlined?
+void EngineTestHelper::assertRpm(int expectedRpm, const char *msg) {
+	Engine *engine = &this->engine;
+	EXPAND_Engine
+	EXPECT_EQ(expectedRpm, GET_RPM()) << msg;
 }
 
-void setupSimpleTestEngineWithMafAndTT_ONE_trigger(EngineTestHelper *eth, injection_mode_e injMode) {
+void setupSimpleTestEngineWithMaf(EngineTestHelper *eth, injection_mode_e injectionMode,
+		trigger_type_e trigger) {
 	Engine *engine = &eth->engine;
 	EXPAND_Engine
 
-	timeNowUs = 0;
 	eth->clearQueue();
 
 	ASSERT_EQ(LM_PLAIN_MAF, engineConfiguration->fuelAlgorithm);
 	engineConfiguration->isIgnitionEnabled = false; // let's focus on injection
 	engineConfiguration->specs.cylindersCount = 4;
 	// a bit of flexibility - the mode may be changed by some tests
-	engineConfiguration->injectionMode = injMode;
+	engineConfiguration->injectionMode = injectionMode;
 	// set cranking mode (it's used by getCurrentInjectionMode())
 	engineConfiguration->crankingInjectionMode = IM_SIMULTANEOUS;
 
@@ -209,9 +215,13 @@ void setupSimpleTestEngineWithMafAndTT_ONE_trigger(EngineTestHelper *eth, inject
 	ASSERT_NEAR( 70,  engine->sensors.clt, EPS4D) << "CLT";
 	ASSERT_EQ( 0,  readIfTriggerConfigChangedForUnitTest()) << "trigger #1";
 
-	engineConfiguration->trigger.type = TT_ONE;
+	engineConfiguration->trigger.type = trigger;
 	incrementGlobalConfigurationVersion(PASS_ENGINE_PARAMETER_SIGNATURE);
 	ASSERT_EQ( 1,  readIfTriggerConfigChangedForUnitTest()) << "trigger #2";
 
 	eth->applyTriggerShape();
+}
+
+void setupSimpleTestEngineWithMafAndTT_ONE_trigger(EngineTestHelper *eth, injection_mode_e injectionMode) {
+	setupSimpleTestEngineWithMaf(eth, injectionMode, TT_ONE);
 }

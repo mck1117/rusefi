@@ -7,6 +7,7 @@
 #include "unit_test_framework.h"
 #include "hip9011_lookup.h"
 #include "HIP9011_logic.h"
+#include "test_parameters.h"
 using ::testing::_;
 
 TEST(hip9011, lookup) {
@@ -17,30 +18,30 @@ TEST(hip9011, lookup) {
 	assertEqualsM2("240us 50 degree", 1105.2435, getRpmByAngleWindowAndTimeUs(240, 50), 0.1);
 	assertEqualsM2("240us 50 degree", 6631.4619, getRpmByAngleWindowAndTimeUs(40, 50), 0.1);
 
-	EXPECT_EQ(0, getHip9011GainIndex(/* knockBandCustom*/NAN, /*cylinderBore*/NAN, /*hip9011Gain*/3));
-	EXPECT_EQ(0, getHip9011GainIndex(/* knockBandCustom*/NAN, /*cylinderBore*/NAN, /*hip9011Gain*/2));
-	EXPECT_EQ(47, getHip9011GainIndex(/* knockBandCustom*/NAN, /*cylinderBore*/NAN, /*hip9011Gain*/0.234));
-	EXPECT_EQ(63, getHip9011GainIndex(/* knockBandCustom*/NAN, /*cylinderBore*/NAN, /*hip9011Gain*/0.000001));
+	EXPECT_EQ(0, getHip9011GainIndex(/* knockBandCustom*/NAN, /*cylinderBore*/NAN, /*hip9011Gain*/3, 0, NAN, NAN));
+	EXPECT_EQ(0, getHip9011GainIndex(/* knockBandCustom*/NAN, /*cylinderBore*/NAN, /*hip9011Gain*/2, 0, NAN, NAN));
+	EXPECT_EQ(47, getHip9011GainIndex(/* knockBandCustom*/NAN, /*cylinderBore*/NAN, /*hip9011Gain*/0.234, 0, NAN, NAN));
+	EXPECT_EQ(63, getHip9011GainIndex(/* knockBandCustom*/NAN, /*cylinderBore*/NAN, /*hip9011Gain*/0.000001, 0, NAN, NAN));
 
 }
 
 TEST(hip9011, rpmLookup) {
-	HIP9011 instace(NULL);
+	HIP9011 instance(NULL);
 
-	instace.prepareHip9011RpmLookup(50);
+	instance.prepareHip9011RpmLookup(50);
 
-	EXPECT_EQ(31, instace.getIntegrationIndexByRpm(1));
-	EXPECT_EQ(21, instace.getIntegrationIndexByRpm(1100));
-	EXPECT_EQ(1, instace.getIntegrationIndexByRpm(6600));
-	EXPECT_EQ(0, instace.getIntegrationIndexByRpm(16600));
+	EXPECT_EQ(31, instance.getIntegrationIndexByRpm(1));
+	EXPECT_EQ(21, instance.getIntegrationIndexByRpm(1100));
+	EXPECT_EQ(1, instance.getIntegrationIndexByRpm(6600));
+	EXPECT_EQ(0, instance.getIntegrationIndexByRpm(16600));
 }
 
 TEST(hip9011, band) {
 
-	EXPECT_FLOAT_EQ(3, getHIP9011Band(/* knockBandCustom*/3, /*cylinderBore*/76, /*hip9011Gain*/NAN));
-	EXPECT_FLOAT_EQ(7.5389242, getHIP9011Band(/* knockBandCustom*/0, /*cylinderBore*/76, /*hip9011Gain*/NAN));
+	EXPECT_FLOAT_EQ(3, getHIP9011Band(/* knockBandCustom*/3, /*cylinderBore*/76, /*hip9011Gain*/NAN, 0, NAN, NAN));
+	EXPECT_FLOAT_EQ(7.5389242, getHIP9011Band(/* knockBandCustom*/0, /*cylinderBore*/76, /*hip9011Gain*/NAN, 0, NAN, NAN));
 
-	EXPECT_EQ(42, getBandIndex(/* knockBandCustom*/0, /*cylinderBore*/76, /*hip9011Gain*/NAN));
+	EXPECT_EQ(42, getBandIndex(/* knockBandCustom*/0, /*cylinderBore*/76, /*hip9011Gain*/NAN, 0, NAN, NAN));
 
 }
 
@@ -59,10 +60,8 @@ TEST(hip9011, configurationCommands) {
 
 	HIP9011 instance(&mock);
 
-	instance.prepareHip9011RpmLookup(50);
-
 // want to invoke method with same parameters a few times
-#define PARAMETERS 600, _8MHZ_PRESCALER, /* knockBandCustom*/0, /*cylinderBore*/76, /*hip9011Gain*/1
+#define PARAMETERS 600, /* knockBandCustom*/0, /*cylinderBore*/76, /*hip9011Gain*/1, _8MHZ_PRESCALER, 0.0, 50.0
 
 	 // Not making assumptions on the message send ...
 	EXPECT_CALL(mock, sendSyncCommand(_)).Times(0);

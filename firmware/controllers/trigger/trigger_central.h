@@ -15,9 +15,6 @@
 class Engine;
 typedef void (*ShaftPositionListener)(trigger_event_e signal, uint32_t index DECLARE_ENGINE_PARAMETER_SUFFIX);
 
-#ifdef __cplusplus
-class Engine;
-
 #define HW_EVENT_TYPES 6
 
 /**
@@ -35,12 +32,12 @@ public:
 	void resetAccumSignalData();
 	bool noiseFilter(efitick_t nowNt, trigger_event_e signal DECLARE_ENGINE_PARAMETER_SUFFIX);
 	TriggerStateWithRunningStatistics triggerState;
-	efitick_t nowNt;
-	angle_t vvtPosition;
+	efitick_t nowNt = 0;
+	angle_t vvtPosition = 0;
 	/**
 	 * this is similar to TriggerState#startOfCycleNt but with the crank-only sensor magic
 	 */
-	efitick_t timeAtVirtualZeroNt;
+	efitick_t timeAtVirtualZeroNt = 0;
 
 	TriggerShape triggerShape;
 
@@ -54,7 +51,6 @@ private:
 	efitick_t accumSignalPeriods[HW_EVENT_TYPES];
 	efitick_t accumSignalPrevPeriods[HW_EVENT_TYPES];
 };
-#endif
 
 void triggerInfo(void);
 efitime_t getCrankEventCounter(DECLARE_ENGINE_PARAMETER_SIGNATURE);

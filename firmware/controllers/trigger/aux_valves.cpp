@@ -13,10 +13,10 @@
  * @author Andrey Belomutskiy, (c) 2012-2018
  */
 
+#include "engine_math.h"
 #include "aux_valves.h"
 #include "allsensors.h"
 #include "trigger_central.h"
-#include "engine_math.h"
 
 EXTERN_ENGINE
 ;
@@ -40,7 +40,7 @@ static void auxValveTriggerCallback(trigger_event_e ckpSignalType,
 	if (index != SCHEDULING_TRIGGER_INDEX) {
 		return;
 	}
-	int rpm = GET_RPM();
+	int rpm = GET_RPM_VALUE;
 	if (!isValidRpm(rpm)) {
 		return;
 	}

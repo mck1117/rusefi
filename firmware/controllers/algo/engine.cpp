@@ -69,7 +69,7 @@ void Engine::initializeTriggerShape(Logging *logger DECLARE_ENGINE_PARAMETER_SUF
 	 	 * this instance is used only to initialize 'this' TriggerShape instance
 	 	 * #192 BUG real hardware trigger events could be coming even while we are initializing trigger
 	 	 */
-		initState.reset();
+		initState.resetTriggerState();
 		calculateTriggerSynchPoint(&ENGINE(triggerCentral.triggerShape),
 				&initState PASS_ENGINE_PARAMETER_SUFFIX);
 
@@ -111,10 +111,7 @@ void Engine::periodicSlowCallback(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	checkShutdown();
 
 #if EFI_FSIO || defined(__DOXYGEN__)
-// todo: enable this for unit tests
-#if ! EFI_UNIT_TEST
 	runFsio(PASS_ENGINE_PARAMETER_SIGNATURE);
-#endif
 #endif /* EFI_PROD_CODE && EFI_FSIO */
 
 	cylinderCleanupControl(PASS_ENGINE_PARAMETER_SIGNATURE);
@@ -128,7 +125,7 @@ void Engine::periodicSlowCallback(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
  * See also periodicFastCallback
  */
 void Engine::updateSlowSensors(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
-	int rpm = rpmCalculator.getRpm(PASS_ENGINE_PARAMETER_SIGNATURE);
+	int rpm = GET_RPM();
 	isEngineChartEnabled = CONFIG(isEngineChartEnabled) && rpm < CONFIG(engineSnifferRpmThreshold);
 	sensorChartMode = rpm < CONFIG(sensorSnifferRpmThreshold) ? CONFIGB(sensorChartMode) : SC_OFF;
 
@@ -174,46 +171,13 @@ int Engine::getGlobalConfigurationVersion(void) const {
 }
 
 void Engine::reset() {
-	withError = isEngineChartEnabled = false;
-	etbAutoTune = false;
-	sensorChartMode = SC_OFF;
-	actualLastInjection = 0;
-	fsioTimingAdjustment = 0;
-	fsioIdleTargetRPMAdjustment = 0;
-	isAlternatorControlEnabled = false;
-	callFromPitStopEndTime = 0;
-	rpmHardLimitTimestamp = 0;
-	wallFuelCorrection = 0;
 	/**
 	 * it's important for fixAngle() that engineCycle field never has zero
 	 */
 	engineCycle = getEngineCycle(FOUR_STROKE_CRANK_SENSOR);
-	lastTriggerToothEventTimeNt = 0;
-	isCylinderCleanupMode = false;
-	engineCycleEventCount = 0;
-	stopEngineRequestTimeNt = 0;
-	isRunningPwmTest = false;
-	isTestMode = false;
-	isSpinning = false;
-	isCltBroken = false;
-	adcToVoltageInputDividerCoefficient = NAN;
-	sensors.reset();
 	memset(&ignitionPin, 0, sizeof(ignitionPin));
 
-	knockNow = false;
-	knockEver = false;
-	knockCount = 0;
-	knockDebug = false;
-	knockVolts = 0;
-	iHead = NULL;
-
-
-	timeOfLastKnockEvent = 0;
-	injectionDuration = 0;
-	clutchDownState = clutchUpState = brakePedalState = false;
 	memset(&m, 0, sizeof(m));
-	config = NULL;
-	engineConfigurationPtr = NULL;
 }
 
 
@@ -370,8 +334,14 @@ void Engine::periodicFastCallback(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	engineState.periodicFastCallback(PASS_ENGINE_PARAMETER_SIGNATURE);
 
 	engine->m.beforeFuelCalc = GET_TIMESTAMP();
-	int rpm = rpmCalculator.getRpm(PASS_ENGINE_PARAMETER_SIGNATURE);
+	int rpm = GET_RPM();
 	ENGINE(injectionDuration) = getInjectionDuration(rpm PASS_ENGINE_PARAMETER_SUFFIX);
 	engine->m.fuelCalcTime = GET_TIMESTAMP() - engine->m.beforeFuelCalc;
 
+}
+
+void doScheduleStopEngine(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
+	engine->stopEngineRequestTimeNt = getTimeNowNt();
+	// let's close injectors or else if these happen to be open right now
+	enginePins.stopPins();
 }

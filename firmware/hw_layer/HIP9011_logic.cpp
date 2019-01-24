@@ -9,22 +9,7 @@
 
 EXTERN_ENGINE;
 
-HIP9011::HIP9011(Hip9011HardwareInterface *hardware) {
-	needToInit = true;
-	state = NOT_READY;
-	/**
-	 * band index is only send to HIP chip on startup
-	 */
-	currentBandIndex = 0;
-	currentGainIndex = -1;
-	currentIntergratorIndex = -1;
-	settingUpdateCount = 0;
-	totalKnockEventsCount = 0;
-	currentPrescaler = 0;
-	correctResponsesCount = 0;
-	invalidHip9011ResponsesCount = 0;
-	angleWindowWidth = -1;
-
+HIP9011::HIP9011(Hip9011HardwareInterface *hardware) : rpmLookup() {
 	this->hardware = hardware;
 }
 
@@ -78,7 +63,14 @@ int HIP9011::getIntegrationIndexByRpm(float rpm) {
 	return i == -1 ? INT_LOOKUP_SIZE - 1 : INT_LOOKUP_SIZE - i - 1;
 }
 
-void HIP9011::setAngleWindowWidth(float angleWindowWidth) {
+void HIP9011::setAngleWindowWidth(DEFINE_HIP_PARAMS) {
+	float angleWindowWidth = GET_CONFIG_VALUE(knockDetectionWindowEnd) - GET_CONFIG_VALUE(knockDetectionWindowStart);
+	if (angleWindowWidth < 0) {
+#if EFI_PROD_CODE
+		warning(CUSTOM_ERR_6697, "invalid knock window");
+#endif
+		angleWindowWidth = 0;
+	}
 	// float '==' is totally appropriate here
 	if (this->angleWindowWidth == angleWindowWidth)
 		return; // exit if value has not change
@@ -86,7 +78,10 @@ void HIP9011::setAngleWindowWidth(float angleWindowWidth) {
 	prepareHip9011RpmLookup(angleWindowWidth);
 }
 
-void HIP9011::handleValue(int rpm, int prescalerIndex DEFINE_PARAM_SUFFIX(DEFINE_HIP_PARAMS)) {
+void HIP9011::handleValue(int rpm DEFINE_PARAM_SUFFIX(DEFINE_HIP_PARAMS)) {
+	setAngleWindowWidth(FORWARD_HIP_PARAMS);
+
+	int prescalerIndex = GET_CONFIG_VALUE(hip9011PrescalerAndSDO);
 	int integratorIndex = getIntegrationIndexByRpm(rpm);
 	int gainIndex = getHip9011GainIndex(FORWARD_HIP_PARAMS);
 	int bandIndex = getBandIndex(FORWARD_HIP_PARAMS);
