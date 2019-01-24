@@ -5,11 +5,8 @@
 #include "adc_math.h"
 #include "voltage.h"
 #include "pwm_generator.h"
+#include "LambdaConverter.h"
 
-extern TunerStudioOutputChannels tsOutputChannels;
-
-EXTERN_ENGINE
-;
 
 // Heater control parameters
 
@@ -26,11 +23,7 @@ EXTERN_ENGINE
 
 // Timeout parameters
 #define CJ125_PREHEAT_DURATION (US2NT(US_PER_SECOND_LL) * 5)	// Heat for this long (gently) to heat off condensation before switching to the ramp
-#define CJ125_WARMUP_TIMEOUT (US2NT(US_PER_SECOND_LL) * 20)		// We try to warm up for this long before giving up
-
-// Pump current amplifier parameters
-#define CJ125_PUMP_SHUNT_RESISTOR		(61.9f)
-#define CJ125_PUMP_CURRENT_FACTOR		(1000.0f)
+#define CJ125_WARMUP_TIMEOUT (US2NT(US_PER_SECOND_LL) * 25)		// We try to warm up for this long before giving up
 
 // Calibration limits
 #define CJ125_UA_CAL_MIN 	(1.4f)	// minimum acceptable vUa (1.5v typ)
@@ -38,29 +31,12 @@ EXTERN_ENGINE
 #define CJ125_UR_CAL_MIN 	(0.9f)	// minimum acceptable vUr (1.0v typ)
 #define CJ125_UR_CAL_MAX 	(1.1f)	// maximum acceptable vUr (1.0v typ)
 
-// Some experimental magic values for heater PID regulator
-#define CJ125_PID_LSU42_P				(80.0f / 16.0f * 5.0f / 1024.0f)
-#define CJ125_PID_LSU42_I				(25.0f / 16.0f * 5.0f / 1024.0f)
-
-#define CJ125_PID_LSU49_P				(8.0f)
-#define CJ125_PID_LSU49_I				(0.003f)
 
 
+extern TunerStudioOutputChannels tsOutputChannels;
 
-// Pump current, mA
-static const float cjLSUBins[] = { 
-	// LSU 4.9
-	-2.0f, -1.602f, -1.243f, -0.927f, -0.8f, -0.652f, -0.405f, -0.183f, -0.106f, -0.04f, 0, 0.015f, 0.097f, 0.193f, 0.250f, 0.329f, 0.671f, 0.938f, 1.150f, 1.385f, 1.700f, 2.000f, 2.150f, 2.250f
-};
-// Lambda value
-static const float cjLSULambda[] = {
-	// LSU 4.9
-	0.65f, 0.7f, 0.75f, 0.8f, 0.822f, 0.85f, 0.9f, 0.95f, 0.97f, 0.99f, 1.003f, 1.01f, 1.05f, 1.1f, 1.132f, 1.179f, 1.429f, 1.701f, 1.990f, 2.434f, 3.413f, 5.391f, 7.506f, 10.119f
-};
-
-
-
-
+EXTERN_ENGINE
+;
 
 void Cj125_new::PeriodicTask(efitime_t nowNt)
 {
@@ -72,8 +48,10 @@ void Cj125_new::PeriodicTask(efitime_t nowNt)
 		float vUr = GetUr();
 		m_diagChannels.vUr = vUr;
 
+		bool isStopped = engine->rpmCalculator.isStopped(PASS_ENGINE_PARAMETER_SIGNATURE);
+
 		// Figure out which state we should be in
-		State nextState = TransitionFunction(m_state, vUr, nowNt - m_lastStateChangeTime, m_lastError);
+		State nextState = TransitionFunction(m_state, vUr, nowNt - m_lastStateChangeTime, !isStopped, m_lastError);
 
 		// Handle state change if necessary
 		if(m_state != nextState)
@@ -100,34 +78,36 @@ void Cj125_new::PeriodicTask(efitime_t nowNt)
 
 	m_diagChannels.diag = m_spi.Diagnostic();
 
-	tsOutputChannels.debugFloatField1 = m_diagChannels.heaterDuty;
-	tsOutputChannels.debugFloatField2 = 0;
-	tsOutputChannels.debugFloatField3 = 0;
-	tsOutputChannels.debugFloatField4 = m_diagChannels.vUr;
-	tsOutputChannels.debugFloatField5 = m_diagChannels.vUa;
-	tsOutputChannels.debugFloatField6 = m_convertedLambda;
-	tsOutputChannels.debugFloatField7 = m_config.vUrTarget;
-	tsOutputChannels.debugIntField1 = static_cast<int>(m_diagChannels.state);
-	tsOutputChannels.debugIntField2 = static_cast<int>(m_diagChannels.diag);
+	if (engineConfiguration->debugMode == DBG_CJ125)
+	{
+		tsOutputChannels.debugFloatField1 = m_diagChannels.heaterDuty;
+		tsOutputChannels.debugFloatField2 = 0;
+		tsOutputChannels.debugFloatField3 = 0;
+		tsOutputChannels.debugFloatField4 = m_diagChannels.vUr;
+		tsOutputChannels.debugFloatField5 = m_diagChannels.vUa;
+		tsOutputChannels.debugFloatField6 = m_convertedLambda;
+		tsOutputChannels.debugFloatField7 = m_config.vUrTarget;
+		tsOutputChannels.debugIntField1 = static_cast<int>(m_diagChannels.state);
+		tsOutputChannels.debugIntField2 = static_cast<int>(m_diagChannels.diag);
+	}
 }
 
-/* static */ Cj125_new::State Cj125_new::TransitionFunction(Cj125_new::State currentState, float vUr, efitime_t timeInState, Cj125_new::ErrorType& outError)
+/* static */ Cj125_new::State Cj125_new::TransitionFunction(Cj125_new::State currentState, float vUr, efitime_t timeInState, bool engineTurning, Cj125_new::ErrorType& outError)
 {
-	bool isStopped = engine->rpmCalculator.isStopped(PASS_ENGINE_PARAMETER_SIGNATURE);
 
 	switch (currentState) {
 		case State::Disabled:
 			return State::Disabled;
 		case State::Idle:
 			// If the engine's turning, time to heat the sensor.
-			if(!isStopped) {
+			if(engineTurning) {
 				return State::Preheat;
 			}
 
 			return State::Idle;
 		case State::Preheat:
 			// If the engine stopped, turn off the sensor!
-			if (isStopped)
+			if (!engineTurning)
 			{
 				return State::Idle;
 			}
@@ -141,7 +121,7 @@ void Cj125_new::PeriodicTask(efitime_t nowNt)
 			return State::Preheat;
 		case State::Warmup:
 			// If the engine stopped, turn off the sensor!
-			if (isStopped)
+			if (!engineTurning)
 			{
 				return State::Idle;
 			}
@@ -161,7 +141,7 @@ void Cj125_new::PeriodicTask(efitime_t nowNt)
 			return State::Warmup;
 		case State::Running:
 			// If the engine stopped, turn off the sensor!
-			if (isStopped)
+			if (!engineTurning)
 			{
 				return State::Idle;
 			}
@@ -243,14 +223,17 @@ float Cj125_new::GetUr() const
 
 float Cj125_new::ConvertLambda(float vUa) const
 {
-	constexpr float currentPerVolt = CJ125_PUMP_CURRENT_FACTOR / CJ125_PUMP_SHUNT_RESISTOR / 17;
+	float vUaDelta = vUa - m_vUaOffset;
 
-	// Offset by lambda=1 point (1.5v typ)
-	vUa = vUa - m_vUaOffset;
+	switch (m_sensorType)
+	{
+		case SensorType::BoschLsu42:
+			return LambdaConverterLsu42::ConvertLambda(vUaDelta, 17);
+		case SensorType::BoschLsu49:
+			return LambdaConverterLsu49::ConvertLambda(vUaDelta, 17);
+	}
 
-	float pumpCurrent = vUa * currentPerVolt;
-
-	return interpolate2d("cj125Lsu", pumpCurrent, cjLSUBins, cjLSULambda, sizeof(cjLSUBins) / (sizeof(cjLSUBins[0])));
+	return 0.0f;
 }
 
 float Cj125_new::GetLambda() const
@@ -398,3 +381,14 @@ const cj125_config defaultConfig
 		OM_DEFAULT	// CS pin mode
 	}
 };
+
+Cj125_new::Cj125_new(const cj125_config& config)
+	: PeriodicController("cj125", LOWPRIO, 50)
+	, m_config(config)
+	, m_spi(config.spi)
+	, m_state(config.enable ? State::Idle : State::Disabled)
+	, m_lastError(ErrorType::None)
+	, m_sensorType(config.isLsu49 ? SensorType::BoschLsu49 : SensorType::BoschLsu42)
+	, m_heaterPid(&m_heaterPidConfig)
+{
+}
