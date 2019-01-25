@@ -1003,9 +1003,9 @@ void setDefaultConfiguration(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 		GPIO_UNASSIGNED,
 		// Heater PID
 		{
-			8,		// kP
-			0.003f,	// kI
-			0,		// kD
+			30.0f,	// kP
+			5.0f,	// kI
+			0.3f,	// kD
 			0,		// offset
 			0,		// period
 			0,		// min
