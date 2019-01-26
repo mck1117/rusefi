@@ -630,9 +630,10 @@ static void configureInputs(void) {
 	addChannel("OilP", engineConfiguration->oilPressure.hwChannel, ADC_SLOW);
 	addChannel("AC", engineConfiguration->acSwitchAdc, ADC_SLOW);
 
-	if (CONFIGB(isCJ125Enabled)) {
-		addChannel("cj125ur", engineConfiguration->cj125ur, ADC_SLOW);
-		addChannel("cj125ua", engineConfiguration->cj125ua, ADC_SLOW);
+	if (engineConfiguration->cj125.enable)
+	{
+		addChannel("cj125ur", engineConfiguration->cj125.adcUr, ADC_SLOW);
+		addChannel("cj125ua", engineConfiguration->cj125.adcUa, ADC_SLOW);
 	}
 
 	for (int i = 0; i < FSIO_ANALOG_INPUT_COUNT ; i++) {
