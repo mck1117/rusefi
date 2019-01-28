@@ -1,12 +1,11 @@
 #pragma once
 
-
 #include "PeriodicController.h"
 #include "cj125_spi.h"
 #include "pwm_generator_logic.h"
 #include "pid.h"
 
-class Cj125_new : public PeriodicController<UTILITY_THREAD_STACK_SIZE>
+class Cj125Base
 {
 	enum class State : uint8_t
 	{
@@ -48,7 +47,9 @@ class Cj125_new : public PeriodicController<UTILITY_THREAD_STACK_SIZE>
 
 	DiagnosticChannels m_diagChannels;
 
+protected:
 	const cj125_config& m_config;
+private:
 	Cj125Spi m_spi;
 
 	State m_state;
@@ -70,20 +71,12 @@ class Cj125_new : public PeriodicController<UTILITY_THREAD_STACK_SIZE>
 	float m_vUaOffset = 1.5f;
 	volatile float m_convertedLambda;
 private:
-	// PeriodicController implementation
-	bool OnStarted() override;
-	void PeriodicTask(efitime_t nowNt) override;
-
 	// Heater control state machine
 	static State TransitionFunction(State currentState, float vUr, efitime_t timeInState, bool engineStopped, ErrorType& outError);
 	void OnStateChanged(State nextState);
 	void OutputFunction(State state, float vUr);
 
 	// Individual functions
-
-	// analog inputs
-	float GetUr() const;
-	float GetUa() const;
 
 	// Lambda conversion
 	float ConvertLambda(float vUa) const;
@@ -93,18 +86,47 @@ private:
 
 	// Calibration
 	void Calibrate();
+protected:
+	bool Init();
+	void Update(efitime_t nowNt);
+
+	// analog inputs
+	virtual float GetUr() const = 0;
+	virtual float GetUa() const = 0;
+
+	virtual float GetPeriod() const = 0;
 public:
-	Cj125_new(const cj125_config& config)
-		: PeriodicController("cj125", LOWPRIO, 50)
-		, m_config(config)
-		, m_spi(config.spi)
-		, m_state(config.enable ? State::Idle : State::Disabled)
-		, m_lastError(ErrorType::None)
-		, m_sensorType(config.isLsu49 ? SensorType::BoschLsu49 : SensorType::BoschLsu42)
-		, m_heaterPid(&m_heaterPidConfig)
-	{
-	}
+	explicit Cj125Base(const cj125_config& config);
 
 	float GetLambda() const;
 	const DiagnosticChannels& GetDiagChannels() const { return m_diagChannels; }
+};
+
+struct Cj125_new : public Cj125Base, public PeriodicController<UTILITY_THREAD_STACK_SIZE>
+{
+	explicit Cj125_new(const cj125_config& config)
+		: Cj125Base(config)
+		, PeriodicController("cj125", LOWPRIO, 50)
+	{
+	}
+
+	// PeriodicController implementation
+	bool OnStarted() override
+	{
+		return Init();
+	}
+
+	void PeriodicTask(efitime_t nowNt) override
+	{
+		Update(nowNt);
+	}
+
+	float GetPeriod() const override
+	{
+		return m_periodSeconds;
+	}
+
+	// analog inputs
+	float GetUr() const override;
+	float GetUa() const override;
 };

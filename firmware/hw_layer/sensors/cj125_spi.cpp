@@ -24,7 +24,6 @@
 #define	CJ125_IDENT						0x60 // 96
 #define	CJ125_IDENT_MASK 				0xF8 // Last 3 bits depend on silicon stepping
 
-
 uint8_t Cj125Spi::ReadRegister(uint8_t reg) const
 {
     spiSelect(m_driver);

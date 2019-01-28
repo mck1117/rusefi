@@ -1,4 +1,7 @@
-#include "cj125_new.h"
+
+#include "global.h"
+
+#include "Cj125Base.h"
 
 #include "engine.h"
 #include "adc_inputs.h"
@@ -6,7 +9,6 @@
 #include "voltage.h"
 #include "pwm_generator.h"
 #include "LambdaConverter.h"
-
 
 // Heater control parameters
 
@@ -38,7 +40,7 @@ extern TunerStudioOutputChannels tsOutputChannels;
 EXTERN_ENGINE
 ;
 
-void Cj125_new::PeriodicTask(efitime_t nowNt)
+void Cj125Base::Update(efitime_t nowNt)
 {
 	// TODO: hack hack hack
 	memcpy(&m_heaterPidConfig, &m_config.heaterPid, sizeof(pid_s));
@@ -92,7 +94,7 @@ void Cj125_new::PeriodicTask(efitime_t nowNt)
 	}
 }
 
-/* static */ Cj125_new::State Cj125_new::TransitionFunction(Cj125_new::State currentState, float vUr, efitime_t timeInState, bool engineTurning, Cj125_new::ErrorType& outError)
+/* static */ Cj125Base::State Cj125Base::TransitionFunction(Cj125Base::State currentState, float vUr, efitime_t timeInState, bool engineTurning, Cj125Base::ErrorType& outError)
 {
 
 	switch (currentState) {
@@ -168,7 +170,7 @@ void Cj125_new::PeriodicTask(efitime_t nowNt)
 	return State::Disabled;
 }
 
-void Cj125_new::OnStateChanged(State nextState)
+void Cj125Base::OnStateChanged(State nextState)
 {
 	// TODO: handle state changes here
 
@@ -183,7 +185,7 @@ void Cj125_new::OnStateChanged(State nextState)
 	}
 }
 
-void Cj125_new::OutputFunction(Cj125_new::State state, float vUr)
+void Cj125Base::OutputFunction(Cj125Base::State state, float vUr)
 {
 	switch (state)
 	{
@@ -195,13 +197,13 @@ void Cj125_new::OutputFunction(Cj125_new::State state, float vUr)
 			break;
 		case State::Warmup:
 			// Increase voltage at the configured ramp rate
-			m_warmupRampVoltage += m_config.warmupRampRate * m_periodSeconds;
+			m_warmupRampVoltage += m_config.warmupRampRate * GetPeriod();
 
 			SetHeaterEffectiveVoltage(m_warmupRampVoltage);
 			break;
 		case State::Running:
 			// Run in closed loop
-			SetHeaterEffectiveVoltage(m_heaterPid.getValue(vUr, m_config.vUrTarget, m_periodSeconds));
+			SetHeaterEffectiveVoltage(m_heaterPid.getValue(vUr, m_config.vUrTarget, GetPeriod()));
 			break;
 		case State::Error:
 			// Disable if we had an error
@@ -221,7 +223,7 @@ float Cj125_new::GetUr() const
 	return getVoltageDivided("cj125ur", m_config.adcUr) / 2;
 }
 
-float Cj125_new::ConvertLambda(float vUa) const
+float Cj125Base::ConvertLambda(float vUa) const
 {
 	float vUaDelta = vUa - m_vUaOffset;
 
@@ -236,7 +238,7 @@ float Cj125_new::ConvertLambda(float vUa) const
 	return 0.0f;
 }
 
-float Cj125_new::GetLambda() const
+float Cj125Base::GetLambda() const
 {
 	if(m_state == State::Running)
 	{
@@ -248,7 +250,7 @@ float Cj125_new::GetLambda() const
 	}
 }
 
-void Cj125_new::SetHeaterEffectiveVoltage(float volts)
+void Cj125Base::SetHeaterEffectiveVoltage(float volts)
 {
 	if(volts > CJ125_MAXIMUM_HEATER_VOLTAGE)
 	{
@@ -268,7 +270,7 @@ void Cj125_new::SetHeaterEffectiveVoltage(float volts)
 	m_diagChannels.heaterDuty = dutyCycle;
 }
 
-bool Cj125_new::OnStarted()
+bool Cj125Base::Init()
 {
 	// bail out if not enabled
 	if(!m_config.enable)
@@ -321,7 +323,7 @@ bool Cj125_new::OnStarted()
 	return true;
 }
 
-void Cj125_new::Calibrate()
+void Cj125Base::Calibrate()
 {
 	// If we couldn't go in to cal mode, return.
 	if(!m_spi.BeginCalibration())
@@ -382,9 +384,8 @@ const cj125_config defaultConfig
 	}
 };
 
-Cj125_new::Cj125_new(const cj125_config& config)
-	: PeriodicController("cj125", LOWPRIO, 50)
-	, m_config(config)
+Cj125Base::Cj125Base(const cj125_config& config)
+	: m_config(config)
 	, m_spi(config.spi)
 	, m_state(config.enable ? State::Idle : State::Disabled)
 	, m_lastError(ErrorType::None)
