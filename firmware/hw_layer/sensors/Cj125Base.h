@@ -1,9 +1,10 @@
 #pragma once
 
-#include "PeriodicController.h"
 #include "cj125_spi.h"
 #include "pwm_generator_logic.h"
 #include "pid.h"
+
+#define CJ125_MAXIMUM_HEATER_VOLTAGE	12.0f	// Do not allow more than 12v effective heater voltage
 
 class Cj125Base
 {
@@ -45,19 +46,13 @@ class Cj125Base
 		uint8_t diag;
 	};
 
-	DiagnosticChannels m_diagChannels;
+	const cj125_controller_config& m_config;
 
-protected:
-	const cj125_config& m_config;
-private:
-	Cj125Spi m_spi;
+	Cj125Spi& m_spi;
 
 	State m_state;
 	ErrorType m_lastError;
 	SensorType m_sensorType;
-
-	SimplePwm m_heaterPwm;
-	OutputPin m_heaterPin;
 
 	Logging* m_logger;
 
@@ -81,12 +76,11 @@ private:
 	// Lambda conversion
 	float ConvertLambda(float vUa) const;
 
-	// heater
-	void SetHeaterEffectiveVoltage(float volts);
-
 	// Calibration
 	void Calibrate();
 protected:
+	DiagnosticChannels m_diagChannels;
+
 	bool Init();
 	void Update(efitime_t nowNt);
 
@@ -94,39 +88,13 @@ protected:
 	virtual float GetUr() const = 0;
 	virtual float GetUa() const = 0;
 
+	// heater output
+	virtual void SetHeaterEffectiveVoltage(float volts) = 0;
+
 	virtual float GetPeriod() const = 0;
 public:
-	explicit Cj125Base(const cj125_config& config);
+	explicit Cj125Base(const cj125_controller_config& config, Cj125Spi& spi);
 
 	float GetLambda() const;
 	const DiagnosticChannels& GetDiagChannels() const { return m_diagChannels; }
-};
-
-struct Cj125_new : public Cj125Base, public PeriodicController<UTILITY_THREAD_STACK_SIZE>
-{
-	explicit Cj125_new(const cj125_config& config)
-		: Cj125Base(config)
-		, PeriodicController("cj125", LOWPRIO, 50)
-	{
-	}
-
-	// PeriodicController implementation
-	bool OnStarted() override
-	{
-		return Init();
-	}
-
-	void PeriodicTask(efitime_t nowNt) override
-	{
-		Update(nowNt);
-	}
-
-	float GetPeriod() const override
-	{
-		return m_periodSeconds;
-	}
-
-	// analog inputs
-	float GetUr() const override;
-	float GetUa() const override;
 };

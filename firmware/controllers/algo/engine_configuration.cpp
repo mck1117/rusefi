@@ -995,31 +995,34 @@ void setDefaultConfiguration(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 
 	engineConfiguration->cj125 =
 	{
-		false,	// disable
-		true,	// lsu 4.9
-		false,	// disable calibration
-		EFI_ADC_NONE,	// don't set pins
-		EFI_ADC_NONE,
-		GPIO_UNASSIGNED,
-		// Heater PID
-		{
-			30.0f,	// kP
-			5.0f,	// kI
-			0.3f,	// kD
-			0,		// offset
-			0,		// period
-			0,		// min
-			12		// max
+		{	// Controller
+			false,	// disable
+			true,	// lsu 4.9
+			false,	// disable calibration
+			// Heater PID
+			{
+				30.0f,	// kP
+				5.0f,	// kI
+				0.3f,	// kD
+				0,		// offset
+				0,		// period
+				0,		// min
+				12		// max
+			},
+			30.0f,	// 30 second heater timeout
+			7.0f,	// 7v initial
+			0.4f,	// 0.4v/s
+			1.0f,	// 1.0v target Ur
 		},
-		30.0f,	// 30 second heater timeout
-		7.0f,	// 7v initial
-		0.4f,	// 0.4v/s
-		1.0f,	// 1.0v target Ur
-		// SPI config
-		{
+		{	// SPI
 			SPI_NONE,	// SPI device
 			GPIO_UNASSIGNED,	// CS pin
 			OM_DEFAULT	// CS pin mode
+		},
+		{	// Hardware
+			EFI_ADC_NONE,	// don't set pins
+			EFI_ADC_NONE,
+			GPIO_UNASSIGNED,
 		}
 	};
 

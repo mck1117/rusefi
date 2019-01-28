@@ -1,4 +1,4 @@
-// this section was generated automatically by ConfigDefinition.jar based on rusefi_config.txt Sun Jan 20 20:01:54 EST 2019
+// this section was generated automatically by ConfigDefinition.jar based on rusefi_config.txt Mon Jan 28 00:10:39 PST 2019
 // begin
 #ifndef ENGINE_CONFIGURATION_GENERATED_H_
 #define ENGINE_CONFIGURATION_GENERATED_H_
@@ -350,6 +350,44 @@ typedef struct {
 	/** total size 20*/
 } idle_hardware_s;
 
+// start of cj125_controller_config
+typedef struct {
+	/**
+	offset 0 bit 0 */
+	bool enable : 1;
+	/**
+	offset 0 bit 1 */
+	bool isLsu49 : 1;
+	/**
+	offset 0 bit 2 */
+	bool enableCalibration : 1;
+	/**
+	 * offset 4
+	 */
+	pid_s heaterPid;
+	/**
+	 *  Try to heat the sensor for this long before failing
+	 * offset 24
+	 */
+	float warmupTimeout;
+	/**
+	 *  Initial voltage of the warmup ramp
+	 * offset 28
+	 */
+	float warmupInitialVoltage;
+	/**
+	 *  After jumping to the initial warmup voltage, ramp at this rate.
+	 * offset 32
+	 */
+	float warmupRampRate;
+	/**
+	 *  Target temperature measured on Ur pin
+	 * offset 36
+	 */
+	float vUrTarget;
+	/** total size 40*/
+} cj125_controller_config;
+
 // start of cj125_spi_config
 typedef struct {
 	/**
@@ -367,57 +405,37 @@ typedef struct {
 	/** total size 12*/
 } cj125_spi_config;
 
-// start of cj125_config
+// start of cj125_hardware_config
 typedef struct {
 	/**
-	offset 0 bit 0 */
-	bool enable : 1;
-	/**
-	offset 0 bit 1 */
-	bool isLsu49 : 1;
-	/**
-	offset 0 bit 2 */
-	bool enableCalibration : 1;
-	/**
-	 * offset 4
+	 * offset 0
 	 */
 	adc_channel_e adcUa;
 	/**
-	 * offset 8
+	 * offset 4
 	 */
 	adc_channel_e adcUr;
 	/**
-	 * offset 12
+	 * offset 8
 	 */
 	brain_pin_e heaterPin;
+	/** total size 12*/
+} cj125_hardware_config;
+
+// start of cj125_config
+typedef struct {
 	/**
-	 * offset 16
+	 * offset 0
 	 */
-	pid_s heaterPid;
+	cj125_controller_config controller;
 	/**
-	 *  Try to heat the sensor for this long before failing
-	 * offset 36
-	 */
-	float warmupTimeout;
-	/**
-	 *  Initial voltage of the warmup ramp
 	 * offset 40
 	 */
-	float warmupInitialVoltage;
-	/**
-	 *  After jumping to the initial warmup voltage, ramp at this rate.
-	 * offset 44
-	 */
-	float warmupRampRate;
-	/**
-	 *  Target temperature measured on Ur pin
-	 * offset 48
-	 */
-	float vUrTarget;
+	cj125_spi_config spi;
 	/**
 	 * offset 52
 	 */
-	cj125_spi_config spi;
+	cj125_hardware_config hw;
 	/** total size 64*/
 } cj125_config;
 
@@ -2554,4 +2572,4 @@ typedef struct {
 
 #endif
 // end
-// this section was generated automatically by ConfigDefinition.jar based on rusefi_config.txt Sun Jan 20 20:01:54 EST 2019
+// this section was generated automatically by ConfigDefinition.jar based on rusefi_config.txt Mon Jan 28 00:10:39 PST 2019

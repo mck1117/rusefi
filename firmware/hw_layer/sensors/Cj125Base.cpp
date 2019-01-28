@@ -2,19 +2,13 @@
 #include "global.h"
 
 #include "Cj125Base.h"
-
 #include "engine.h"
-#include "adc_inputs.h"
-#include "adc_math.h"
-#include "voltage.h"
-#include "pwm_generator.h"
 #include "LambdaConverter.h"
 
 // Heater control parameters
 
 // Heater params for Idle(cold), Preheating and Control stages
 // See http://www.waltech.com/wideband-files/boschsensordatasheet.htm
-#define CJ125_MAXIMUM_HEATER_VOLTAGE	12.0f	// Do not allow more than 12v effective heater voltage
 #define CJ125_HEATER_IDLE_VOLTAGE		0.0f	// Disable heat during idle state
 #define CJ125_HEATER_PREHEAT_VOLTAGE	2.0f	// 2v preheat until condensation period is over
 
@@ -32,8 +26,6 @@
 #define CJ125_UA_CAL_MAX 	(1.6f)	// maximum acceptable vUa (1.5v typ)
 #define CJ125_UR_CAL_MIN 	(0.9f)	// minimum acceptable vUr (1.0v typ)
 #define CJ125_UR_CAL_MAX 	(1.1f)	// maximum acceptable vUr (1.0v typ)
-
-
 
 extern TunerStudioOutputChannels tsOutputChannels;
 
@@ -213,16 +205,6 @@ void Cj125Base::OutputFunction(Cj125Base::State state, float vUr)
 	}
 }
 
-float Cj125_new::GetUa() const
-{
-	return getVoltageDivided("cj125ua", m_config.adcUa) / 2;
-}
-
-float Cj125_new::GetUr() const
-{
-	return getVoltageDivided("cj125ur", m_config.adcUr) / 2;
-}
-
 float Cj125Base::ConvertLambda(float vUa) const
 {
 	float vUaDelta = vUa - m_vUaOffset;
@@ -250,26 +232,6 @@ float Cj125Base::GetLambda() const
 	}
 }
 
-void Cj125Base::SetHeaterEffectiveVoltage(float volts)
-{
-	if(volts > CJ125_MAXIMUM_HEATER_VOLTAGE)
-	{
-		volts = CJ125_MAXIMUM_HEATER_VOLTAGE;
-	}
-
-	if(volts < 0)
-	{
-		volts = 0;
-	}
-
-	// Because this is a resistive heater, duty = (V_eff / V_batt) ^ 2
-	float powerRatio = volts / getVBatt();
-	float dutyCycle = powerRatio * powerRatio;
-
-	m_heaterPwm.setSimplePwmDutyCycle(dutyCycle);
-	m_diagChannels.heaterDuty = dutyCycle;
-}
-
 bool Cj125Base::Init()
 {
 	// bail out if not enabled
@@ -278,31 +240,8 @@ bool Cj125Base::Init()
 		return false;
 	}
 
-	// bail out if analog inputs aren't set
-	if(m_config.adcUa == EFI_ADC_NONE || m_config.adcUr == EFI_ADC_NONE)
-	{
-		return false;
-	}
-
-	// bail out if the heater pin isn't set
-	if(m_config.heaterPin == GPIO_UNASSIGNED)
-	{
-		return false;
-	}
-
-	// Init heater pin
-	startSimplePwmExt(
-		&m_heaterPwm,
-		"cj125 heater",
-		&engine->executor,
-		m_config.heaterPin,
-		&m_heaterPin,
-		200,	// hz
-		0.0f,	// duty
-		applyPinState);
-
-	// Init PID
-	m_heaterPid.reset();
+    // Init PID
+    m_heaterPid.reset();
 
 	// Try to init SPI
 	if(m_spi.Init())
@@ -354,9 +293,9 @@ void Cj125Base::Calibrate()
 	m_spi.EndCalibration();
 }
 
-Cj125Base::Cj125Base(const cj125_config& config)
+Cj125Base::Cj125Base(const cj125_controller_config& config, Cj125Spi& spi)
 	: m_config(config)
-	, m_spi(config.spi)
+	, m_spi(spi)
 	, m_state(config.enable ? State::Idle : State::Disabled)
 	, m_lastError(ErrorType::None)
 	, m_sensorType(config.isLsu49 ? SensorType::BoschLsu49 : SensorType::BoschLsu42)
