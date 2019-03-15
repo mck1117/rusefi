@@ -1,0 +1,16 @@
+#include "Sensor.h"
+#include "LinearAnalogSensor.h"
+
+#include "global.h"
+#include "engine.h"
+
+EXTERN_ENGINE;
+
+static LinearAnalogSensor vbatt(nullptr, EFI_ADC_NONE, 0, 0, 0, 0);
+
+void initializeSensors()
+{
+    // Vbatt
+    vbatt = LinearAnalogSensor("vbatt", engineConfiguration->vbattAdcChannel, 0, 0, 1.0f, engineConfiguration->vbattDividerCoeff);
+    vbatt.Register();
+}

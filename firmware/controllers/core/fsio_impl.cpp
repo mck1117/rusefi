@@ -19,6 +19,9 @@
 #include "rpm_calculator.h"
 #include "efiGpio.h"
 #include "pwm_generator_logic.h"
+#include "SensorConsumer.h"
+
+static SensorConsumer sensorVBatt("vbatt");
 
 /**
  * in case of zero frequency pin is operating as simple on/off. '1' for ON and '0' for OFF
@@ -143,7 +146,7 @@ float getEngineValue(le_action_e action DECLARE_ENGINE_PARAMETER_SUFFIX) {
 	case LE_METHOD_IN_SHUTDOWN:
 		return engine->isInShutdownMode();
 	case LE_METHOD_VBATT:
-		return getVBatt(PASS_ENGINE_PARAMETER_SIGNATURE);
+		return sensorVBatt.Get().Value;
 	default:
 		warning(CUSTOM_FSIO_UNEXPECTED, "FSIO unexpected %d", action);
 		return NAN;

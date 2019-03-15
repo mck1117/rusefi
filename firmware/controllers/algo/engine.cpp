@@ -24,6 +24,7 @@
 #include "aux_valves.h"
 #include "map_averaging.h"
 #include "fsio_impl.h"
+#include "SensorConsumer.h"
 
 #if EFI_PROD_CODE || defined(__DOXYGEN__)
 #include "injector_central.h"
@@ -122,6 +123,8 @@ void Engine::periodicSlowCallback(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 }
 
 
+SensorConsumer vbatt("vbatt");
+
 /**
  * We are executing these heavy (logarithm) methods from outside the trigger callbacks for performance reasons.
  * See also periodicFastCallback
@@ -141,7 +144,7 @@ void Engine::updateSlowSensors(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 				CONFIGB(fuelLevelFullTankVoltage), 100,
 				fuelLevelVoltage);
 	}
-	sensors.vBatt = hasVBatt(PASS_ENGINE_PARAMETER_SIGNATURE) ? getVBatt(PASS_ENGINE_PARAMETER_SIGNATURE) : 12;
+	sensors.vBatt = vbatt.GetOrDefault(12.0f);
 
 	engineState.injectorLag = getInjectorLag(sensors.vBatt PASS_ENGINE_PARAMETER_SUFFIX);
 #endif

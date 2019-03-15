@@ -17,7 +17,6 @@
 #include "map.h"
 #include "maf.h"
 #include "ego.h"
-#include "voltage.h"
 #include "thermistors.h"
 #include "oil_pressure.h"
 #include "flex_fuel.h"

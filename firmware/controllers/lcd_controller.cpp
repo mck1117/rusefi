@@ -39,7 +39,9 @@
 #include "mmc_card.h"
 #include "idle_thread.h"
 #include "fuel_math.h"
+#include "SensorConsumer.h"
 
+static SensorConsumer sensorVBatt("vbatt");
 
 EXTERN_ENGINE
 ;
@@ -260,7 +262,7 @@ static void showLine(lcd_line_e line, int screenY) {
 		lcdPrintf("ING LAG %.2f", getInjectorLag(engine->sensors.vBatt PASS_ENGINE_PARAMETER_SIGNATURE));
 		return;
 	case LL_VBATT:
-		lcdPrintf("Battery %.2fv", getVBatt(PASS_ENGINE_PARAMETER_SIGNATURE));
+		lcdPrintf("Battery %.2fv", sensorVBatt.Get().Value);
 		return;
 	case LL_KNOCK:
 		getPinNameByAdcChannel("hip", engineConfiguration->hipOutputChannel, buffer);

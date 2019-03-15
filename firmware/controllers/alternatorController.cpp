@@ -10,10 +10,11 @@
 #include "engine.h"
 #include "rpm_calculator.h"
 #include "alternatorController.h"
-#include "voltage.h"
 #include "pid.h"
 #include "LocalVersionHolder.h"
 #include "PeriodicController.h"
+#include "SensorConsumer.h"
+
 
 #if EFI_ALTERNATOR_CONTROL || defined(__DOXYGEN__)
 #include "pwm_generator.h"
@@ -28,6 +29,8 @@ static Logging *logger;
 static SimplePwm alternatorControl("alt");
 static pid_s *altPidS = &persistentState.persistentConfiguration.engineConfiguration.alternatorControl;
 static Pid altPid(altPidS);
+
+static SensorConsumer sensorVBatt("vbatt");
 
 static percent_t currentAltDuty;
 
@@ -75,7 +78,7 @@ private:
 			return;
 		}
 
-		float vBatt = getVBatt(PASS_ENGINE_PARAMETER_SIGNATURE);
+		float vBatt = sensorVBatt.Get().Value;
 		float targetVoltage = engineConfiguration->targetVBatt;
 
 		if (CONFIGB(onOffAlternatorLogic)) {
@@ -112,7 +115,7 @@ void showAltInfo(void) {
 			engineConfiguration->alternatorControl.periodMs);
 	scheduleMsg(logger, "p=%.2f/i=%.2f/d=%.2f offset=%.2f", engineConfiguration->alternatorControl.pFactor,
 			0, 0, engineConfiguration->alternatorControl.offset); // todo: i & d
-	scheduleMsg(logger, "vbatt=%.2f/duty=%.2f/target=%.2f", getVBatt(PASS_ENGINE_PARAMETER_SIGNATURE), currentAltDuty,
+	scheduleMsg(logger, "vbatt=%.2f/duty=%.2f/target=%.2f", sensorVBatt.Get().Value, currentAltDuty,
 			engineConfiguration->targetVBatt);
 }
 

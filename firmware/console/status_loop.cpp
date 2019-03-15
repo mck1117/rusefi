@@ -59,6 +59,9 @@
 #include "can_hw.h"
 #include "PeriodicController.h"
 #include "cdm_ion_sense.h"
+#include "SensorConsumer.h"
+
+static SensorConsumer sensorVBatt("vbatt");
 
 extern afr_Map3D_t afrMap;
 extern bool main_loop_started;
@@ -202,8 +205,11 @@ static void printSensors(Logging *log, bool fileFormat) {
 		reportSensorF(log, fileFormat, "IAT", "C", getIntakeAirTemperature(PASS_ENGINE_PARAMETER_SIGNATURE), 2); // log column #7
 	}
 
-	if (hasVBatt(PASS_ENGINE_PARAMETER_SIGNATURE)) {
-		reportSensorF(log, fileFormat, GAUGE_NAME_VBAT, "V", getVBatt(PASS_ENGINE_PARAMETER_SIGNATURE), 2); // log column #6
+	SensorResult vbatt = sensorVBatt.Get();
+
+	if(vbatt.Valid)
+	{
+		reportSensorF(log, fileFormat, GAUGE_NAME_VBAT, "V", vbatt.Value, 2); // log column #6
 	}
 #if EFI_ANALOG_SENSORS || defined(__DOXYGEN__)
 	if (hasMapSensor(PASS_ENGINE_PARAMETER_SIGNATURE)) {
@@ -718,9 +724,9 @@ void updateTunerStudioState(TunerStudioOutputChannels *tsOutputChannels DECLARE_
 	if (hasAfrSensor(PASS_ENGINE_PARAMETER_SIGNATURE)) {
 		tsOutputChannels->airFuelRatio = getAfr(PASS_ENGINE_PARAMETER_SIGNATURE);
 	}
-	if (hasVBatt(PASS_ENGINE_PARAMETER_SIGNATURE)) {
-		tsOutputChannels->vBatt = getVBatt(PASS_ENGINE_PARAMETER_SIGNATURE);
-	}
+
+	tsOutputChannels->vBatt = sensorVBatt.GetOrDefault(0.0f);
+
 	tsOutputChannels->tpsADC = getTPS12bitAdc(PASS_ENGINE_PARAMETER_SIGNATURE) / TPS_TS_CONVERSION;
 #if EFI_ANALOG_SENSORS || defined(__DOXYGEN__)
 	tsOutputChannels->baroPressure = hasBaroSensor() ? getBaroPressure() : 0;

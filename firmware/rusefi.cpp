@@ -121,6 +121,7 @@
 #include "algo.h"
 #include "custom_engine.h"
 #include "engine_math.h"
+#include "SensorInitialization.h"
 
 #if EFI_HD44780_LCD
 #include "lcd_HD44780.h"
@@ -206,6 +207,11 @@ void runRusEfi(void) {
 	 * Initialize hardware drivers
 	 */
 	initHardware(&sharedLogger);
+
+	/**
+	 * Initialize Sensors
+	 */
+	initializeSensors();
 
 	initStatusLoop();
 	/**
