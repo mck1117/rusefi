@@ -12,7 +12,7 @@ private:
 protected:
     AnalogSensor(const char* name, adc_channel_e analogChannel);
 
-    void UpdateAtGetTime() override;
+    void OnGetValue() override;
 
     // Convert an analog voltage to a sensor reading.
     virtual SensorResult ConvertVoltage(float volts) = 0;

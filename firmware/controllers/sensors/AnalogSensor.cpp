@@ -12,7 +12,7 @@ AnalogSensor::AnalogSensor(const char* name, adc_channel_e analogChannel)
 {
 }
 
-void AnalogSensor::UpdateAtGetTime()
+void AnalogSensor::OnGetValue()
 {
     float volts = getVoltage(GetName(), m_analogChannel);
 

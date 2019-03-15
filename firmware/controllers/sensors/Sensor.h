@@ -29,7 +29,12 @@ protected:
     // Clear the valid flag, indicating that the sensor reading is invalid.
     void Invalidate();
 
-    virtual void UpdateAtGetTime() {};
+    /**
+     * This is a hack! It only exists because the current model converts an analog sensor when
+     * its consumer needs a reading. Ideally, the sensor is converted and updated when the ADC
+     * conversion completes.  Once that is supported, this function can be removed.
+     */
+    virtual void OnGetValue() {};
 
 private:
     const char* m_name;

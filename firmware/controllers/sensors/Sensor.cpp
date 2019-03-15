@@ -25,7 +25,7 @@ void Sensor::Invalidate()
 
 SensorResult Sensor::Get()
 {
-    UpdateAtGetTime();
+    OnGetValue();
 
     return { m_valid, m_value };
 }
