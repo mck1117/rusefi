@@ -29,7 +29,7 @@ void AnalogSensor::PostVoltage(float volts)
 void AnalogSensor::OnGetValue()
 {
     // This implementation is temporary until the value is pushed
-    // upon ADC conversion complete
+	// from the ADC upon conversion complete
     float volts = getVoltage("analogSensor", m_analogChannel);
 
     PostVoltage(volts);
