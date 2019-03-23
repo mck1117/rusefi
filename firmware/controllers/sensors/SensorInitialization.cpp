@@ -6,7 +6,7 @@
 
 EXTERN_ENGINE;
 
-static LinearAnalogSensor vbatt(SensorType::Disabled, EFI_ADC_NONE, 0, 0, 0, 0);
+static LinearAnalogSensor vbatt(SensorType::Disabled, EFI_ADC_NONE, 0, 0, 1, 1);
 
 void initializeSensors()
 {
