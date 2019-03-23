@@ -12,10 +12,8 @@ AnalogSensor::AnalogSensor(const char* name, adc_channel_e analogChannel)
 {
 }
 
-void AnalogSensor::OnGetValue()
+void AnalogSensor::PostVoltage(float volts)
 {
-    float volts = getVoltage(GetName(), m_analogChannel);
-
     SensorResult result = ConvertVoltage(volts);
 
     if(result.Valid)
@@ -26,4 +24,13 @@ void AnalogSensor::OnGetValue()
     {
         Invalidate();
     }
+}
+
+void AnalogSensor::OnGetValue()
+{
+    // This implementation is temporary until the value is pushed
+    // upon ADC conversion complete
+    float volts = getVoltage(GetName(), m_analogChannel);
+
+    PostVoltage(volts);
 }

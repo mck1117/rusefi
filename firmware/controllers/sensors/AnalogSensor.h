@@ -16,4 +16,7 @@ protected:
 
     // Convert an analog voltage to a sensor reading.
     virtual SensorResult ConvertVoltage(float volts) = 0;
+
+public:
+    void PostVoltage(float volts);
 };
