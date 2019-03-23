@@ -7,12 +7,12 @@ class SensorConsumer final
 {
 private:
     Sensor* m_sensor;
-    const char* m_name;
+    SensorType m_type;
 
 public:
-    SensorConsumer(const char* name)
+    SensorConsumer(SensorType type)
         : m_sensor(nullptr)
-        , m_name(name)
+        , m_type(type)
     {
     }
 
@@ -20,7 +20,7 @@ public:
     {
         if(!m_sensor)
         {
-            m_sensor = Sensor::FindSensorByName(m_name);
+            m_sensor = Sensor::FindSensorByType(m_type);
         }
 
         Sensor* sensor = m_sensor;

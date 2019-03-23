@@ -41,7 +41,7 @@
 #include "fuel_math.h"
 #include "SensorConsumer.h"
 
-static SensorConsumer sensorVBatt("vbatt");
+static SensorConsumer sensorVBatt(SensorType::BatteryVoltage);
 
 EXTERN_ENGINE
 ;

@@ -61,7 +61,7 @@
 #include "cdm_ion_sense.h"
 #include "SensorConsumer.h"
 
-static SensorConsumer sensorVBatt("vbatt");
+static SensorConsumer sensorVBatt(SensorType::BatteryVoltage);
 
 extern afr_Map3D_t afrMap;
 extern bool main_loop_started;

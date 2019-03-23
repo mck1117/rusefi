@@ -30,7 +30,7 @@ static SimplePwm alternatorControl("alt");
 static pid_s *altPidS = &persistentState.persistentConfiguration.engineConfiguration.alternatorControl;
 static Pid altPid(altPidS);
 
-static SensorConsumer sensorVBatt("vbatt");
+static SensorConsumer sensorVBatt(SensorType::BatteryVoltage);
 
 static percent_t currentAltDuty;
 

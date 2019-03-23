@@ -123,7 +123,7 @@ void Engine::periodicSlowCallback(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 }
 
 
-SensorConsumer vbatt("vbatt");
+SensorConsumer vbatt(SensorType::BatteryVoltage);
 
 /**
  * We are executing these heavy (logarithm) methods from outside the trigger callbacks for performance reasons.

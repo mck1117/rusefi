@@ -1,5 +1,7 @@
 #pragma once
 
+#include "SensorType.h"
+
 struct SensorResult
 {
     bool Valid;
@@ -15,13 +17,13 @@ public:
     // Register the sensor for lookup by name.
     void Register();
 
-    const char* GetName();
+    SensorType GetType();
 
-    // Find a sensor by name.  Returns the sensor with the requested name, or nullptr if no such sensor was found.
-    static Sensor* FindSensorByName(const char* name);
+    // Find a sensor by name.  Returns the sensor with the requested type, or nullptr if no such sensor is found.
+    static Sensor* FindSensorByType(SensorType type);
 
 protected:
-    Sensor(const char* name);
+    Sensor(SensorType type);
 
     // Set the value for the sensor.  Also sets the valid flag.
     void Set(float value);
@@ -37,12 +39,9 @@ protected:
     virtual void OnGetValue() {};
 
 private:
-    const char* m_name;
+    SensorType m_type;
 
     // Volatile ensures these members are read in-order
     volatile bool m_valid;
     volatile float m_value;
-
-    static Sensor* s_llFirst;
-    Sensor* m_llNext;
 };

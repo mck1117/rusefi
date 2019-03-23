@@ -21,7 +21,7 @@
 #include "pwm_generator_logic.h"
 #include "SensorConsumer.h"
 
-static SensorConsumer sensorVBatt("vbatt");
+static SensorConsumer sensorVBatt(SensorType::BatteryVoltage);
 
 /**
  * in case of zero frequency pin is operating as simple on/off. '1' for ON and '0' for OFF

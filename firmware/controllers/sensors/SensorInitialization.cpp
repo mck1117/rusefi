@@ -6,11 +6,11 @@
 
 EXTERN_ENGINE;
 
-static LinearAnalogSensor vbatt(nullptr, EFI_ADC_NONE, 0, 0, 0, 0);
+static LinearAnalogSensor vbatt(SensorType::Disabled, EFI_ADC_NONE, 0, 0, 0, 0);
 
 void initializeSensors()
 {
     // Vbatt
-    vbatt = LinearAnalogSensor("vbatt", engineConfiguration->vbattAdcChannel, 0, 0, 1.0f, engineConfiguration->vbattDividerCoeff);
+    vbatt = LinearAnalogSensor(SensorType::BatteryVoltage, engineConfiguration->vbattAdcChannel, 0, 0, 1.0f, engineConfiguration->vbattDividerCoeff);
     vbatt.Register();
 }

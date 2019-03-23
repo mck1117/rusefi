@@ -6,8 +6,8 @@
 
 EXTERN_ENGINE;
 
-AnalogSensor::AnalogSensor(const char* name, adc_channel_e analogChannel)
-    : Sensor(name)
+AnalogSensor::AnalogSensor(SensorType type, adc_channel_e analogChannel)
+    : Sensor(type)
     , m_analogChannel(analogChannel)
 {
 }
@@ -30,7 +30,7 @@ void AnalogSensor::OnGetValue()
 {
     // This implementation is temporary until the value is pushed
     // upon ADC conversion complete
-    float volts = getVoltage(GetName(), m_analogChannel);
+    float volts = getVoltage("analogSensor", m_analogChannel);
 
     PostVoltage(volts);
 }

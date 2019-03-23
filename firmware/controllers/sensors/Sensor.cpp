@@ -2,11 +2,10 @@
 
 #include <cstring>
 
-Sensor* Sensor::s_llFirst = nullptr;
+Sensor* s_SensorList[static_cast<size_t>(SensorType::DoNotUseLastSensor)];
 
-Sensor::Sensor(const char* name)
-    : m_name(name)
-    , m_llNext(nullptr)
+Sensor::Sensor(SensorType type)
+    : m_type(type)
 {
 }
 
@@ -32,31 +31,34 @@ SensorResult Sensor::Get()
 
 void Sensor::Register()
 {
-    // Append to the front of the linked list
-    m_llNext = s_llFirst;
-    s_llFirst = this;
-}
-
-const char* Sensor::GetName()
-{
-    return m_name;
-}
-
-/* static */ Sensor* Sensor::FindSensorByName(const char* name)
-{
-    Sensor* s = Sensor::s_llFirst;
-
-    while(s != nullptr)
+    // Silently fail if the sensor is disabled
+    if(m_type == SensorType::Disabled)
     {
-        // If the string matches, we've found it.
-        if(strcmp(s->m_name, name) == 0)
-        {
-            return s;
-        }
-
-        s = s->m_llNext;
+        return;
     }
 
-    // Didn't find it, return null.
-    return nullptr;
+    size_t index = static_cast<size_t>(m_type);
+
+    // Check if the sensor type is off the end of the list, OR if it's already registered
+    if(m_type >= SensorType::DoNotUseLastSensor || s_SensorList[index] != nullptr)
+    {
+        // TODO throw error because we have a duplicate sensor here
+    }
+
+    s_SensorList[index] = this;
+}
+
+SensorType Sensor::GetType()
+{
+    return m_type;
+}
+
+/* static */ Sensor* Sensor::FindSensorByType(SensorType type)
+{
+    if(type >= SensorType::DoNotUseLastSensor)
+    {
+        return nullptr;
+    }
+
+    return s_SensorList[static_cast<size_t>(type)];
 }
