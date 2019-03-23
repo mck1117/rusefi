@@ -1,6 +1,6 @@
 #include "Sensor.h"
 
-#include <cstring>
+#include <cstddef>
 
 Sensor* s_SensorList[static_cast<size_t>(SensorType::DoNotUseLastSensor)];
 
