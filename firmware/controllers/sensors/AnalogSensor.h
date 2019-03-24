@@ -10,6 +10,7 @@ private:
     adc_channel_e m_analogChannel;
 
 protected:
+    AnalogSensor();
     AnalogSensor(SensorType type, adc_channel_e analogChannel);
 
     void OnGetValue() override;

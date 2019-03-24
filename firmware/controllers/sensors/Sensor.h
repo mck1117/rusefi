@@ -23,7 +23,9 @@ public:
     static Sensor* FindSensorByType(SensorType type);
 
 protected:
-    Sensor(SensorType type);
+    // Default constructor defaults to SensorType::Disabled (safe for static initializers!)
+    Sensor() = default;
+    explicit Sensor(SensorType type);
 
     // Set the value for the sensor.  Also sets the valid flag.
     void Set(float value);

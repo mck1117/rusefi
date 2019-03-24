@@ -5,6 +5,7 @@
 class ResistanceSensor : public AnalogSensor
 {
 public:
+    ResistanceSensor() = default;
     ResistanceSensor(SensorType type, adc_channel_e analogChannel, float supplyVoltage, float pullUpResistance);
 
 protected:

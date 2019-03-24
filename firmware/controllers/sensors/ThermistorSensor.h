@@ -7,6 +7,7 @@
 class ThermistorSensor final : public ResistanceSensor
 {
 public:
+    ThermistorSensor() = default;
     ThermistorSensor(SensorType type, adc_channel_e analogChannel, float supplyVoltage, thermistor_conf_s* thermistorConfig);
 
 protected:

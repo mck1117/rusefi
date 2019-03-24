@@ -6,6 +6,11 @@
 
 EXTERN_ENGINE;
 
+AnalogSensor::AnalogSensor()
+    : m_analogChannel(EFI_ADC_NONE)
+{
+}
+
 AnalogSensor::AnalogSensor(SensorType type, adc_channel_e analogChannel)
     : Sensor(type)
     , m_analogChannel(analogChannel)
