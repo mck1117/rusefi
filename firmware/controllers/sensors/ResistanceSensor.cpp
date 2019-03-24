@@ -20,5 +20,7 @@ SensorResult ResistanceSensor::ConvertVoltage(float volts)
 
     float resistance = num / denom;
 
-    return { true, resistance };
+    // Negative resistance doesn't make sense...
+    // Only return Valid=true if resistance is non-negative
+    return { resistance > 0, resistance };
 }
