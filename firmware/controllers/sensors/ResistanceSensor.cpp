@@ -1,9 +1,9 @@
 #include "ResistanceSensor.h"
 
-ResistanceSensor::ResistanceSensor(const char* name, adc_channel_e analogChannel, float supplyVoltage, float pullUpResistance)
-    : AnalogSensor(name, analogChannel)
+ResistanceSensor::ResistanceSensor(SensorType type, adc_channel_e analogChannel, float supplyVoltage, float pullUpResistance)
+    : AnalogSensor(type, analogChannel)
     , m_supplyVoltage(supplyVoltage)
-    , m_pullUpResistor(pullUpResistor)
+    , m_pullUpResistor(pullUpResistance)
 {
 }
 

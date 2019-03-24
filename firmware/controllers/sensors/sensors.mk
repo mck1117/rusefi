@@ -15,4 +15,6 @@ CONTROLLERS_SENSORS_SRC_CPP = 	$(PROJECT_DIR)/controllers/sensors/thermistors.cp
 	$(PROJECT_DIR)/controllers/sensors/SensorInitialization.cpp \
 	$(PROJECT_DIR)/controllers/sensors/AnalogSensor.cpp \
 	$(PROJECT_DIR)/controllers/sensors/LinearAnalogSensor.cpp \
+	$(PROJECT_DIR)/controllers/sensors/ResistanceSensor.cpp \
+	$(PROJECT_DIR)/controllers/sensors/ThermistorSensor.cpp
 	

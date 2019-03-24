@@ -5,7 +5,7 @@
 class ResistanceSensor : public AnalogSensor
 {
 public:
-    ResistanceSensor(const char* name, adc_channel_e analogChannel, float supplyVoltage, float pullUpResistance);
+    ResistanceSensor(SensorType type, adc_channel_e analogChannel, float supplyVoltage, float pullUpResistance);
 
 protected:
     SensorResult ConvertVoltage(float volts) override;
