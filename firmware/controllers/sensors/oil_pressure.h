@@ -10,6 +10,5 @@
 #include "engine_configuration.h"
 
 float getOilPressure(DECLARE_ENGINE_PARAMETER_SIGNATURE);
-bool hasOilPressureSensor(DECLARE_ENGINE_PARAMETER_SIGNATURE);
 
 #endif
