@@ -231,7 +231,7 @@ static void periodicFastCallback(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	 * not many reasons why we use ChibiOS timer and not say a dedicated thread here
 	 * the only down-side of a dedicated thread is the cost of thread stack
 	 */
-	chVTSetAny(&periodicFastTimer, MS2ST(20), (vtfunc_t) &periodicFastCallback, engine);
+	chVTSetAny(&periodicFastTimer, MS2ST(5), (vtfunc_t) &periodicFastCallback, engine);
 }
 
 static void resetAccel(void) {
