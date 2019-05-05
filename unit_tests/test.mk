@@ -10,6 +10,8 @@ TEST_SRC_CPP = unit_test_framework.cpp \
 	tests/test_on_demand_parameters.cpp \
 	tests/test_hip9011.cpp \
 	tests/test_cj125.cpp \
+	tests/test_cj125_state_machine.cpp \
+	tests/test_cj125_lambda_conversion.cpp \
 	tests/test_cam_vtt_input.cpp \
 	tests/test_engine_math.cpp \
 	tests/test_startOfCrankingPrimingPulse.cpp \

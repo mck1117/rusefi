@@ -123,7 +123,7 @@
 
 #define EFI_HIP_9011 TRUE
 
-#define EFI_CJ125 TRUE
+#define EFI_CJ125 FALSE
 
 #if !defined(EFI_MEMS) || defined(__DOXYGEN__)
  #define EFI_MEMS TRUE

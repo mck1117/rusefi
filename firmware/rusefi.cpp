@@ -160,6 +160,11 @@ static void scheduleReboot(void) {
 	unlockAnyContext();
 }
 
+#include "Cj125_new.h"
+
+Cj125Spi cj_spi(engineConfiguration->cj125.spi);
+Cj125_new cj(engineConfiguration->cj125, cj_spi);
+
 void runRusEfi(void) {
 	efiAssertVoid(CUSTOM_RM_STACK_1, getRemainingStack(chThdGetSelfX()) > 512, "init s");
 	assertEngineReference();
@@ -204,6 +209,8 @@ void runRusEfi(void) {
 	 * Initialize hardware drivers
 	 */
 	initHardware(&sharedLogger);
+
+	cj.Start();
 
 	initStatusLoop();
 	/**

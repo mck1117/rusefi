@@ -9,6 +9,7 @@
 
 #include "ControllerBase.h"
 
+#if ! EFI_UNIT_TEST || defined(__DOXYGEN__)
 #include "ch.h"
 
 /**
@@ -60,3 +61,24 @@ public:
         m_thread->name = GetName();
     }
 };
+#endif
+
+// Dummy for unit tests
+#if EFI_UNIT_TEST
+
+template <int TStackSize>
+
+class ThreadController : public ControllerBase
+{
+protected:
+    virtual void ThreadTask() = 0;
+public:
+    ThreadController(const char* name, tprio_t priority)
+        : ControllerBase(name)
+    {
+    }
+
+    virtual void Start() {}
+};
+
+#endif

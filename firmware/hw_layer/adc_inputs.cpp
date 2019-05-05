@@ -236,10 +236,10 @@ static void pwmpcb_fast(PWMDriver *pwmp) {
 
 float getMCUInternalTemperature(void) {
 	float TemperatureValue = adcToVolts(slowAdc.getAdcValueByHwChannel(ADC_CHANNEL_SENSOR));
-	TemperatureValue -= 0.760; // Subtract the reference voltage at 25°C
+	TemperatureValue -= 0.760; // Subtract the reference voltage at 25ï¿½C
 	TemperatureValue /= .0025; // Divide by slope 2.5mV
 
-	TemperatureValue += 25.0; // Add the 25°C
+	TemperatureValue += 25.0; // Add the 25ï¿½C
 	return TemperatureValue;
 }
 
@@ -630,10 +630,10 @@ static void configureInputs(void) {
 	addChannel("OilP", engineConfiguration->oilPressure.hwChannel, ADC_SLOW);
 	addChannel("AC", engineConfiguration->acSwitchAdc, ADC_SLOW);
 
-	if (engineConfiguration->cj125.enable)
+	if (engineConfiguration->cj125.controller.enable)
 	{
-		addChannel("cj125ur", engineConfiguration->cj125.adcUr, ADC_SLOW);
-		addChannel("cj125ua", engineConfiguration->cj125.adcUa, ADC_SLOW);
+		addChannel("cj125ur", engineConfiguration->cj125.hw.adcUr, ADC_SLOW);
+		addChannel("cj125ua", engineConfiguration->cj125.hw.adcUa, ADC_SLOW);
 	}
 
 	for (int i = 0; i < FSIO_ANALOG_INPUT_COUNT ; i++) {

@@ -92,37 +92,14 @@ void initEgoAveraging(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 #endif
 
 bool hasAfrSensor(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
-#if EFI_CJ125 || defined(__DOXYGEN__)
-	if (CONFIGB(isCJ125Enabled)) {
-		return cjHasAfrSensor(PASS_ENGINE_PARAMETER_SIGNATURE);
-	}
-#endif /* EFI_CJ125 */
-	return engineConfiguration->afr.hwChannel != EFI_ADC_NONE;
+	return true;
 }
 
+#include "Cj125_new.h"
+extern Cj125_new cj;
+
 float getAfr(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
-#if EFI_CJ125 || defined(__DOXYGEN__)
-	if (CONFIGB(isCJ125Enabled)) {
-		return cjGetAfr(PASS_ENGINE_PARAMETER_SIGNATURE);
-	}
-#endif /* EFI_CJ125 */
-	afr_sensor_s * sensor = &CONFIG(afr);
-
-	float volts = getVoltageDivided("ego", sensor->hwChannel);
-
-	if (CONFIGB(afr_type) == ES_NarrowBand) {
-		float afr = interpolate2d("narrow", volts, engineConfiguration->narrowToWideOxygenBins, engineConfiguration->narrowToWideOxygen, NARROW_BAND_WIDE_BAND_CONVERSION_SIZE);
-#ifdef EFI_NARROW_EGO_AVERAGING
-		if (useAveraging)
-			afr = updateEgoAverage(afr);
-		return (lastAfr = afr);
-#else
-		return afr;
-#endif
-	}
-
-	return interpolateMsg("AFR", sensor->v1, sensor->value1, sensor->v2, sensor->value2, volts)
-			+ engineConfiguration->egoValueShift;
+	return cj.GetLambda() * 14.7f;
 }
 
 static void initEgoSensor(afr_sensor_s *sensor, ego_sensor_e type) {
