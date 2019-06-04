@@ -38,9 +38,6 @@
 #undef EFI_CONSOLE_SERIAL_DEVICE
 #undef EFI_CONSOLE_UART_DEVICE
 
-#undef EFI_UART_GPS
-#define EFI_UART_GPS FALSE
-
 //!!!!!!!!!!!!!!!!!
 #undef TS_UART_DMA_MODE
 #define TS_UART_DMA_MODE TRUE
@@ -57,20 +54,19 @@
 #define SERIAL_SPEED 115200
 
 #ifndef BOARD_TLE6240_COUNT
-#define BOARD_TLE6240_COUNT         0
+#define BOARD_TLE6240_COUNT 0
 #endif
 
 #ifndef BOARD_MC33972_COUNT
-#define BOARD_MC33972_COUNT			0
+#define BOARD_MC33972_COUNT 0
 #endif
 
 #ifndef BOARD_TLE8888_COUNT
-#define BOARD_TLE8888_COUNT 	0
+#define BOARD_TLE8888_COUNT 0
 #endif
 
 // todo: move this outside of efifeatures.h
-#define BOARD_EXT_GPIOCHIPS			(BOARD_TLE6240_COUNT + BOARD_MC33972_COUNT + BOARD_TLE8888_COUNT)
-
+#define BOARD_EXT_GPIOCHIPS (BOARD_TLE6240_COUNT + BOARD_MC33972_COUNT + BOARD_TLE8888_COUNT)
 
 #undef EFI_CONSOLE_TX_PORT
 #define EFI_CONSOLE_TX_PORT GPIOA
@@ -115,8 +111,8 @@
 #undef EFI_CJ125_DIRECTLY_CONNECTED_UR
 #define EFI_CJ125_DIRECTLY_CONNECTED_UR TRUE
 
-#define RPM_LOW_THRESHOLD 8				// RPM=8 is an empirical lower sensitivity threshold of MAX9926 for 60-2
-#define NO_RPM_EVENTS_TIMEOUT_SECS 5	// (RPM < 12)
+#define RPM_LOW_THRESHOLD 8			 // RPM=8 is an empirical lower sensitivity threshold of MAX9926 for 60-2
+#define NO_RPM_EVENTS_TIMEOUT_SECS 5 // (RPM < 12)
 
 #define EFI_PRINT_ERRORS_AS_WARNINGS TRUE
 

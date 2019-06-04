@@ -9,7 +9,7 @@
  * @date Aug 29, 2013
  * @author Andrey Belomutskiy, (c) 2012-2017
  */
- 
+
 #include "../stm32f4ems/efifeatures.h"
 
 #ifndef EFIFEATURES_STM32F7_H_
@@ -40,20 +40,19 @@
 #define EFI_MEMS FALSE
 
 #ifndef BOARD_TLE6240_COUNT
-#define BOARD_TLE6240_COUNT         1
+#define BOARD_TLE6240_COUNT 1
 #endif
 
 #ifndef BOARD_MC33972_COUNT
-#define BOARD_MC33972_COUNT			1
+#define BOARD_MC33972_COUNT 1
 #endif
 
 #ifndef BOARD_TLE8888_COUNT
-#define BOARD_TLE8888_COUNT 	1
+#define BOARD_TLE8888_COUNT 1
 #endif
 
 // todo: move this outside of efifeatures.h
-#define BOARD_EXT_GPIOCHIPS			(BOARD_TLE6240_COUNT + BOARD_MC33972_COUNT + BOARD_TLE8888_COUNT)
-
+#define BOARD_EXT_GPIOCHIPS (BOARD_TLE6240_COUNT + BOARD_MC33972_COUNT + BOARD_TLE8888_COUNT)
 
 #undef EFI_CAN_SUPPORT
 #define EFI_CAN_SUPPORT TRUE
@@ -72,12 +71,6 @@
 
 #undef EFI_USB_SERIAL
 #define EFI_USB_SERIAL TRUE
-
-/**
- * Do we need GPS logic?
- */
-#undef EFI_UART_GPS
-#define EFI_UART_GPS FALSE
 
 // todo: start using consoleUartDevice? Not sure
 #undef EFI_CONSOLE_SERIAL_DEVICE

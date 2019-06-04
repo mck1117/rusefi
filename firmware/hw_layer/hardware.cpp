@@ -61,8 +61,7 @@
 #include "flash_main.h"
 #endif /* EFI_INTERNAL_FLASH */
 
-EXTERN_ENGINE
-;
+EXTERN_ENGINE;
 extern bool hasFirmwareErrorFlag;
 
 static mutex_t spiMtx;
@@ -90,26 +89,32 @@ bool rtcWorks = true;
 /**
  * Only one consumer can use SPI bus at a given time
  */
-void lockSpi(spi_device_e device) {
+void lockSpi(spi_device_e device)
+{
 	UNUSED(device);
 	efiAssertVoid(CUSTOM_ERR_6674, getCurrentRemainingStack() > 128, "lockSpi");
 	// todo: different locks for different SPI devices!
 	chMtxLock(&spiMtx);
 }
 
-void unlockSpi(void) {
+void unlockSpi(void)
+{
 	chMtxUnlock(&spiMtx);
 }
 
-static void initSpiModules(board_configuration_s *boardConfiguration) {
+static void initSpiModules(board_configuration_s *boardConfiguration)
+{
 	UNUSED(boardConfiguration);
-	if (CONFIGB(is_enabled_spi_1)) {
-		 turnOnSpi(SPI_DEVICE_1);
+	if (CONFIGB(is_enabled_spi_1))
+	{
+		turnOnSpi(SPI_DEVICE_1);
 	}
-	if (CONFIGB(is_enabled_spi_2)) {
+	if (CONFIGB(is_enabled_spi_2))
+	{
 		turnOnSpi(SPI_DEVICE_2);
 	}
-	if (CONFIGB(is_enabled_spi_3)) {
+	if (CONFIGB(is_enabled_spi_3))
+	{
 		turnOnSpi(SPI_DEVICE_3);
 	}
 }
@@ -117,27 +122,33 @@ static void initSpiModules(board_configuration_s *boardConfiguration) {
 /**
  * @return NULL if SPI device not specified
  */
-SPIDriver * getSpiDevice(spi_device_e spiDevice) {
-	if (spiDevice == SPI_NONE) {
+SPIDriver *getSpiDevice(spi_device_e spiDevice)
+{
+	if (spiDevice == SPI_NONE)
+	{
 		return NULL;
 	}
 #if STM32_SPI_USE_SPI1
-	if (spiDevice == SPI_DEVICE_1) {
+	if (spiDevice == SPI_DEVICE_1)
+	{
 		return &SPID1;
 	}
 #endif
 #if STM32_SPI_USE_SPI2
-	if (spiDevice == SPI_DEVICE_2) {
+	if (spiDevice == SPI_DEVICE_2)
+	{
 		return &SPID2;
 	}
 #endif
 #if STM32_SPI_USE_SPI3
-	if (spiDevice == SPI_DEVICE_3) {
+	if (spiDevice == SPI_DEVICE_3)
+	{
 		return &SPID3;
 	}
 #endif
 #if STM32_SPI_USE_SPI4
-	if (spiDevice == SPI_DEVICE_4) {
+	if (spiDevice == SPI_DEVICE_4)
+	{
 		return &SPID4;
 	}
 #endif
@@ -150,12 +161,17 @@ SPIDriver * getSpiDevice(spi_device_e spiDevice) {
 #if defined(STM32F7XX)
 // values calculated with STM32CubeMX tool, 100kHz I2C clock for Nucleo-767 @168 MHz, PCK1=42MHz
 #define HAL_I2C_F7_100_TIMINGR 0x00A0A3F7
-static I2CConfig i2cfg = { HAL_I2C_F7_100_TIMINGR, 0, 0 };	// todo: does it work?
-#else /* defined(STM32F4XX) */
-static I2CConfig i2cfg = { OPMODE_I2C, 100000, STD_DUTY_CYCLE, };
-#endif /* defined(STM32F4XX) */
+static I2CConfig i2cfg = {HAL_I2C_F7_100_TIMINGR, 0, 0}; // todo: does it work?
+#else													 /* defined(STM32F4XX) */
+static I2CConfig i2cfg = {
+	OPMODE_I2C,
+	100000,
+	STD_DUTY_CYCLE,
+};
+#endif													 /* defined(STM32F4XX) */
 
-void initI2Cmodule(void) {
+void initI2Cmodule(void)
+{
 	print("Starting I2C module\r\n");
 	i2cInit();
 	i2cStart(&I2CD1, &i2cfg);
@@ -166,13 +182,14 @@ void initI2Cmodule(void) {
 
 //static char txbuf[1];
 
-static void sendI2Cbyte(int addr, int data) {
+static void sendI2Cbyte(int addr, int data)
+{
 	(void)addr;
 	(void)data;
-//	i2cAcquireBus(&I2CD1);
-//	txbuf[0] = data;
-//	i2cMasterTransmit(&I2CD1, addr, txbuf, 1, NULL, 0);
-//	i2cReleaseBus(&I2CD1);
+	//	i2cAcquireBus(&I2CD1);
+	//	txbuf[0] = data;
+	//	i2cMasterTransmit(&I2CD1, addr, txbuf, 1, NULL, 0);
+	//	i2cReleaseBus(&I2CD1);
 }
 
 #endif
@@ -195,15 +212,17 @@ extern AdcDevice fastAdc;
 /**
  * This method is not in the adc* lower-level file because it is more business logic then hardware.
  */
-void adc_callback_fast(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
+void adc_callback_fast(ADCDriver *adcp, adcsample_t *buffer, size_t n)
+{
 
-	(void) buffer;
-	(void) n;
+	(void)buffer;
+	(void)n;
 	/**
 	 * Note, only in the ADC_COMPLETE state because the ADC driver fires an
 	 * intermediate callback when the buffer is half full.
 	 * */
-	if (adcp->state == ADC_COMPLETE) {
+	if (adcp->state == ADC_COMPLETE)
+	{
 		/**
 		 * this callback is executed 10 000 times a second, it needs to be as fast as possible
 		 */
@@ -213,50 +232,59 @@ void adc_callback_fast(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
 		mapAveragingAdcCallback(fastAdc.samples[fastMapSampleIndex]);
 #endif /* EFI_MAP_AVERAGING */
 #if EFI_HIP_9011
-		if (CONFIGB(isHip9011Enabled)) {
+		if (CONFIGB(isHip9011Enabled))
+		{
 			hipAdcCallback(fastAdc.samples[hipSampleIndex]);
 		}
 #endif
-//		if (tpsSampleIndex != TPS_IS_SLOW) {
-//			tpsFastAdc = fastAdc.samples[tpsSampleIndex];
-//		}
+		//		if (tpsSampleIndex != TPS_IS_SLOW) {
+		//			tpsFastAdc = fastAdc.samples[tpsSampleIndex];
+		//		}
 	}
 }
 #endif /* HAL_USE_ADC */
 
-static void calcFastAdcIndexes(void) {
+static void calcFastAdcIndexes(void)
+{
 #if HAL_USE_ADC
 	fastMapSampleIndex = fastAdc.internalAdcIndexByHardwareIndex[engineConfiguration->map.sensor.hwChannel];
 	hipSampleIndex =
-			engineConfiguration->hipOutputChannel == EFI_ADC_NONE ?
-					-1 : fastAdc.internalAdcIndexByHardwareIndex[engineConfiguration->hipOutputChannel];
-	if (engineConfiguration->tps1_1AdcChannel != EFI_ADC_NONE) {
+		engineConfiguration->hipOutputChannel == EFI_ADC_NONE ? -1 : fastAdc.internalAdcIndexByHardwareIndex[engineConfiguration->hipOutputChannel];
+	if (engineConfiguration->tps1_1AdcChannel != EFI_ADC_NONE)
+	{
 		tpsSampleIndex = fastAdc.internalAdcIndexByHardwareIndex[engineConfiguration->tps1_1AdcChannel];
-	} else {
+	}
+	else
+	{
 		tpsSampleIndex = TPS_IS_SLOW;
 	}
-#endif/* HAL_USE_ADC */
+#endif /* HAL_USE_ADC */
 }
 
-static void adcConfigListener(Engine *engine) {
+static void adcConfigListener(Engine *engine)
+{
 	UNUSED(engine);
 	// todo: something is not right here - looks like should be a callback for each configuration change?
 	calcFastAdcIndexes();
 }
 
-void turnOnHardware(Logging *sharedLogger) {
+void turnOnHardware(Logging *sharedLogger)
+{
 #if EFI_SHAFT_POSITION_INPUT
 	turnOnTriggerInputPins(sharedLogger);
 #endif /* EFI_SHAFT_POSITION_INPUT */
 }
 
-static void unregisterPin(brain_pin_e currentPin, brain_pin_e prevPin) {
-	if (currentPin != prevPin) {
+static void unregisterPin(brain_pin_e currentPin, brain_pin_e prevPin)
+{
+	if (currentPin != prevPin)
+	{
 		brain_pin_markUnused(prevPin);
 	}
 }
 
-void stopSpi(spi_device_e device) {
+void stopSpi(spi_device_e device)
+{
 #if HAL_USE_SPI
 	if (!isSpiInitialized[device])
 		return; // not turned on
@@ -267,8 +295,9 @@ void stopSpi(spi_device_e device) {
 #endif /* HAL_USE_SPI */
 }
 
-void applyNewHardwareSettings(void) {
-    // all 'stop' methods need to go before we begin starting pins
+void applyNewHardwareSettings(void)
+{
+	// all 'stop' methods need to go before we begin starting pins
 
 #if EFI_SHAFT_POSITION_INPUT
 	stopTriggerInputPins();
@@ -277,9 +306,9 @@ void applyNewHardwareSettings(void) {
 #if (HAL_USE_PAL && EFI_JOYSTICK)
 	stopJoystickPins();
 #endif /* HAL_USE_PAL && EFI_JOYSTICK */
-       
+
 	enginePins.stopInjectionPins();
-    enginePins.stopIgnitionPins();
+	enginePins.stopIgnitionPins();
 #if EFI_CAN_SUPPORT
 	stopCanPins();
 #endif /* EFI_CAN_SUPPORT */
@@ -290,7 +319,8 @@ void applyNewHardwareSettings(void) {
 
 #if EFI_ELECTRONIC_THROTTLE_BODY
 	bool etbRestartNeeded = isETBRestartNeeded();
-	if (etbRestartNeeded) {
+	if (etbRestartNeeded)
+	{
 		stopETBPins();
 	}
 #endif /* EFI_ELECTRONIC_THROTTLE_BODY */
@@ -347,9 +377,9 @@ void applyNewHardwareSettings(void) {
 	startHip9001_pins();
 #endif /* EFI_HIP_9011 */
 
-
 #if EFI_ELECTRONIC_THROTTLE_BODY
-	if (etbRestartNeeded) {
+	if (etbRestartNeeded)
+	{
 		startETBPins();
 	}
 #endif /* EFI_ELECTRONIC_THROTTLE_BODY */
@@ -365,21 +395,24 @@ void applyNewHardwareSettings(void) {
 	adcConfigListener(engine);
 }
 
-void setBor(int borValue) {
+void setBor(int borValue)
+{
 	scheduleMsg(sharedLogger, "setting BOR to %d", borValue);
 	BOR_Set((BOR_Level_t)borValue);
 	showBor();
 }
 
-void showBor(void) {
+void showBor(void)
+{
 	scheduleMsg(sharedLogger, "BOR=%d", (int)BOR_Get());
 }
 
-void initHardware(Logging *l) {
+void initHardware(Logging *l)
+{
 	efiAssertVoid(CUSTOM_IH_STACK, getCurrentRemainingStack() > 256, "init h");
 	sharedLogger = l;
 	engine_configuration_s *engineConfiguration = engine->engineConfigurationPtr;
-	efiAssertVoid(CUSTOM_EC_NULL, engineConfiguration!=NULL, "engineConfiguration");
+	efiAssertVoid(CUSTOM_EC_NULL, engineConfiguration != NULL, "engineConfiguration");
 	board_configuration_s *boardConfiguration = &engineConfiguration->bc;
 
 	printMsg(sharedLogger, "initHardware()");
@@ -401,7 +434,8 @@ void initHardware(Logging *l) {
 	 */
 	initPrimaryPins();
 
-	if (hasFirmwareError()) {
+	if (hasFirmwareError())
+	{
 		return;
 	}
 
@@ -418,11 +452,14 @@ void initHardware(Logging *l) {
 	 *
 	 * interesting fact that we have another read from flash before we get here
 	 */
-	if (SHOULD_INGORE_FLASH()) {
+	if (SHOULD_INGORE_FLASH())
+	{
 		engineConfiguration->engineType = DEFAULT_ENGINE_TYPE;
 		resetConfigurationExt(sharedLogger, engineConfiguration->engineType PASS_ENGINE_PARAMETER_SUFFIX);
 		writeToFlashNow();
-	} else {
+	}
+	else
+	{
 		readFromFlash();
 	}
 #else
@@ -434,7 +471,7 @@ void initHardware(Logging *l) {
 	initSingleTimerExecutorHardware();
 
 #if EFI_HD44780_LCD
-//	initI2Cmodule();
+	//	initI2Cmodule();
 	lcd_HD44780_init(sharedLogger);
 	if (hasFirmwareError())
 		return;
@@ -443,7 +480,8 @@ void initHardware(Logging *l) {
 
 #endif /* EFI_HD44780_LCD */
 
-	if (hasFirmwareError()) {
+	if (hasFirmwareError())
+	{
 		return;
 	}
 
@@ -452,14 +490,17 @@ void initHardware(Logging *l) {
 #endif
 
 	bool isBoardTestMode_b;
-	if (CONFIGB(boardTestModeJumperPin) != GPIO_UNASSIGNED) {
+	if (CONFIGB(boardTestModeJumperPin) != GPIO_UNASSIGNED)
+	{
 		efiSetPadMode("board test", CONFIGB(boardTestModeJumperPin),
-		PAL_MODE_INPUT_PULLUP);
+					  PAL_MODE_INPUT_PULLUP);
 		isBoardTestMode_b = (!efiReadPin(CONFIGB(boardTestModeJumperPin)));
 
 		// we can now relese this pin, it is actually used as output sometimes
 		brain_pin_markUnused(CONFIGB(boardTestModeJumperPin));
-	} else {
+	}
+	else
+	{
 		isBoardTestMode_b = false;
 	}
 
@@ -470,7 +511,8 @@ void initHardware(Logging *l) {
 #endif /* HAL_USE_ADC */
 
 #if EFI_BOARD_TEST
-	if (isBoardTestMode_b) {
+	if (isBoardTestMode_b)
+	{
 		// this method never returns
 		initBoardTest();
 	}
@@ -499,8 +541,8 @@ void initHardware(Logging *l) {
 	initCan();
 #endif /* EFI_CAN_SUPPORT */
 
-//	init_adc_mcp3208(&adcState, &SPID2);
-//	requestAdcValue(&adcState, 0);
+	//	init_adc_mcp3208(&adcState, &SPID2);
+	//	requestAdcValue(&adcState, 0);
 
 #if EFI_SHAFT_POSITION_INPUT
 	// todo: figure out better startup logic
@@ -520,18 +562,13 @@ void initHardware(Logging *l) {
 #if EFI_MEMS
 	initAccelerometer(PASS_ENGINE_PARAMETER_SIGNATURE);
 #endif
-//	initFixedLeds();
-
+	//	initFixedLeds();
 
 #if EFI_BOSCH_YAW
 	initBoschYawRateSensor();
 #endif /* EFI_BOSCH_YAW */
 
 	//	initBooleanInputs();
-
-#if EFI_UART_GPS
-	initGps();
-#endif
 
 #if EFI_SERVO
 	initServo();
@@ -545,19 +582,18 @@ void initHardware(Logging *l) {
 	addConsoleActionII("i2c", sendI2Cbyte);
 #endif
 
+	//	USBMassStorageDriver UMSD1;
 
-//	USBMassStorageDriver UMSD1;
-
-//	while (true) {
-//		for (int addr = 0x20; addr < 0x28; addr++) {
-//			sendI2Cbyte(addr, 0);
-//			int err = i2cGetErrors(&I2CD1);
-//			print("I2C: err=%x from %d\r\n", err, addr);
-//			chThdSleepMilliseconds(5);
-//			sendI2Cbyte(addr, 255);
-//			chThdSleepMilliseconds(5);
-//		}
-//	}
+	//	while (true) {
+	//		for (int addr = 0x20; addr < 0x28; addr++) {
+	//			sendI2Cbyte(addr, 0);
+	//			int err = i2cGetErrors(&I2CD1);
+	//			print("I2C: err=%x from %d\r\n", err, addr);
+	//			chThdSleepMilliseconds(5);
+	//			sendI2Cbyte(addr, 255);
+	//			chThdSleepMilliseconds(5);
+	//		}
+	//	}
 
 #if EFI_VEHICLE_SPEED
 	initVehicleSpeed(sharedLogger);
@@ -578,12 +614,14 @@ void initHardware(Logging *l) {
 
 #endif /* EFI_PROD_CODE */
 
-#endif  /* EFI_PROD_CODE || EFI_SIMULATOR */
+#endif /* EFI_PROD_CODE || EFI_SIMULATOR */
 
 #if HAL_USE_SPI
 // this is F4 implementation but we will keep it here for now for simplicity
-int getSpiPrescaler(spi_speed_e speed, spi_device_e device) {
-	switch (speed) {
+int getSpiPrescaler(spi_speed_e speed, spi_device_e device)
+{
+	switch (speed)
+	{
 	case _5MHz:
 		return device == SPI_DEVICE_1 ? SPI_BaudRatePrescaler_16 : SPI_BaudRatePrescaler_8;
 	case _2_5MHz:

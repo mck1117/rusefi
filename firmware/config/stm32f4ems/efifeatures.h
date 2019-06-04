@@ -41,13 +41,12 @@
  *
  */
 #if !defined(EFI_ENABLE_ASSERTS)
- #define EFI_ENABLE_ASSERTS TRUE
+#define EFI_ENABLE_ASSERTS TRUE
 #endif /* EFI_ENABLE_ASSERTS */
 
 #if !defined(EFI_ENABLE_MOCK_ADC)
- #define EFI_ENABLE_MOCK_ADC TRUE
+#define EFI_ENABLE_MOCK_ADC TRUE
 #endif /* EFI_ENABLE_MOCK_ADC */
-
 
 //#define EFI_UART_ECHO_TEST_MODE TRUE
 
@@ -126,19 +125,19 @@
 #define EFI_POTENTIOMETER TRUE
 
 #ifndef BOARD_TLE6240_COUNT
-#define BOARD_TLE6240_COUNT         1
+#define BOARD_TLE6240_COUNT 1
 #endif
 
 #ifndef BOARD_MC33972_COUNT
-#define BOARD_MC33972_COUNT			1
+#define BOARD_MC33972_COUNT 1
 #endif
 
 #ifndef BOARD_TLE8888_COUNT
-#define BOARD_TLE8888_COUNT 	1
+#define BOARD_TLE8888_COUNT 1
 #endif
 
 // todo: move this outside of efifeatures.h
-#define BOARD_EXT_GPIOCHIPS			(BOARD_TLE6240_COUNT + BOARD_MC33972_COUNT + BOARD_TLE8888_COUNT)
+#define BOARD_EXT_GPIOCHIPS (BOARD_TLE6240_COUNT + BOARD_MC33972_COUNT + BOARD_TLE8888_COUNT)
 
 // todo: move this outside of efifeatures.h
 #define BOARD_EXT_PINREPOPINS 24
@@ -160,7 +159,7 @@
 #endif
 
 #if !defined(EFI_MEMS)
- #define EFI_MEMS FALSE
+#define EFI_MEMS FALSE
 #endif
 
 #ifndef EFI_INTERNAL_ADC
@@ -258,12 +257,6 @@
 #define DL_OUTPUT_BUFFER 8000
 #endif
 
-/**
- * Do we need GPS logic?
- */
-#define EFI_UART_GPS TRUE
-//#define EFI_UART_GPS FALSE
-
 #define EFI_SERVO TRUE
 
 #define EFI_ELECTRONIC_THROTTLE_BODY TRUE
@@ -284,9 +277,9 @@
 
 // todo: switch to continues ADC conversion for slow ADC?
 // https://github.com/rusefi/rusefi/issues/630
-#define EFI_INTERNAL_SLOW_ADC_PWM	&PWMD8
+#define EFI_INTERNAL_SLOW_ADC_PWM &PWMD8
 // todo: switch to continues ADC conversion for fast ADC?
-#define EFI_INTERNAL_FAST_ADC_PWM	&PWMD4
+#define EFI_INTERNAL_FAST_ADC_PWM &PWMD4
 
 #define EFI_SPI1_AF 5
 
@@ -325,7 +318,6 @@
  * TIM9_CH1
  *  PE5
  */
-
 
 // todo: start using consoleUartDevice? Not sure
 #ifndef EFI_CONSOLE_SERIAL_DEVICE
@@ -374,11 +366,6 @@
 #define LED_ERROR_BRAIN_PIN GPIOD_14
 #define LED_ERROR_PORT GPIOD
 #define LED_ERROR_PIN 14
-
-// USART1 -> check defined STM32_SERIAL_USE_USART1
-// For GPS we have USART1. We can start with PB7 USART1_RX and PB6 USART1_TX
-#define GPS_SERIAL_DEVICE &SD1
-#define GPS_SERIAL_SPEED 38400
 
 #ifndef CONFIG_RESET_SWITCH_PORT
 // looks like this feature is not extremely popular, we can try living without it now :)
