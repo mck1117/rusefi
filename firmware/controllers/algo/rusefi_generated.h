@@ -931,10 +931,6 @@
 #define gpioPinModes8_offset_hex 303
 #define gpioPinModes9_offset 772
 #define gpioPinModes9_offset_hex 304
-#define gps_rx_pin_offset 656
-#define gps_rx_pin_offset_hex 290
-#define gps_tx_pin_offset 657
-#define gps_tx_pin_offset_hex 291
 #define hasFrequencyReportingMapSensor_offset 1464
 #define hasFrequencyReportingMapSensor_offset_hex 5b8
 #define HD44780_db4_offset 652
@@ -1781,6 +1777,8 @@
 #define unused_bit_1472_30_offset_hex 5b8
 #define unused_board_984_31_offset 744
 #define unused_board_984_31_offset_hex 2e8
+#define unused_old_gps_offset 656
+#define unused_old_gps_offset_hex 290
 #define unusedAlignMaf_offset 557
 #define unusedAlignMaf_offset_hex 22d
 #define unusedAnotherOne_offset 744

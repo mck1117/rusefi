@@ -1,4 +1,4 @@
-// this section was generated automatically by ConfigDefinition.jar based on integration\rusefi_config.txt Sun Jun 02 14:03:15 EDT 2019
+// this section was generated automatically by ConfigDefinition.jar based on integration\rusefi_config.txt Tue Jun 04 15:40:16 PDT 2019
 // begin
 #ifndef CONTROLLERS_ALGO_ENGINE_CONFIGURATION_GENERATED_STRUCTURES_H
 #define CONTROLLERS_ALGO_ENGINE_CONFIGURATION_GENERATED_STRUCTURES_H
@@ -510,11 +510,7 @@ struct board_configuration_s {
 	/**
 	 * offset 56
 	 */
-	brain_pin_e gps_rx_pin;
-	/**
-	 * offset 57
-	 */
-	brain_pin_e gps_tx_pin;
+	uint8_t unused_old_gps[2];
 	/**
 	 * offset 58
 	 */
@@ -2788,4 +2784,4 @@ typedef struct persistent_config_s persistent_config_s;
 
 #endif
 // end
-// this section was generated automatically by ConfigDefinition.jar based on integration\rusefi_config.txt Sun Jun 02 14:03:15 EDT 2019
+// this section was generated automatically by ConfigDefinition.jar based on integration\rusefi_config.txt Tue Jun 04 15:40:16 PDT 2019

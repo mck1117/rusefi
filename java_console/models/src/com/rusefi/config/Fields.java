@@ -1,6 +1,6 @@
 package com.rusefi.config;
 
-// this file was generated automatically by ConfigDefinition.jar based on integration\rusefi_config.txt Mon Jun 03 10:01:41 EDT 2019
+// this file was generated automatically by ConfigDefinition.jar based on integration\rusefi_config.txt Tue Jun 04 15:40:16 PDT 2019
 public class Fields {
 	public static final int accelerometerSpiDevice_offset = 2736;
 	public static final int acCutoffHighRpm_offset = 1498;
@@ -614,10 +614,6 @@ public class Fields {
 	public static final int gpioPinModes8_offset_hex = 303;
 	public static final int gpioPinModes9_offset = 772;
 	public static final int gpioPinModes9_offset_hex = 304;
-	public static final int gps_rx_pin_offset = 656;
-	public static final int gps_rx_pin_offset_hex = 290;
-	public static final int gps_tx_pin_offset = 657;
-	public static final int gps_tx_pin_offset_hex = 291;
 	public static final int hasFrequencyReportingMapSensor_offset = 1464;
 	public static final int HD44780_db4_offset = 652;
 	public static final int HD44780_db5_offset = 653;
@@ -1142,6 +1138,8 @@ public class Fields {
 	public static final int unused_bit_1472_29_offset = 1464;
 	public static final int unused_bit_1472_30_offset = 1464;
 	public static final int unused_board_984_31_offset = 744;
+	public static final int unused_old_gps_offset = 656;
+	public static final int unused_old_gps_offset_hex = 290;
 	public static final int unusedAlignMaf_offset = 557;
 	public static final int unusedAnotherOne_offset = 744;
 	public static final int unusedAtBoardConfigurationEnd_offset = 976;
@@ -1413,8 +1411,6 @@ public class Fields {
 	public static final Field HD44780_DB5 = Field.create("HD44780_DB5", 653, FieldType.INT8, brain_pin_e);
 	public static final Field HD44780_DB6 = Field.create("HD44780_DB6", 654, FieldType.INT8, brain_pin_e);
 	public static final Field HD44780_DB7 = Field.create("HD44780_DB7", 655, FieldType.INT8, brain_pin_e);
-	public static final Field GPS_RX_PIN = Field.create("GPS_RX_PIN", 656, FieldType.INT8, brain_pin_e);
-	public static final Field GPS_TX_PIN = Field.create("GPS_TX_PIN", 657, FieldType.INT8, brain_pin_e);
 	public static final Field FUELPUMPPIN = Field.create("FUELPUMPPIN", 658, FieldType.INT8, output_pin_e);
 	public static final Field FUELPUMPPINMODE = Field.create("FUELPUMPPINMODE", 659, FieldType.INT8, pin_output_mode_e);
 	public static final Field MALFUNCTIONINDICATORPIN = Field.create("MALFUNCTIONINDICATORPIN", 660, FieldType.INT8, output_pin_e);
