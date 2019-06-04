@@ -38,7 +38,6 @@
 #include "hip9011.h"
 #include "histogram.h"
 #include "mmc_card.h"
-#include "neo6m.h"
 #include "lcd_HD44780.h"
 #include "settings.h"
 #include "algo.h"
