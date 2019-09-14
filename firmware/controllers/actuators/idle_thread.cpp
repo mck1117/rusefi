@@ -336,25 +336,21 @@ public:
 #else
 		bool isRunning = false;
 #endif /* EFI_SHAFT_POSITION_INPUT */
-		// cltCorrection is used only for cranking or running in manual mode
-		float cltCorrection;
-		if (cisnan(clt))
-			cltCorrection = 1.0f;
-		// Use separate CLT correction table for cranking
-		else if (engineConfiguration->overrideCrankingIacSetting && !isRunning) {
-			cltCorrection = interpolate2d("cltCrankingT", clt, config->cltCrankingCorrBins, config->cltCrankingCorr);
-		} else {
-			// this value would be ignored if running in AUTO mode
-			// but we need it while cranking in AUTO mode
-			cltCorrection = interpolate2d("cltT", clt, config->cltIdleCorrBins, config->cltIdleCorr);
-		}
 
 		percent_t iacPosition;
-
+		
 		if (timeToStopBlip != 0) {
 			iacPosition = blipIdlePosition;
 			engine->engineState.idle.baseIdlePosition = iacPosition;
 			engine->engineState.idle.idleState = BLIP;
+		}
+		
+		percent_t openLoopPosition = openLoopPart(isRunning);
+		percent_t closedLoopAdjustment = closedLoopPart(isRunning);
+
+
+		if (timeToStopBlip != 0) {
+			
 		} else if (!isRunning) {
 			// during cranking it's always manual mode, PID would make no sense during cranking
 			iacPosition = cltCorrection * engineConfiguration->crankingIACposition;
@@ -411,6 +407,76 @@ public:
 #if ! EFI_UNIT_TEST
 		applyIACposition(engine->engineState.idle.currentIdlePosition);
 #endif /* EFI_UNIT_TEST */
+	}
+
+private:
+	percent_t openLoopPart(bool isRunning)
+	{
+		float clt = engine->sensors.clt;
+
+		// If CLT is dead, go for a reasonable spot.
+		// Idle valve at 25C is probably a reasonably safe spot to idle.
+		if(cisnan(clt))
+		{
+			clt = 25.0f;
+		}
+
+		if(isRunning || !engineConfiguration->overrideCrankingIacSetting)
+		{
+			// If we're running (or override for crank is disabled)
+			return interpolate2d("cltT", clt, config->cltIdleCorrBins, config->cltIdleCorr);
+		}
+		else
+		{
+			// Use cranking specific open loop table
+			return interpolate2d("cltCrankingT", clt, config->cltCrankingCorrBins, config->cltCrankingCorr);
+		}
+	}
+
+	percent_t m_lastClosedLoopCorrection = 0;
+
+	percent_t closedLoopPart(bool isRunning)
+	{
+		// If we're not running - don't use closed loop
+		if (!isRunning)
+		{
+			return 0.0f;
+		}
+
+		int targetRpm = getTargetRpmForIdleCorrection(PASS_ENGINE_PARAMETER_SIGNATURE);
+		int rpm = GET_RPM();
+
+		// Ensure that we're in the closed-loop region:
+		// * RPM is low enough
+		// * TPS is closed enough
+		{
+			int minControlledRpm = targetRpm + CONFIG(idlePidRpmDeadZone);
+
+			// If the RPM is too high above idle target - don't try to run closed loop
+			bool isRpmTooHigh = rpm > minControlledRpm;
+
+			// If the driver's intended throttle input is too high - don't run in CL
+			percent_t driverPositionIntent;
+
+			if (hasPedalPositionSensor(PASS_ENGINE_PARAMETER_SIGNATURE)) {
+				driverPositionIntent = getPedalPosition(PASS_ENGINE_PARAMETER_SIGNATURE);
+			} else {
+				driverPositionIntent = getTPS(PASS_ENGINE_PARAMETER_SIGNATURE);
+			}
+
+			bool isTpsTooHigh = driverPositionIntent > CONFIGB(idlePidDeactivationTpsThreshold);
+
+			if(isRpmTooHigh || isTpsTooHigh)
+			{
+				// Return the last used closed loop correction, so we can smoothly return later
+				return m_lastClosedLoopCorrection;
+			}
+		}
+
+		// At this point we've decided closed loop control is appropiate - calculate PID
+		m_lastClosedLoopCorrection = idlePid.getOutput(targetRpm, rpm);
+
+		return m_lastClosedLoopCorrection;
 	}
 };
 
