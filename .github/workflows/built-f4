@@ -1,0 +1,27 @@
+name: C/C++ CI
+
+on: [push]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v1
+      with:
+        fetch-depth: 1
+        submodules: recursive
+  
+    - name: download gcc
+      run: wget 'https://developer.arm.com/-/media/Files/downloads/gnu-rm/9-2019q4/RC2.1/gcc-arm-none-eabi-9-2019-q4-major-x86_64-linux.tar.bz2?revision=6e63531f-8cb1-40b9-bbfc-8a57cdfc01b4&la=en&hash=F761343D43A0587E8AC0925B723C04DBFB848339' -O compiler.tar.bz2
+      
+    - name: extract gcc
+      run: tar -xvf compiler.tar.bz2
+      
+    - name: add compiler to path
+      run: echo "::add-path::./gcc-arm-none-eabi-9-2019-q4-major/bin/"
+  
+    - name: Build F4 Debug
+      working-directory: ./firmware/
+      run: make -j4 
