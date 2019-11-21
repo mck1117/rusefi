@@ -54,11 +54,11 @@ jobs:
     - name: Upload elf
       uses: actions/upload-artifact@v1
       with:
-        name: firmware-${{matrix.build-target}}-${{build-type}}-elf
+        name: firmware-${{matrix.build-target}}-${{matrix.build-type}}-elf
         path: ./firmware/build/rusefi.elf
         
     - name: Upload bin
       uses: actions/upload-artifact@v1
       with:
-        name: firmware-${{matrix.build-target}}-${{build-type}}-bin
+        name: firmware-${{matrix.build-target}}-${{matrix.build-type}}-bin
         path: ./firmware/build/rusefi.bin
