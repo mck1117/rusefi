@@ -48,3 +48,9 @@ jobs:
     - name: Build Firmware
       working-directory: ./firmware/
       run: make -j4 PROJECT_BOARD=${{matrix.efi-board}} PROJECT_CPU=${{matrix.efi-cpu}}
+      
+    - name: Upload ELF
+      uses: actions/upload-artifact@v1
+      with:
+        name: firmware
+        path: build/rusefi.elf
