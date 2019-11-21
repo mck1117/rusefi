@@ -10,10 +10,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        build-target: [default, mre-f4, mre-f7, prometheus]
+        build-target: [frankenso, mre-f4, mre-f7]
         
         include:
-          - build-target: default
+          - build-target: frankenso
             efi-cpu: ARCH_STM32F4
             efi-board: st_stm32f4
             
@@ -24,10 +24,6 @@ jobs:
           - build-target: mre-f7
             efi-cpu: ARCH_STM32F7
             efi-board: microrusefi
-            
-          - build-target: prometheus
-            efi-cpu: ARCH_STM32F4
-            efi-board: prometheus
           
     
     steps:
@@ -49,8 +45,14 @@ jobs:
       working-directory: ./firmware/
       run: make -j4 PROJECT_BOARD=${{matrix.efi-board}} PROJECT_CPU=${{matrix.efi-cpu}}
       
-    - name: Upload ELF
+    - name: Upload elf
       uses: actions/upload-artifact@v1
       with:
-        name: firmware
+        name: firmware-${{build-target}}-elf
         path: ./firmware/build/rusefi.elf
+        
+    - name: Upload bin
+      uses: actions/upload-artifact@v1
+      with:
+        name: firmware-${{build-target}}-bin
+        path: ./firmware/build/rusefi.bin
