@@ -49,4 +49,4 @@ jobs:
   
     - name: Build Firmware
       working-directory: ./firmware/
-      run: make -j4 PROJECT_BOARD=${{efi-board}} PROJECT_CPU=${{efi-cpu}}
+      run: make -j4 PROJECT_BOARD=${{matrix.efi-board}} PROJECT_CPU=${{matrix.efi-cpu}}
