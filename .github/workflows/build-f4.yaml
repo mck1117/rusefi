@@ -11,6 +11,7 @@ jobs:
       fail-fast: false
       matrix:
         build-target: [frankenso, mre-f4, mre-f7]
+        build-type: [debug, release]
         
         include:
           - build-target: frankenso
@@ -25,6 +26,11 @@ jobs:
             efi-cpu: ARCH_STM32F7
             efi-board: microrusefi
           
+          - build-type: debug
+            extra-params: -DDUMMY
+            
+          - build-type: release
+            extra-params: -DEFI_ENABLE_ASSERTS=FALSE -DCH_DBG_ENABLE_TRACE=FALSE -DCH_DBG_ENABLE_ASSERTS=FALSE -DCH_DBG_ENABLE_STACK_CHECK=FALSE -DCH_DBG_FILL_THREADS=FALSE -DCH_DBG_THREADS_PROFILING=FALSE -DDEBUG_LEVEL_OPT='-O2'
     
     steps:
     - uses: actions/checkout@v1
@@ -43,7 +49,7 @@ jobs:
   
     - name: Build Firmware
       working-directory: ./firmware/
-      run: make -j4 PROJECT_BOARD=${{matrix.efi-board}} PROJECT_CPU=${{matrix.efi-cpu}}
+      run: make -j4 PROJECT_BOARD=${{matrix.efi-board}} PROJECT_CPU=${{matrix.efi-cpu}} EXTRA_PARAMS="${{matrix.extra-params}}"
       
     - name: Upload elf
       uses: actions/upload-artifact@v1
