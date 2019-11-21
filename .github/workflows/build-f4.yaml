@@ -53,4 +53,4 @@ jobs:
       uses: actions/upload-artifact@v1
       with:
         name: firmware
-        path: build/rusefi.elf
+        path: ./firmware/build/rusefi.elf
