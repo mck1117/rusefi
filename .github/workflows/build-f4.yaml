@@ -9,8 +9,25 @@ jobs:
     
     strategy:
       matrix:
-        efi-board: [microrusefi, prometheus]
-        efi-cpu: [ARCH_STM32F4, ARCH_STM32F7]
+        build-target: [default, mre-f4, mre-f7, prometheus]
+        
+        include:
+          - build-target: default
+            efi-cpu: ARCH_STM32F4
+            efi-board: st_stm32f4
+            
+          - build-target: mre-f4
+            efi-cpu: ARCH_STM32F4
+            efi-board: microrusefi
+            
+          - build-target: mre-f7
+            efi-cpu: ARCH_STM32F7
+            efi-board: microrusefi
+            
+          - build-target: prometheus
+            efi-cpu: ARCH_STM32F4
+            efi-board: prometheus
+          
     
     steps:
     - uses: actions/checkout@v1
@@ -30,6 +47,6 @@ jobs:
     - name: test compiler path
       run: echo $PATH
   
-    - name: Build F4 Debug
+    - name: Build Firmware
       working-directory: ./firmware/
-      run: make -j4 PROJECT_BOARD={{efi-board}} PROJECT_CPU={{efi-cpu}}
+      run: make -j4 PROJECT_BOARD=${{efi-board}} PROJECT_CPU=${{efi-cpu}}
