@@ -1,4 +1,4 @@
-name: Build F4 Debug
+name: Build Firmware
 
 on: [push,pull_request]
 
@@ -54,11 +54,11 @@ jobs:
     - name: Upload elf
       uses: actions/upload-artifact@v1
       with:
-        name: firmware-${{matrix.build-target}}-elf
+        name: firmware-${{matrix.build-target}}-${{build-type}}-elf
         path: ./firmware/build/rusefi.elf
         
     - name: Upload bin
       uses: actions/upload-artifact@v1
       with:
-        name: firmware-${{matrix.build-target}}-bin
+        name: firmware-${{matrix.build-target}}-${{build-type}}-bin
         path: ./firmware/build/rusefi.bin
