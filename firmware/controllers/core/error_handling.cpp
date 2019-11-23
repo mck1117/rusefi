@@ -92,7 +92,10 @@ void chDbgPanic3(const char *msg, const char * file, int line) {
 static void printToStream(MemoryStream *stream, const char *fmt, va_list ap) {
 	stream->eos = 0; // reset
 	chvprintf((BaseSequentialStream *) stream, fmt, ap);
-	stream->buffer[stream->eos] = 0;
+
+	int terminatorLocation = stream->eos >= stream->size ? stream->size - 1 : stream->eos;
+
+	stream->buffer[terminatorLocation] = '\0';
 }
 
 static void printWarning(const char *fmt, va_list ap) {
