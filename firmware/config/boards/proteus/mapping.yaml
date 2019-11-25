@@ -1,0 +1,83 @@
+outputs:
+  # Ignition - 5v push-pull drivers
+  GPIOG_2:  "Ign 12"
+  GPIOG_3:  "Ign 11"
+  GPIOG_4:  "Ign 10"
+  GPIOG_5:  "Ign 9"
+  GPIOG_6:  "Ign 8"
+  GPIOG_7:  "Ign 7"
+  GPIOG_8:  "Ign 6"
+  GPIOC_7:  "Ign 5"
+  GPIOC_8:  "Ign 4"
+  GPIOC_9:  "Ign 3"
+  GPIOD_3:  "Ign 2"
+  GPIOD_4:  "Ign 1"
+
+  # Injector/gp lowside - 3A low side drivers
+  GPIOD_7:  "LS 1"
+  GPIOG_9:  "LS 2"
+  GPIOG_10: "LS 3"
+  GPIOG_11: "LS 4"
+  GPIOG_12: "LS 5"
+  GPIOG_13: "LS 6"
+  GPIOG_14: "LS 7"
+  GPIOB_4:  "LS 8"
+  GPIOB_5:  "LS 9"
+  GPIOB_6:  "LS 10"
+  GPIOB_7:  "LS 11"
+  GPIOB_8:  "LS 12"
+  GPIOB_9:  "LS 13"
+  GPIOE_0:  "LS 14"
+  GPIOE_1:  "LS 15"
+  GPIOE_2:  "LS 16"
+
+  # High side outputs
+  GPIOD_14: "HS 4"
+  GPIOD_15: "HS 3"
+  GPIOA_8:  "HS 2"
+  GPIOA_9:  "HS 1"
+
+event_inputs:
+  # MAX9924 VR inputs
+  GPIOE_7:  "VR 1"  
+  GPIOE_8:  "VR 2"
+
+  # Buffered + pullup digital inputs (hall, etc)
+  GPIOC_6:  "Digital 1"
+  GPIOE_11: "Digital 2"
+  GPIOE_12: "Digital 3"
+  GPIOE_13: "Digital 4"
+  GPIOE_14: "Digital 5"
+  GPIOE_15: "Digital 6"
+
+switch_inputs:
+  # Buffered + pullup digital inputs (hall, etc)
+  GPIOC_6:  "Digital 1"
+  GPIOE_11: "Digital 2"
+  GPIOE_12: "Digital 3"
+  GPIOE_13: "Digital 4"
+  GPIOE_14: "Digital 5"
+  GPIOE_15: "Digital 6"
+
+analog_inputs:
+  # PA0 - PA7
+  EFI_ADC_0: "Analog voltage 5"
+  EFI_ADC_1: "Analog voltage 6"
+  EFI_ADC_2: "Analog voltage 7"
+  EFI_ADC_3: "Analog voltage 8"
+  EFI_ADC_4: "Analog voltage 9"
+  EFI_ADC_5: "Analog voltage 10"
+  EFI_ADC_6: "Analog voltage 11"
+  EFI_ADC_7: "Analog voltage 12"
+
+  # PB0 - PB1
+  EFI_ADC_8: "Analog (pullup) 3"
+  EFI_ADC_9: "Analog (pullup) 4"
+
+  # PC0 - PC5
+  EFI_ADC_10: "Analog voltage 1"
+  EFI_ADC_11: "Analog voltage 2"
+  EFI_ADC_12: "Analog voltage 3"
+  EFI_ADC_13: "Analog voltage 4"
+  EFI_ADC_14: "Analog (pullup) 1"
+  EFI_ADC_15: "Analog (pullup) 2"
