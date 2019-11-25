@@ -1126,6 +1126,8 @@ void resetConfigurationExt(Logging * logger, configuration_callback_t boardCallb
 		setEtbTestConfiguration(PASS_CONFIG_PARAMETER_SIGNATURE);
 		break;
 	case MICRO_RUS_EFI:
+		[[fallthrough]]
+	case PROTEUS:
 		// nothing to do - we do it all in setBoardConfigurationOverrides
 		break;
 	case TLE8888_BENCH_ENGINE:
