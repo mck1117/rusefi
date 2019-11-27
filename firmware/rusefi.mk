@@ -12,34 +12,22 @@ ifeq ($(PROJECT_BOARD),)
 endif
 
 ifeq ($(PROJECT_CPU),)
-  PROJECT_CPU = ARCH_STM32F4
+  PROJECT_CPU = f4/stm32f40x
 endif
 
 -include $(PROJECT_DIR)/config/boards/$(PROJECT_BOARD)/config.mk
+include $(PROJECT_DIR)/config/mcu/$(PROJECT_CPU)/cpu.mk
+include $(PROJECT_DIR)/config/mcu/$(PROJECT_CPU)/../base.mk
 
-# CPU-dependent defs
-ifeq ($(PROJECT_CPU),ARCH_STM32F7)
-CPU_STARTUP = startup_stm32f7xx.mk
-CPU_PLATFORM = STM32F7xx/platform.mk
-CPU_HWLAYER = ports/stm32/stm32f7
-endif
+BOARDSRC = $(PROJECT_DIR)/config/mcu/$(PROJECT_CPU)/board.c
+BOARDINC = $(PROJECT_DIR)/config/mcu/$(PROJECT_CPU)/
 
-ifeq ($(PROJECT_CPU),ARCH_STM32F4)
-CPU_STARTUP = startup_stm32f4xx.mk
-CPU_PLATFORM = STM32F4xx/platform.mk
-CPU_HWLAYER = ports/stm32/stm32f4
-endif
+LDSCRIPT= $(PROJECT_DIR)/config/mcu/$(PROJECT_CPU)/link.ld
 
 
-ifeq ($(PROJECT_CPU),ARCH_STM32F1)
-CPU_STARTUP = startup_stm32f1xx.mk
-CPU_PLATFORM = STM32F1xx/platform.mk
-CPU_HWLAYER = ports/stm32/stm32f1
-endif
 
-ifeq ($(CPU_STARTUP_DIR),)
+
 CPU_STARTUP_DIR = $(CHIBIOS)/os/common/startup/ARMCMx/compilers/GCC/mk/$(CPU_STARTUP)
-endif
 
 ifeq ($(CPU_PLATFORM_DIR),)
 CPU_PLATFORM_DIR = $(CHIBIOS)/os/hal/ports/STM32/$(CPU_PLATFORM)

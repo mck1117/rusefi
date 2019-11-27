@@ -14,7 +14,6 @@ ifeq ($(PROJECT_CPU),ARCH_STM32F4)
   BOARDINC += $(BOARDS_DIR)/st_stm32f4
   LDSCRIPT= $(BOARDS_DIR)/prometheus/STM32F405xG.ld
 else
-  MCU_DEFS = -DSTM32F767xx
   BOARDSRC = $(CHIBIOS)/os/hal/boards/ST_NUCLEO144_F767ZI/board.c
   BOARDINC = $(BOARDS_DIR)/nucleo_f767		# For board.h
   BOARDINC += $(PROJECT_DIR)/config/stm32f7ems	# efifeatures/halconf/chconf.h

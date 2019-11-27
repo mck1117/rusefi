@@ -21,7 +21,7 @@ include rusefi.mk
 
 ifeq ($(DEBUG_LEVEL_OPT),)
   # this value would be used by default. For 'release' configuration override with '-O2' or something along these lines
-  DEBUG_LEVEL_OPT = -O0 -ggdb -g3 
+  DEBUG_LEVEL_OPT = -O2 -ggdb -g3 
 endif
 
 
@@ -175,11 +175,6 @@ ifeq ($(USE_BOOTLOADER),yes)
 include $(PROJECT_DIR)/bootloader/bootloader.mk
 endif
 
-# Define linker script file here
-ifeq ($(LDSCRIPT),)
-  LDSCRIPT= config/stm32f4ems/STM32F407xG.ld
-endif
-
 # C sources that can be compiled in ARM or THUMB mode depending on the global
 # setting.
 CSRC = $(STARTUPSRC) \
@@ -314,8 +309,6 @@ INCDIR = $(CHIBIOS)/os/license \
 ##############################################################################
 # Compiler settings
 #
-
-MCU  = cortex-m4
 
 ifeq ($(CROSS_COMPILE),)
   TRGT = arm-none-eabi-

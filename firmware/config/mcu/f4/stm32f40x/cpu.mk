@@ -1,0 +1,1 @@
+MCU_DEFS += -DSTM32F407xx

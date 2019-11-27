@@ -18,15 +18,15 @@ jobs:
         include:
           # Board configurations
           - build-target: frankenso
-            efi-cpu: ARCH_STM32F4
+            efi-cpu: f4/stm32f40x
             efi-board: st_stm32f4
             
           - build-target: mre-f4
-            efi-cpu: ARCH_STM32F4
+            efi-cpu: f4/stm32f40x
             efi-board: microrusefi
             
           - build-target: mre-f7
-            efi-cpu: ARCH_STM32F7
+            efi-cpu: f7/stm32f767
             efi-board: microrusefi
 
           # Debug vs. release configuration
