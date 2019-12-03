@@ -16,6 +16,7 @@
 #include "accel_enrichment.h"
 #include "trigger_central.h"
 #include "local_version_holder.h"
+#include "warmup_controller.h"
 
 #if EFI_SIGNAL_EXECUTOR_ONE_TIMER
 // PROD real firmware uses this implementation
@@ -177,6 +178,7 @@ public:
 
 	LoadAccelEnrichment engineLoadAccelEnrichment;
 	TpsAccelEnrichment tpsAccelEnrichment;
+	WarmupController warmupFuel;
 
 	TriggerCentral triggerCentral;
 
