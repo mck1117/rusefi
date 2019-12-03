@@ -41,12 +41,6 @@
  *
  */
 
-#define PORT_IDLE_THREAD_STACK_SIZE     1024
-
-// rusEfi main processing happens on IRQ so PORT_INT_REQUIRED_STACK has to be pretty large.
-// see also a strange comment about PORT_INT_REQUIRED_STACK in global_shared.h
-// see also http://www.chibios.org/dokuwiki/doku.php?id=chibios:kb:stacks
-#define PORT_INT_REQUIRED_STACK 	768
 
 #define CHPRINTF_USE_FLOAT          	TRUE
 
