@@ -502,6 +502,8 @@ const char *getCan_nbc_e(can_nbc_e value){
 switch(value) {
 case CAN_BUS_MAZDA_RX8:
   return "CAN_BUS_MAZDA_RX8";
+case CAN_BUS_NBC_AEM:
+  return "CAN_BUS_NBC_AEM";
 case CAN_BUS_NBC_BMW:
   return "CAN_BUS_NBC_BMW";
 case CAN_BUS_NBC_FIAT:

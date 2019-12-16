@@ -21,6 +21,8 @@
 #include "mpu_util.h"
 #include "allsensors.h"
 #include "vehicle_speed.h"
+#include "sensor_reader.h"
+#include "fuel_math.h"
 
 EXTERN_ENGINE
 ;
@@ -222,6 +224,115 @@ static void canDashboardVAG(void) {
 		sendCanMessage();
 }
 
+// https://www.aemelectronics.com/files/pdf/AEMNet%20170116_Public.pdf
+static void canAem() {
+	struct msg01f0a000 {
+		uint16_t engineSpeed;
+		uint16_t deprecated;
+		uint16_t throttlePosition;
+		int8_t iat;
+		int8_t clt;
+	};
+
+	int rpm = GET_RPM();
+
+	{
+		commonTxInit(CAN_AEM_0);
+
+		auto msg = reinterpret_cast<msg01f0a000*>(txmsg.data8);
+
+		msg->engineSpeed = rpm * 0.39063f;
+		msg->throttlePosition = 65536 * (getTPS() / 100.0f);
+		msg->iat = getIntakeAirTemperature();
+		msg->clt = getCoolantTemperature();
+
+		sendCanMessage();
+	}
+
+	struct msg01f0a003 {
+		uint8_t lambda1;
+		uint8_t lambda2;
+		uint16_t vss;
+		uint8_t gear;
+		uint8_t timing;
+		uint16_t battery;
+	};
+
+	{
+		commonTxInit(CAN_AEM_3);
+
+		auto msg = reinterpret_cast<msg01f0a003*>(txmsg.data8);
+
+		msg->lambda1 = 256 * ((getAfr() / 14.7f) - 0.5f);
+		msg->vss = getVehicleSpeed() * 0.6213f;	// mph
+		msg->timing = engine->engineState.timingAdvance;
+		msg->battery = getVBatt() * 4073.32f;
+
+		sendCanMessage();
+	}
+
+	struct msg01f0a004 {
+		uint16_t map;
+		uint8_t ve;
+		uint8_t fuelPressure;
+		uint8_t oilPressure;
+		uint8_t lambdaTarget;
+	};
+
+	{
+		commonTxInit(CAN_AEM_4);
+
+		auto msg = reinterpret_cast<msg01f0a004*>(txmsg.data8);
+
+		msg->map = getMap() * 10;
+		msg->ve = engine->engineState.currentRawVE;
+
+		SensorReader<SensorType::OilPressure> oilp(0);
+		msg->oilPressure = oilp.getOrDefault() / 4;
+		msg->lambdaTarget = engine->engineState.targetAFR; 
+
+		sendCanMessage();
+	}
+
+	struct msg01f0a005 {
+		uint16_t launchRampTime;
+		uint16_t massAirFlow;
+		uint16_t massAirFlowPerRev;
+	};
+
+	{
+		commonTxInit(CAN_AEM_5);
+
+		auto msg = reinterpret_cast<msg01f0a005*>(txmsg.data8);
+
+		msg->massAirFlow = engine->engineState.airFlow * 20;
+		msg->massAirFlowPerRev = engine->engineState.sd.airMassInOneCylinder * 2000;
+
+		sendCanMessage();
+	}
+
+	struct msg01f0a006 {
+		uint8_t inj1InjectorPulse;
+		uint8_t inj1LambdaFeedback;
+		uint8_t injectorDuty;
+		uint8_t modeSw;
+		uint8_t waterPressure;
+		uint8_t panPressure;
+		uint16_t estimatedTorque;
+	};
+
+	{
+		commonTxInit(CAN_AEM_6);
+
+		auto msg = reinterpret_cast<msg01f0a006*>(txmsg.data8);
+
+		msg->inj1InjectorPulse = engine->actualLastInjection * 10;
+		msg->injectorDuty = getInjectorDutyCycle(rpm);
+		
+		sendCanMessage();
+	}
+}
+
 static void canInfoNBCBroadcast(can_nbc_e typeOfNBC) {
 	switch (typeOfNBC) {
 	case CAN_BUS_NBC_BMW:
@@ -235,6 +346,9 @@ static void canInfoNBCBroadcast(can_nbc_e typeOfNBC) {
 		break;
 	case CAN_BUS_MAZDA_RX8:
 		canMazdaRX8();
+		break;
+	case CAN_BUS_NBC_AEM:
+		canAem();
 		break;
 	default:
 		break;

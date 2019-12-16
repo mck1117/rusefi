@@ -37,6 +37,12 @@
 #define CAN_VAG_CLT_V2 0x420
 #define CAN_VAG_IMMO 0x3D0
 
+#define CAN_AEM_0 0x01F0A000
+#define CAN_AEM_3 0x01F0A003
+#define CAN_AEM_4 0x01F0A004
+#define CAN_AEM_5 0x01F0A005
+#define CAN_AEM_6 0x01F0A006
+
 void initCan(void);
 void commonTxInit(int eid);
 void sendCanMessage();
