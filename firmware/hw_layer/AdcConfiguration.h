@@ -22,7 +22,6 @@ public:
 	void enableChannel(adc_channel_e hwChannelIndex);
 	void enableChannelAndPin(adc_channel_e hwChannelIndex);
 	adc_channel_e getAdcHardwareIndexByInternalIndex(int index) const;
-	int internalAdcIndexByHardwareIndex[20];
 	bool isHwUsed(adc_channel_e hwChannel) const;
 	int size() const;
 	void init(void);
@@ -39,17 +38,13 @@ public:
 	// Assert multiple of 32 bytes long so we don't stomp on the data after the buffer
 	static_assert(sizeof(samples) % 32 == 0, "ADC sample buffer size must be a multiple of 32 bytes");
 
-	int getAdcValueByHwChannel(int hwChannel) const;
+	int getAdcValueByHwChannel(adc_channel_e hwChannel) const;
+	int indexForHwChannel(adc_channel_e hwChannel) const;
 
 	adc_state values;
 	int channelCount;
 private:
 	ADCConversionGroup* hwConfig;
-	/**
-	 * Number of ADC channels in use
-	 */
-
-	adc_channel_e hardwareIndexByIndernalAdcIndex[20];
 };
 
 #endif /* HAL_USE_ADC */

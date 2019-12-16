@@ -68,8 +68,6 @@ AdcDevice::AdcDevice(ADCConversionGroup* hwConfig) {
 	hwConfig->sqr1 = 0;
 	hwConfig->sqr2 = 0;
 	hwConfig->sqr3 = 0;
-	memset(hardwareIndexByIndernalAdcIndex, 0, sizeof(hardwareIndexByIndernalAdcIndex));
-	memset(internalAdcIndexByHardwareIndex, 0xFFFFFFFF, sizeof(internalAdcIndexByHardwareIndex));
 }
 
 #if !defined(PWM_FREQ_FAST) || !defined(PWM_PERIOD_FAST)
@@ -235,7 +233,8 @@ static void pwmpcb_fast(PWMDriver *pwmp) {
 
 float getMCUInternalTemperature(void) {
 #if defined(ADC_CHANNEL_SENSOR)
-	float TemperatureValue = adcToVolts(slowAdc.getAdcValueByHwChannel(ADC_CHANNEL_SENSOR));
+	// TODO: fixme
+	float TemperatureValue = 0;//adcToVolts(slowAdc.getAdcValueByHwChannel(ADC_CHANNEL_SENSOR));
 	TemperatureValue -= 0.760; // Subtract the reference voltage at 25 deg C
 	TemperatureValue /= .0025; // Divide by slope 2.5mV
 
@@ -259,7 +258,7 @@ int getInternalAdcValue(const char *msg, adc_channel_e hwChannel) {
 
 
 	if (adcHwChannelEnabled[hwChannel] == ADC_FAST) {
-		int internalIndex = fastAdc.internalAdcIndexByHardwareIndex[hwChannel];
+		int internalIndex = fastAdc.indexForHwChannel(hwChannel);
 // todo if ADC_BUF_DEPTH_FAST EQ 1
 //		return fastAdc.samples[internalIndex];
 		int value = getAvgAdcValue(internalIndex, fastAdc.samples, ADC_BUF_DEPTH_FAST, fastAdc.size());
@@ -307,9 +306,8 @@ int AdcDevice::size() const {
 	return channelCount;
 }
 
-int AdcDevice::getAdcValueByHwChannel(int hwChannel) const {
-	int internalIndex = internalAdcIndexByHardwareIndex[hwChannel];
-	return values.adc_data[internalIndex];
+int AdcDevice::getAdcValueByHwChannel(adc_channel_e hwChannel) const {
+	return values.adc_data[indexForHwChannel(hwChannel)];
 }
 
 int AdcDevice::getAdcValueByIndex(int internalIndex) const {
@@ -333,27 +331,11 @@ void AdcDevice::init(void) {
 }
 
 bool AdcDevice::isHwUsed(adc_channel_e hwChannelIndex) const {
-	for (int i = 0; i < channelCount; i++) {
-		if (hardwareIndexByIndernalAdcIndex[i] == hwChannelIndex) {
-			return true;
-		}
-	}
 	return false;
 }
 
 void AdcDevice::enableChannel(adc_channel_e hwChannel) {
-	int logicChannel = channelCount++;
-
-	internalAdcIndexByHardwareIndex[hwChannel] = logicChannel;
-	hardwareIndexByIndernalAdcIndex[logicChannel] = hwChannel;
-	if (logicChannel < 6) {
-		hwConfig->sqr3 += (hwChannel) << (5 * logicChannel);
-	} else if (logicChannel < 12) {
-		hwConfig->sqr2 += (hwChannel) << (5 * (logicChannel - 6));
-	} else {
-		hwConfig->sqr1 += (hwChannel) << (5 * (logicChannel - 12));
-	}
-	// todo: support for more then 12 channels? not sure how needed it would be
+	channelCount++;
 }
 
 void AdcDevice::enableChannelAndPin(adc_channel_e hwChannel) {
@@ -369,7 +351,11 @@ static void printAdcValue(int channel) {
 }
 
 adc_channel_e AdcDevice::getAdcHardwareIndexByInternalIndex(int index) const {
-	return hardwareIndexByIndernalAdcIndex[index];
+	return static_cast<adc_channel_e>(index);
+}
+
+int AdcDevice::indexForHwChannel(adc_channel_e hwChannel) const {
+	return static_cast<int>(hwChannel);
 }
 
 static void printFullAdcReport(Logging *logger) {
