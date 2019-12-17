@@ -32,7 +32,7 @@ public:
 		m_overrideValue = 0;
 	}
 
-	void init(Actuator* actuator, pid_s* pidParameters, Limits targetLimits, Limits outputLimits);
+	void init(Actuator* actuator, pid_s* pidParameters, const Limits& targetLimits, const Limits& outputLimits);
 	void setEnabled(bool enable);
 
 	// Update the controller's internal state, and push it to the actuator.

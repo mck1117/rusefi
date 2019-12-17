@@ -1,6 +1,6 @@
 #include "actuator_base.h"
 
-void ActuatorBase::init(Actuator* actuator, pid_s* pidParameters, Limits targetLimits, Limits outputLimits) {
+void ActuatorBase::init(Actuator* actuator, pid_s* pidParameters, const Limits& targetLimits, const Limits& outputLimits) {
 	m_actuator = actuator;
 
 	m_targetLimits = targetLimits;
