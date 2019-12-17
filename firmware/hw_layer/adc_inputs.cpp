@@ -119,7 +119,7 @@ static adcsample_t getAvgAdcValue(int index, adcsample_t *samples, int bufDepth,
 /*
  * ADC conversion group.
  */
-static ADCConversionGroup adcgrpcfgSlow = { FALSE, 0, nullptr, NULL,
+static ADCConversionGroup adcgrpcfgSlow = { FALSE, 16, nullptr, NULL,
 /* HW dependent part.*/
 ADC_TwoSamplingDelay_20Cycles,   // cr1
 		ADC_CR2_SWSTART, // cr2
@@ -151,12 +151,17 @@ ADC_TwoSamplingDelay_20Cycles,   // cr1
 		0,
 		0,
 
-		0, // Conversion group sequence 13...16 + sequence length
-		0, // Conversion group sequence 7...12
-		0  // Conversion group sequence 1...6
+		12 | 13 << 5 | 14 << 10 | 15 << 15 | 15 << 20, // Conversion group sequence 13...16 + sequence length
+		 6 |  7 << 5 |  8 << 10 |  9 << 15 | 10 << 20 | 11 << 25, // Conversion group sequence 7...12
+		 0 |  1 << 5 |  2 << 10 |  3 << 15 |  4 << 20 | 16 << 25  // Conversion group sequence 1...6
+		 // note that we use temp sensor instead of PA5 ^^^^^^^^
 		};
 
-AdcDevice slowAdc(&adcgrpcfgSlow);
+adcsample_t slowAdcBuffer[32];
+
+int bufferIndexForChannel(adc_channel_e channel) {
+	return static_cast<int>(channel);
+}
 
 void adc_callback_fast(ADCDriver *adcp, adcsample_t *buffer, size_t n);
 
@@ -235,7 +240,7 @@ static void pwmpcb_fast(PWMDriver *pwmp) {
 
 float getMCUInternalTemperature(void) {
 #if defined(ADC_CHANNEL_SENSOR)
-	float TemperatureValue = adcToVolts(slowAdc.getAdcValueByHwChannel(ADC_CHANNEL_SENSOR));
+	float TemperatureValue = adcToVolts(getInternalAdcValue("temp", EFI_ADC_5));
 	TemperatureValue -= 0.760; // Subtract the reference voltage at 25 deg C
 	TemperatureValue /= .0025; // Divide by slope 2.5mV
 
@@ -269,7 +274,7 @@ int getInternalAdcValue(const char *msg, adc_channel_e hwChannel) {
 		warning(CUSTOM_OBD_WRONG_ADC_MODE, "ADC is off [%s] index=%d", msg, hwChannel);
 	}
 
-	return slowAdc.getAdcValueByHwChannel(hwChannel);
+	return slowAdcBuffer[bufferIndexForChannel(hwChannel)];
 }
 
 #if HAL_USE_PWM
@@ -288,13 +293,14 @@ static void initAdcPin(brain_pin_e pin, const char *msg) {
 }
 
 const char * getAdcMode(adc_channel_e hwChannel) {
-	if (slowAdc.isHwUsed(hwChannel)) {
+	switch (adcHwChannelEnabled[hwChannel]) {
+	case ADC_SLOW:
 		return "slow";
-	}
-	if (fastAdc.isHwUsed(hwChannel)) {
+	case ADC_FAST:
 		return "fast";
+	default:
+		return "INACTIVE - need restart";
 	}
-	return "INACTIVE - need restart";
 }
 
 static void initAdcHwChannel(adc_channel_e hwChannel) {
@@ -373,18 +379,18 @@ adc_channel_e AdcDevice::getAdcHardwareIndexByInternalIndex(int index) const {
 }
 
 static void printFullAdcReport(Logging *logger) {
-	scheduleMsg(logger, "fast %d slow %d", fastAdc.conversionCount, slowAdc.conversionCount);
+	//scheduleMsg(logger, "fast %d slow %d", fastAdc.conversionCount, slowAdc.conversionCount);
 
-	for (int index = 0; index < slowAdc.size(); index++) {
+	for (int index = 0; index < 16; index++) {
 		appendMsgPrefix(logger);
 
-		adc_channel_e hwIndex = slowAdc.getAdcHardwareIndexByInternalIndex(index);
+		adc_channel_e hwIndex = static_cast<adc_channel_e>(index);
 
 		if (hwIndex != EFI_ADC_NONE && hwIndex != EFI_ADC_ERROR) {
 			ioportid_t port = getAdcChannelPort("print", hwIndex);
 			int pin = getAdcChannelPin(hwIndex);
 
-			int adcValue = slowAdc.getAdcValueByIndex(index);
+			int adcValue = slowAdcBuffer[index];
 			appendPrintf(logger, " ch%d %s%d", index, portname(port), pin);
 			appendPrintf(logger, " ADC%d 12bit=%d", hwIndex, adcValue);
 			float volts = adcToVolts(adcValue);
@@ -413,6 +419,7 @@ int getSlowAdcCounter() {
 	return slowAdcCounter;
 }
 
+__ALIGNED(32) adcsample_t slowAdcSample[16 * 8];
 
 class SlowAdcController : public PeriodicController<256> {
 public:
@@ -425,12 +432,10 @@ public:
 		{
 			ScopePerf perf(PE::AdcConversionSlow);
 
-			slowAdc.conversionCount++;
-			msg_t result = adcConvert(&ADC_SLOW_DEVICE, &adcgrpcfgSlow, slowAdc.samples, ADC_BUF_DEPTH_SLOW);
+			msg_t result = adcConvert(&ADC_SLOW_DEVICE, &adcgrpcfgSlow, slowAdcSample, ADC_BUF_DEPTH_SLOW);
 
 			// If something went wrong - try again later
 			if (result == MSG_RESET || result == MSG_TIMEOUT) {
-				slowAdc.errorsCount++;
 				return;
 			}
 		}
@@ -438,16 +443,16 @@ public:
 		{
 			ScopePerf perf(PE::AdcProcessSlow);
 
-			slowAdc.invalidateSamplesCache();
+			//slowAdc.invalidateSamplesCache();
 
 			/* Calculates the average values from the ADC samples.*/
-			for (int i = 0; i < slowAdc.size(); i++) {
-				adcsample_t value = getAvgAdcValue(i, slowAdc.samples, ADC_BUF_DEPTH_SLOW, slowAdc.size());
-				adcsample_t prev = slowAdc.values.adc_data[i];
+			for (int i = 0; i < 16; i++) {
+				adcsample_t value = getAvgAdcValue(i, slowAdcSample, ADC_BUF_DEPTH_SLOW, 16);
+				adcsample_t prev = slowAdcBuffer[i];
 				float result = (slowAdcCounter == 0) ? value :
 						CONFIG(slowAdcAlpha) * value + (1 - CONFIG(slowAdcAlpha)) * prev;
 
-				slowAdc.values.adc_data[i] = (adcsample_t)result;
+				slowAdcBuffer[i] = (adcsample_t)result;
 			}
 			slowAdcCounter++;
 
@@ -474,6 +479,11 @@ void addChannel(const char *name, adc_channel_e setting, adc_channel_mode_e mode
 
 	adcHwChannelUsage[setting] = name;
 	adcHwChannelEnabled[setting] = mode;
+
+	if (mode == ADC_SLOW) {
+		brain_pin_e pin = getAdcChannelBrainPin("adc", setting);
+		initAdcPin(pin, "hw");
+	}
 }
 
 void removeChannel(const char *name, adc_channel_e setting) {
@@ -566,19 +576,10 @@ void initAdcInputs() {
 		/**
 		 * in board test mode all currently enabled ADC channels are running in slow mode
 		 */
-		if (mode == ADC_SLOW) {
-			slowAdc.enableChannelAndPin((adc_channel_e) (ADC_CHANNEL_IN0 + adc));
-		} else if (mode == ADC_FAST) {
+		if (mode == ADC_FAST) {
 			fastAdc.enableChannelAndPin((adc_channel_e) (ADC_CHANNEL_IN0 + adc));
 		}
 	}
-
-#if defined(ADC_CHANNEL_SENSOR)
-	// Internal temperature sensor, Available on ADC1 only
-	slowAdc.enableChannel((adc_channel_e)ADC_CHANNEL_SENSOR);
-#endif /* ADC_CHANNEL_SENSOR */
-
-	slowAdc.init();
 
 	// Start the slow ADC thread
 	slowAdcController.Start();
