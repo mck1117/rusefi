@@ -35,9 +35,7 @@ static SensorConverter &configureTempSensorFunction(thermistor_conf_s &cfg, Func
 static void configureTempSensor(FunctionalSensor &sensor,
 								FuncPair &p,
 								ThermistorConf &config,
-								bool isLinear,
-								float *reportLoc,
-								float *rawReportLoc) {
+								bool isLinear) {
 	auto channel = config.adcChannel;
 
 	// Check if channel is set - ignore this sensor if not
@@ -47,12 +45,6 @@ static void configureTempSensor(FunctionalSensor &sensor,
 
 	// Configure the conversion function for this sensor
 	sensor.setFunction(configureTempSensorFunction(config.config, p, isLinear));
-
-	// Set report location
-	sensor.setReportingLocation(reportLoc);
-
-	// Set raw report location (voltage)
-	sensor.setRawReportingLocation(rawReportLoc);
 
 	// Register & subscribe
 	if (!sensor.Register()) {
@@ -74,28 +66,20 @@ void initTempSensors() {
 	configureTempSensor(clt,
 						fclt,
 						engineConfiguration->clt,
-						engineConfiguration->useLinearCltSensor,
-						&tsOutputChannels.coolantTemperature,
-						&tsOutputChannels.sensorsRaw.cltVoltage);
+						engineConfiguration->useLinearCltSensor);
 
 	configureTempSensor(iat,
 						fiat,
 						engineConfiguration->iat,
-						engineConfiguration->useLinearIatSensor,
-						&tsOutputChannels.intakeAirTemperature,
-						&tsOutputChannels.sensorsRaw.iatVoltage);
+						engineConfiguration->useLinearIatSensor);
 
 	configureTempSensor(aux1,
 						faux1,
 						engineConfiguration->auxTempSensor1,
-						false,
-						nullptr /* fixme! */,
-						&tsOutputChannels.sensorsRaw.auxTemp1Voltage);
+						false);
 
 	configureTempSensor(aux2,
 						faux2,
 						engineConfiguration->auxTempSensor2,
-						false,
-						nullptr /* fixme! */,
-						&tsOutputChannels.sensorsRaw.auxTemp1Voltage);
+						false);
 }
