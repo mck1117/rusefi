@@ -865,7 +865,6 @@ gaugeCategory = Throttle Body (incl. ETB)
    etbDutyCycleGauge  = etb1DutyCycle, @@GAUGE_NAME_ETB_DUTY@@,                 "%",    -100, 100,   -75,   -50,   50,   75,  0, 0
 
 
-
 [WueAnalyze]
     
 ;                    wueCurveName, afrTempCompensationCurve, lambdaTargetTableName, lambdaChannel, coolantTempChannel, egoCorrectionChannel, wueChannel, activeCondition
