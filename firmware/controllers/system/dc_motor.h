@@ -7,13 +7,19 @@
 
 #pragma once
 
+// hack hack hack
+struct Actuator
+{
+	virtual bool set(float power) = 0;
+};
+
 /**
  * @brief Brushed or brushless DC motor interface
  * 
  * Represents a DC motor (brushed or brushless) that provides simple
  * torque/power/current/duty cycle control, but not accurate absolute position control.
  */
-class DcMotor
+class DcMotor : public Actuator
 {
 public:
     /**
@@ -21,7 +27,7 @@ public:
      * @param duty +1.0f represents full power forward, and -1.0f represents full power backward.
      * @return True if any fault was detected driving the motor, and false if successful.
      */
-    virtual bool set(float duty) = 0;
+    //virtual bool set(float duty) = 0;
 
     /**
      * @brief Get the current motor duty cycle.

@@ -13,15 +13,15 @@
 
 #include "engine.h"
 #include "periodic_task.h"
+#include "actuator_base.h"
 
 class DcMotor;
 class Logging;
 
-class IEtbController : public PeriodicTimerController{
+class IEtbController : public ActuatorBase, public PeriodicTimerController {
 public:
 	DECLARE_ENGINE_PTR;
 	virtual void init(DcMotor *motor, int ownIndex, pid_s *pidParameters) = 0;
-	virtual void reset() = 0;
 };
 
 class EtbController final : public IEtbController {
@@ -31,23 +31,27 @@ public:
 	// PeriodicTimerController implementation
 	int getPeriodMs() override;
 	void PeriodicTask() override;
-	void reset() override;
 
 	// Called when the configuration may have changed.  Controller will
 	// reset if necessary.
 	void onConfigurationChange(pid_s* previousConfiguration);
 	
 	// Print this throttle's status.
-	void showStatus(Logging* logger);
+	void showStatus(Logging* logger) const;
 
-	// Used to inspect the internal PID controller's state
-	const pid_state_s* getPidState() const { return &m_pid; };
+protected:
+	float computeOpenLoop(float targetPosition) const override;
+
+	float getTargetImpl() const override;
+	float getActualPosition() const override;
+
+	// ETB requires closed loop!
+	bool isClosedLoopEnabled() const override { return true; }
+
+	void onStateUpdated() const override;
 
 private:
 	int m_myIndex;
-	DcMotor *m_motor;
-	Pid m_pid;
-	bool m_shouldResetPid = false;
 };
 
 void initElectronicThrottle(DECLARE_ENGINE_PARAMETER_SIGNATURE);

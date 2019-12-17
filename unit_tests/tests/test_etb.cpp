@@ -35,6 +35,11 @@ public:
 	int getPeriodMs() {
 		return 1;
 	};
+
+	float computeOpenLoop(float) const override { return 0; }
+	float getTargetImpl() const override { return 0; }
+	float getActualPosition() const override { return 0; }
+	bool isClosedLoopEnabled() const override { return true; }
 };
 
 
@@ -48,7 +53,7 @@ TEST(etb, singleEtbInitialization) {
 		engine->etbControllers[i] = &mocks[i];
 	}
 
-	 engineConfiguration->throttlePedalPositionAdcChannel = EFI_ADC_9;
+	engineConfiguration->throttlePedalPositionAdcChannel = EFI_ADC_9;
 
 	doInitElectronicThrottle(PASS_ENGINE_PARAMETER_SIGNATURE);
 
@@ -59,9 +64,4 @@ TEST(etb, singleEtbInitialization) {
 	// assert that 2nd ETB is initialized but not started
 	ASSERT_EQ(1, mocks[1].initCount) << "2nd init";
 	ASSERT_EQ(0, mocks[1].startCount) << "2nd start";
-
-
 }
-
-
-

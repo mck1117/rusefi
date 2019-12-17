@@ -97,10 +97,6 @@ end_struct
 ! actually define a member of 'running_fuel_s' type
 running_fuel_s running
 
-percent_t etbFeedForward;
-
-	percent_t targetFromTable
-
 	! spark-related
 	floatms_t sparkDwell;ignition dwell duration in ms\nSee also dwellAngle
 	angle_t dwellAngle;ignition dwell duration as crankshaft angle\nNAN if engine is stopped\nSee also sparkDwell

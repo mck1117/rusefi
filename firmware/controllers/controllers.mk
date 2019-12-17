@@ -11,6 +11,7 @@ CONTROLLERS_DIR=$(PROJECT_DIR)/controllers
 CONTROLLERSSRC =
 	
 CONTROLLERS_SRC_CPP = \
+	$(CONTROLLERS_DIR)/actuators/actuator_base.cpp \
 	$(CONTROLLERS_DIR)/actuators/electronic_throttle.cpp \
 	$(CONTROLLERS_DIR)/actuators/alternator_controller.cpp \
 	$(CONTROLLERS_DIR)/actuators/idle_thread.cpp \
