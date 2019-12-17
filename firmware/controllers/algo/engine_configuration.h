@@ -3,16 +3,14 @@
  * @brief	Main engine configuration data structure.
  *
  * @date Oct 30, 2013
- * @author Andrey Belomutskiy, (c) 2012-2017
+ * @author Andrey Belomutskiy, (c) 2012-2019
  */
 
-#ifndef ENGINE_CONFIGURATION_H_
-#define ENGINE_CONFIGURATION_H_
+#pragma once
 
-#include "global.h"
+#include "globalaccess.h"
 #include "crc.h"
 #include "engine_configuration_generated_structures.h"
-#include "globalaccess.h"
 
 #ifndef DEFAULT_ENGINE_TYPE
 #define DEFAULT_ENGINE_TYPE DEFAULT_FRANKENSO
@@ -90,5 +88,3 @@ typedef void (*configuration_callback_t)(engine_configuration_s*);
 void resetConfigurationExt(Logging * logger, configuration_callback_t boardCallback, engine_type_e engineType DECLARE_ENGINE_PARAMETER_SUFFIX);
 void resetConfigurationExt(Logging * logger, engine_type_e engineType DECLARE_ENGINE_PARAMETER_SUFFIX);
 #endif /* __cplusplus */
-
-#endif /* ENGINE_CONFIGURATION_H_ */

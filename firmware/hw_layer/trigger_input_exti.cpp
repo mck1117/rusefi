@@ -32,7 +32,7 @@ static void shaft_callback(void *arg) {
 		return;
 
 	bool isPrimary = pal_line == primary_line;
-	if (!isPrimary && !TRIGGER_SHAPE(needSecondTriggerInput)) {
+	if (!isPrimary && !TRIGGER_WAVEFORM(needSecondTriggerInput)) {
 		return;
 	}
 
@@ -64,8 +64,8 @@ static void cam_callback(void *arg) {
 	}
 }
 
-void turnOnTriggerInputPin(const char *msg, int index, bool isVvtShaft) {
-	brain_pin_e brainPin = isVvtShaft ? engineConfiguration->camInputs[index] : CONFIGB(triggerInputPins)[index];
+void turnOnTriggerInputPin(const char *msg, int index, bool isTriggerShaft) {
+	brain_pin_e brainPin = isTriggerShaft ? CONFIG(triggerInputPins)[index] : engineConfiguration->camInputs[index];
 
 	scheduleMsg(logger, "turnOnTriggerInputPin(PAL) %s %s", msg, hwPortname(brainPin));
 
@@ -73,11 +73,11 @@ void turnOnTriggerInputPin(const char *msg, int index, bool isVvtShaft) {
 	 * * do not set to both edges if we need only one
 	 * * simplify callback in case of one edge */
 	ioline_t pal_line = PAL_LINE(getHwPort("trg", brainPin), getHwPin("trg", brainPin));
-	efiExtiEnablePin(msg, brainPin, PAL_EVENT_MODE_BOTH_EDGES, isVvtShaft ? shaft_callback : cam_callback, (void *)pal_line);
+	efiExtiEnablePin(msg, brainPin, PAL_EVENT_MODE_BOTH_EDGES, isTriggerShaft ? shaft_callback : cam_callback, (void *)pal_line);
 }
 
 void turnOffTriggerInputPin(brain_pin_e brainPin) {
-	stopDigitalCapture("trigger", brainPin);
+	efiExtiDisablePin(brainPin);
 }
 
 void setPrimaryChannel(brain_pin_e brainPin) {

@@ -7,6 +7,8 @@ CHIBIOS = ChibiOS
 RULESPATH = $(CHIBIOS)/os/common/startup/ARMCMx/compilers/GCC
 RULESFILE = $(RULESPATH)/rules.mk
 
+include rusefi_rules.mk
+
 # Define project name here
 PROJECT = rusefi
 PROJECT_DIR = .
@@ -35,8 +37,11 @@ endif
 
 # Compiler options here.
 ifeq ($(USE_OPT),)
-  USE_OPT = $(EXTRA_PARAMS) $(DEBUG_LEVEL_OPT) $(RFLAGS) -Wno-error=implicit-fallthrough -Wno-error=bool-operation -fomit-frame-pointer -falign-functions=16 -Werror -Wno-error=pointer-sign -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=sign-compare -Wno-error=unused-parameter -Werror=missing-field-initializers -Werror=type-limits -Wno-error=strict-aliasing -Wno-error=attributes
+  USE_OPT = $(EXTRA_PARAMS) $(DEBUG_LEVEL_OPT) $(RFLAGS) -Wno-error=implicit-fallthrough -Wno-error=bool-operation -fomit-frame-pointer -falign-functions=16 -Werror=type-limits -Wno-error=strict-aliasing -Wno-error=attributes
 endif
+
+
+USE_OPT += $(RUSEFI_OPT)
 
 # C specific options here (added to USE_OPT).
 ifeq ($(USE_COPT),)
@@ -147,24 +152,17 @@ ifeq ($(USE_FATFS),yes)
 include $(PROJECT_DIR)/ext/fatfs.mk
 endif
 
+include $(PROJECT_DIR)/config/boards/$(PROJECT_BOARD)/board.mk
+include $(PROJECT_DIR)/config/engines/engines.mk
+include $(PROJECT_DIR)/console/console.mk
+include $(PROJECT_DIR)/controllers/controllers.mk
+include $(PROJECT_DIR)/development/development.mk
 include $(PROJECT_DIR)/hw_layer/hw_layer.mk
 include $(PROJECT_DIR)/hw_layer/drivers/drivers.mk
 include $(PROJECT_DIR)/hw_layer/sensors/sensors.mk
 include $(PROJECT_DIR)/hw_layer/mass_storage/mass_storage.mk
-include $(PROJECT_DIR)/development/development.mk
-
-include $(PROJECT_DIR)/util/util.mk
-include $(PROJECT_DIR)/config/boards/$(PROJECT_BOARD)/board.mk
-include $(PROJECT_DIR)/config/engines/engines.mk
-include $(PROJECT_DIR)/controllers/controllers.mk
-include $(PROJECT_DIR)/controllers/algo/algo.mk
-include $(PROJECT_DIR)/controllers/core/core.mk
-include $(PROJECT_DIR)/controllers/math/math.mk
-include $(PROJECT_DIR)/controllers/sensors/sensors.mk
-include $(PROJECT_DIR)/controllers/system/system.mk
-include $(PROJECT_DIR)/controllers/trigger/trigger.mk
-include $(PROJECT_DIR)/console/console.mk
 include $(PROJECT_DIR)/init/init.mk
+include $(PROJECT_DIR)/util/util.mk
 
 ifeq ($(BOOTLOADERINC),)
   # include default bootloader code
@@ -301,18 +299,10 @@ INCDIR = $(CHIBIOS)/os/license \
 	$(HW_LAYER_DRIVERS_INC) \
 	$(UTIL_INC) \
 	init \
-	development \
+	$(DEVELOPMENT_DIR) \
 	development/hw_layer \
 	development/test \
-	$(CONTROLLERS_INC) \
-	controllers/sensors \
-	controllers/sensors/converters \
-	controllers/system \
-	controllers/algo \
-	controllers/core \
-	controllers/math \
-	controllers/trigger/decoders \
-	controllers/trigger
+	$(CONTROLLERS_INC)
 
 #
 # Project, sources and paths

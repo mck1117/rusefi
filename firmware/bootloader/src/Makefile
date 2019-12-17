@@ -9,7 +9,7 @@
 ifeq ($(DEBUG_LEVEL_OPT),)
   # this value would be used by default. For 'debug' configuration override with '-O0 -ggdb -g3' or something along these lines
   DEBUG_LEVEL_OPT = -O2
-  DDEFS += -DEFI_ENABLE_ASSERTS=FALSE -DCH_DBG_ENABLE_TRACE=FALSE -DCH_DBG_ENABLE_ASSERTS=FALSE -DCH_DBG_ENABLE_STACK_CHECK=FALSE -DCH_DBG_FILL_THREADS=FALSE -DCH_DBG_THREADS_PROFILING=FALSE
+  DDEFS += -DEFI_ENABLE_ASSERTS=FALSE -DCH_DBG_ENABLE_ASSERTS=FALSE -DCH_DBG_ENABLE_STACK_CHECK=FALSE -DCH_DBG_FILL_THREADS=FALSE -DCH_DBG_THREADS_PROFILING=FALSE
 endif
 
 # disable some modules to shrink bootloader binary
@@ -22,12 +22,12 @@ DDEFS += -DEFI_CAN_SUPPORT=FALSE
 
 # Compiler options here.
 ifeq ($(USE_OPT),)
-  USE_OPT = $(EXTRA_PARAMS) $(DEBUG_LEVEL_OPT) $(RFLAGS) -Wno-error=implicit-fallthrough -Wno-error=bool-operation -fomit-frame-pointer -falign-functions=16 -Werror-implicit-function-declaration -Werror -Wno-error=pointer-sign -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=sign-compare -Wno-error=unused-parameter -Wno-error=missing-field-initializers -Werror=type-limits -Wno-error=strict-aliasing -Wno-error=attributes
+  USE_OPT = $(EXTRA_PARAMS) $(DEBUG_LEVEL_OPT) $(RFLAGS) -Wno-error=implicit-fallthrough -Wno-error=bool-operation -fomit-frame-pointer -falign-functions=16 -Werror -Wno-error=pointer-sign -Wno-error=unused-function -Wno-error=unused-variable -Wno-error=sign-compare -Wno-error=unused-parameter -Wno-error=missing-field-initializers -Werror=type-limits -Wno-error=strict-aliasing -Wno-error=attributes
 endif
 
 # C specific options here (added to USE_OPT).
 ifeq ($(USE_COPT),)
-  USE_COPT = -fgnu89-inline -std=gnu99
+  USE_COPT = -fgnu89-inline -std=gnu99 -Werror-implicit-function-declaration
 endif
 
 # C++ specific options here (added to USE_OPT).
@@ -156,34 +156,22 @@ CSRC = $(STARTUPSRC) \
 	$(CHIBIOS)/os/various/syscalls.c \
 	$(CHIBIOS)/os/hal/lib/streams/memstreams.c \
 	$(CHIBIOS)/os/hal/lib/streams/chprintf.c \
-	$(ENGINES_SRC) \
 	$(CONSOLESRC) \
 	$(DEV_SRC) \
 	$(HW_LAYER_EMS) \
 	$(HW_LAYER_DRIVERS_CORE) \
-	$(CONTROLLERS_ALGO_SRC) \
-	$(CONTROLLERS_CORE_SRC) \
-	$(CONTROLLERS_SENSORS_SRC) \
 	$(FATFSSRC) \
 	$(SYSTEMSRC) \
 
 # C++ sources that can be compiled in ARM or THUMB mode depending on the global
 # setting.
 CPPSRC = $(CHCPPSRC) \
-	$(TRIGGER_SRC_CPP) \
-	$(TRIGGER_DECODERS_SRC_CPP) \
 	$(DEV_SRC_CPP) \
-	$(CONTROLLERS_ALGO_SRC_CPP) \
-	$(SYSTEMSRC_CPP) \
 	$(BOARDSRC_CPP) \
-	$(ENGINES_SRC_CPP) \
 	$(HW_LAYER_EMS_CPP) \
 	$(HW_SENSORS_SRC) \
 	$(TUNERSTUDIO_SRC_CPP) \
 	$(CONSOLE_SRC_CPP) \
-	$(CONTROLLERS_SENSORS_SRC_CPP) \
-	$(CONTROLLERS_CORE_SRC_CPP) \
-	$(CONTROLLERS_MATH_SRC_CPP) \
 	$(PROJECT_DIR)/console/binary/tunerstudio_io.cpp \
 	$(PROJECT_DIR)/controllers/system/efi_gpio.cpp \
 	$(PROJECT_DIR)/controllers/algo/engine_configuration.cpp \
@@ -262,12 +250,6 @@ INCDIR = .. $(CHIBIOS)/os/license \
 	$(PROJECT_DIR)/development/test \
 	$(CONTROLLERS_INC) \
 	$(PROJECT_DIR)/controllers/sensors \
-	$(PROJECT_DIR)/controllers/system \
-	$(PROJECT_DIR)/controllers/algo \
-	$(PROJECT_DIR)/controllers/core \
-	$(PROJECT_DIR)/controllers/math \
-	$(PROJECT_DIR)/controllers/trigger/decoders \
-	$(PROJECT_DIR)/controllers/trigger \
 	config
 
 BUILDDIR=blbuild

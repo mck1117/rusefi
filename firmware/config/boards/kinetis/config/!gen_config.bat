@@ -5,7 +5,11 @@ rem the storage section of rusefi.ini is updated as well
 
 cd ../../../..
 
-java -cp ../java_tools/ConfigDefinition.jar;../java_tools/configuration_definition/lib/snakeyaml.jar ^
+pwd
+
+java ^
+ -DSystemOut.name=gen_config ^
+ -cp ../java_tools/ConfigDefinition.jar;../java_tools/configuration_definition/lib/snakeyaml.jar ^
  com.rusefi.board_generator.BoardReader ^
  -board kinetis ^
  -firmware_path . ^
@@ -13,9 +17,16 @@ java -cp ../java_tools/ConfigDefinition.jar;../java_tools/configuration_definiti
  -enumInputFile controllers/algo/rusefi_enums.h ^
  -enumInputFile config/boards/kinetis/rusefi_hw_enums.h
 
-java -jar ../java_tools/ConfigDefinition.jar ^
+mkdir build_kinetis
+
+java ^
+ -DSystemOut.name=gen_config ^
+ -Drusefi.generator.lazyfile.enabled=true ^
+ -jar ../java_tools/ConfigDefinition.jar ^
  -definition integration/rusefi_config.txt ^
  -ts_destination tunerstudio ^
+ -with_c_defines false ^
+ -initialize_to_zero false ^
  -ts_output_name rusefi_kinetis.ini ^
  -c_defines config/boards/kinetis/config/controllers/algo/rusefi_generated.h ^
  -c_destination config/boards/kinetis/config/controllers/algo/engine_configuration_generated_structures.h ^

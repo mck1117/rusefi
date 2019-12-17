@@ -44,12 +44,11 @@
  *
  */
 
-#define PORT_IDLE_THREAD_STACK_SIZE     64/*768*//*1024*/
+#define PORT_IDLE_THREAD_STACK_SIZE     32
 
-// rusEfi main processing happens on IRQ so PORT_INT_REQUIRED_STACK has to be pretty large.
-// see also a strange comment about PORT_INT_REQUIRED_STACK in global_shared.h
+// See global_shared.h notes about stack requirements
 // see also http://www.chibios.org/dokuwiki/doku.php?id=chibios:kb:stacks
-#define PORT_INT_REQUIRED_STACK 	512/*768*/
+#define PORT_INT_REQUIRED_STACK 	128
 
 #define CHPRINTF_USE_FLOAT          	TRUE
 
@@ -609,7 +608,7 @@ extern "C"
  * @note    The default is @p FALSE.
  */
 #ifndef CH_DBG_ENABLE_TRACE
-#define CH_DBG_ENABLE_TRACE                 TRUE
+#define CH_DBG_ENABLE_TRACE                 FALSE
 #endif
 
 /**
@@ -797,6 +796,9 @@ extern "C"
 
 #ifndef __ASSEMBLER__
 
+#ifdef __cplusplus
+extern "C"
+#endif
 void chDbgPanic3(const char *msg, const char * file, int line);
 #endif
 
@@ -819,6 +821,9 @@ void chDbgPanic3(const char *msg, const char * file, int line);
     }                                                                       \
   }                                                                         \
 } while (false)
+
+#define ENABLE_PERF_TRACE FALSE
+#define TRACE_BUFFER_LENGTH 1
 
 #endif  /* CHCONF_H */
 

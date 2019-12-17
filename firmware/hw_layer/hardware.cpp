@@ -27,6 +27,7 @@
 #include "accelerometer.h"
 #include "eficonsole.h"
 #include "console_io.h"
+#include "sensor_chart.h"
 
 #include "mpu_util.h"
 //#include "usb_msd.h"
@@ -48,6 +49,7 @@
 #include "svnversion.h"
 #include "engine_configuration.h"
 #include "aux_pid.h"
+#include "perf_trace.h"
 
 #if EFI_MC33816
 #include "mc33816.h"
@@ -92,7 +94,7 @@ bool rtcWorks = true;
  */
 void lockSpi(spi_device_e device) {
 	UNUSED(device);
-	efiAssertVoid(CUSTOM_ERR_6674, getCurrentRemainingStack() > 128, "lockSpi");
+	efiAssertVoid(CUSTOM_STACK_SPI, getCurrentRemainingStack() > 128, "lockSpi");
 	// todo: different locks for different SPI devices!
 	chMtxLock(&spiMtx);
 }
@@ -101,15 +103,15 @@ void unlockSpi(void) {
 	chMtxUnlock(&spiMtx);
 }
 
-static void initSpiModules(board_configuration_s *boardConfiguration) {
-	UNUSED(boardConfiguration);
-	if (CONFIGB(is_enabled_spi_1)) {
+static void initSpiModules(engine_configuration_s *engineConfiguration) {
+	UNUSED(engineConfiguration);
+	if (CONFIG(is_enabled_spi_1)) {
 		 turnOnSpi(SPI_DEVICE_1);
 	}
-	if (CONFIGB(is_enabled_spi_2)) {
+	if (CONFIG(is_enabled_spi_2)) {
 		turnOnSpi(SPI_DEVICE_2);
 	}
-	if (CONFIGB(is_enabled_spi_3)) {
+	if (CONFIG(is_enabled_spi_3)) {
 		turnOnSpi(SPI_DEVICE_3);
 	}
 }
@@ -187,8 +189,6 @@ static int fastMapSampleIndex;
 static int hipSampleIndex;
 static int tpsSampleIndex;
 
-extern int tpsFastAdc;
-
 #if HAL_USE_ADC
 extern AdcDevice fastAdc;
 
@@ -198,11 +198,16 @@ extern AdcDevice fastAdc;
 void adc_callback_fast(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
 	(void) buffer;
 	(void) n;
+
+	ScopePerf perf(PE::AdcCallbackFast);
+
 	/**
 	 * Note, only in the ADC_COMPLETE state because the ADC driver fires an
 	 * intermediate callback when the buffer is half full.
 	 * */
 	if (adcp->state == ADC_COMPLETE) {
+		ScopePerf perf(PE::AdcCallbackFastComplete);
+
 		fastAdc.invalidateSamplesCache();
 
 		/**
@@ -210,14 +215,21 @@ void adc_callback_fast(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
 		 */
 		efiAssertVoid(CUSTOM_ERR_6676, getCurrentRemainingStack() > 128, "lowstck#9b");
 
+#if EFI_SENSOR_CHART
+		if (ENGINE(sensorChartMode) == SC_AUX_FAST1) {
+			float voltage = getAdcValue("fAux1", engineConfiguration->auxFastSensor1_adcChannel);
+			scAddData(getCrankshaftAngleNt(getTimeNowNt() PASS_ENGINE_PARAMETER_SUFFIX), voltage);
+		}
+#endif /* EFI_SENSOR_CHART */
+
 #if EFI_MAP_AVERAGING
 		mapAveragingAdcCallback(fastAdc.samples[fastMapSampleIndex]);
 #endif /* EFI_MAP_AVERAGING */
 #if EFI_HIP_9011
-		if (CONFIGB(isHip9011Enabled)) {
+		if (CONFIG(isHip9011Enabled)) {
 			hipAdcCallback(fastAdc.samples[hipSampleIndex]);
 		}
-#endif
+#endif /* EFI_HIP_9011 */
 //		if (tpsSampleIndex != TPS_IS_SLOW) {
 //			tpsFastAdc = fastAdc.samples[tpsSampleIndex];
 //		}
@@ -236,6 +248,7 @@ static void calcFastAdcIndexes(void) {
 	} else {
 		tpsSampleIndex = TPS_IS_SLOW;
 	}
+
 #endif/* HAL_USE_ADC */
 }
 
@@ -249,12 +262,6 @@ void turnOnHardware(Logging *sharedLogger) {
 #if EFI_SHAFT_POSITION_INPUT
 	turnOnTriggerInputPins(sharedLogger);
 #endif /* EFI_SHAFT_POSITION_INPUT */
-}
-
-static void unregisterPin(brain_pin_e currentPin, brain_pin_e prevPin) {
-	if (currentPin != prevPin) {
-		brain_pin_markUnused(prevPin);
-	}
 }
 
 void stopSpi(spi_device_e device) {
@@ -320,20 +327,21 @@ void applyNewHardwareSettings(void) {
 	stopAuxPins();
 #endif /* EFI_AUX_PID */
 
-	if (isConfigurationChanged(bc.is_enabled_spi_1))
+	if (isConfigurationChanged(is_enabled_spi_1))
 		stopSpi(SPI_DEVICE_1);
 
-	if (isConfigurationChanged(bc.is_enabled_spi_2))
+	if (isConfigurationChanged(is_enabled_spi_2))
 		stopSpi(SPI_DEVICE_2);
 
-	if (isConfigurationChanged(bc.is_enabled_spi_3))
+	if (isConfigurationChanged(is_enabled_spi_3))
 		stopSpi(SPI_DEVICE_3);
 
 #if EFI_HD44780_LCD
 	stopHD44780_pins();
 #endif /* #if EFI_HD44780_LCD */
 
-	unregisterPin(engineConfiguration->bc.clutchUpPin, activeConfiguration.bc.clutchUpPin);
+	if (isPinOrModeChanged(clutchUpPin, clutchUpPinMode))
+		brain_pin_markUnused(activeConfiguration.clutchUpPin);
 
 	enginePins.unregisterPins();
 
@@ -395,11 +403,11 @@ void showBor(void) {
 }
 
 void initHardware(Logging *l) {
-	efiAssertVoid(CUSTOM_IH_STACK, getCurrentRemainingStack() > 256, "init h");
+	efiAssertVoid(CUSTOM_IH_STACK, getCurrentRemainingStack() > EXPECTED_REMAINING_STACK, "init h");
 	sharedLogger = l;
 	engine_configuration_s *engineConfiguration = engine->engineConfigurationPtr;
 	efiAssertVoid(CUSTOM_EC_NULL, engineConfiguration!=NULL, "engineConfiguration");
-	board_configuration_s *boardConfiguration = &engineConfiguration->bc;
+	
 
 	printMsg(sharedLogger, "initHardware()");
 	// todo: enable protection. it's disabled because it takes
@@ -418,7 +426,7 @@ void initHardware(Logging *l) {
 	/**
 	 * We need the LED_ERROR pin even before we read configuration
 	 */
-	initPrimaryPins();
+	initPrimaryPins(sharedLogger);
 
 	if (hasFirmwareError()) {
 		return;
@@ -479,7 +487,7 @@ void initHardware(Logging *l) {
 	initRtc();
 
 #if HAL_USE_SPI
-	initSpiModules(boardConfiguration);
+	initSpiModules(engineConfiguration);
 #endif /* HAL_USE_SPI */
 	// initSmartGpio depends on 'initSpiModules'
 	initSmartGpio(PASS_ENGINE_PARAMETER_SIGNATURE);
@@ -492,7 +500,7 @@ void initHardware(Logging *l) {
 #endif /* EFI_MC33816 */
 
 #if EFI_MAX_31855
-	initMax31855(sharedLogger, CONFIGB(max31855spiDevice), CONFIGB(max31855_cs));
+	initMax31855(sharedLogger, CONFIG(max31855spiDevice), CONFIG(max31855_cs));
 #endif /* EFI_MAX_31855 */
 
 #if EFI_CAN_SUPPORT

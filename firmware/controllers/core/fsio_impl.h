@@ -3,11 +3,10 @@
  * @brief FSIO as it's used for GPIO
  *
  * @date Oct 5, 2014
- * @author Andrey Belomutskiy, (c) 2012-2017
+ * @author Andrey Belomutskiy, (c) 2012-2019
  */
 
-#ifndef LE_FUNCTIONS_H_
-#define LE_FUNCTIONS_H_
+#pragma once
 
 #include "fsio_core.h"
 #include "engine.h"
@@ -39,7 +38,7 @@ void setFsioExpression(const char *indexStr, const char *quotedLine DECLARE_ENGI
 float getFsioOutputValue(int index DECLARE_ENGINE_PARAMETER_SUFFIX);
 void applyFsioConfiguration(DECLARE_ENGINE_PARAMETER_SIGNATURE);
 void onConfigurationChangeFsioCallback(engine_configuration_s *previousConfiguration DECLARE_ENGINE_PARAMETER_SUFFIX);
+void runHardcodedFsio(DECLARE_ENGINE_PARAMETER_SIGNATURE);
 
 ValueProvider3D *getFSIOTable(int index);
 
-#endif /* LE_FUNCTIONS_H_ */

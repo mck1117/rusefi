@@ -42,8 +42,8 @@
 #include "injector_central.h"
 #include "os_util.h"
 #include "engine_math.h"
-#if EFI_WAVE_ANALYZER
-#include "wave_analyzer.h"
+#if EFI_LOGIC_ANALYZER
+#include "logic_analyzer.h"
 #endif
 #include "allsensors.h"
 #include "electronic_throttle.h"
@@ -59,6 +59,7 @@
 #include "aux_pid.h"
 #include "accelerometer.h"
 #include "counter64.h"
+#include "perf_trace.h"
 
 #if HAL_USE_ADC
 #include "AdcConfiguration.h"
@@ -156,7 +157,7 @@ class PeriodicSlowController : public PeriodicTimerController {
 
 	int getPeriodMs() override {
 		// we need at least protection from zero value while resetting configuration
-		int periodMs = maxI(50, CONFIGB(generalPeriodicThreadPeriodMs));
+		int periodMs = maxI(50, CONFIG(generalPeriodicThreadPeriodMs));
 		return periodMs;
 	}
 };
@@ -206,6 +207,7 @@ static Overflow64Counter halTime;
  */
 //todo: macro to save method invocation
 efitimeus_t getTimeNowUs(void) {
+	ScopePerf perf(PE::GetTimeNowUs);
 	return getTimeNowNt() / (CORE_CLOCK / 1000000);
 }
 
@@ -298,41 +300,24 @@ static void resetAccel(void) {
 
 static int previousSecond;
 
-#if EFI_CLOCK_LOCKS
-
-typedef FLStack<int, 16> irq_enter_timestamps_t;
-
-static irq_enter_timestamps_t irqEnterTimestamps;
+#if ENABLE_PERF_TRACE
 
 void irqEnterHook(void) {
-	irqEnterTimestamps.push(getTimeNowLowerNt());
+	perfEventBegin(PE::ISR);
 }
 
-static int currentIrqDurationAccumulator = 0;
-static int currentIrqCounter = 0;
-/**
- * See also maxLockedDuration
- */
-int perSecondIrqDuration = 0;
-int perSecondIrqCounter = 0;
 void irqExitHook(void) {
-	int enterTime = irqEnterTimestamps.pop();
-	currentIrqDurationAccumulator += (getTimeNowLowerNt() - enterTime);
-	currentIrqCounter++;
+	perfEventEnd(PE::ISR);
 }
-#endif /* EFI_CLOCK_LOCKS */
 
-static void invokePerSecond(void) {
-#if EFI_CLOCK_LOCKS
-	// this data transfer is not atomic but should be totally good enough
-	perSecondIrqDuration = currentIrqDurationAccumulator;
-	perSecondIrqCounter = currentIrqCounter;
-	currentIrqDurationAccumulator = currentIrqCounter = 0;
-#endif /* EFI_CLOCK_LOCKS */
+void contextSwitchHook() {
+	perfEventInstantGlobal(PE::ContextSwitch);
 }
+
+#endif /* ENABLE_PERF_TRACE */
 
 static void doPeriodicSlowCallback(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
-#if EFI_ENGINE_CONTROL && EFI_SHAFT_POSITION_INPUT
+	#if EFI_ENGINE_CONTROL && EFI_SHAFT_POSITION_INPUT
 	efiAssertVoid(CUSTOM_ERR_6661, getCurrentRemainingStack() > 64, "lowStckOnEv");
 #if EFI_PROD_CODE
 	/**
@@ -343,11 +328,6 @@ static void doPeriodicSlowCallback(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	updateAndSet(&halTime.state, getTimeNowLowerNt());
     /* Leaving the critical zone.*/
     chSysRestoreStatusX(sts);
-	int timeSeconds = getTimeNowSeconds();
-	if (previousSecond != timeSeconds) {
-		previousSecond = timeSeconds;
-		invokePerSecond();
-	}
 #endif /* EFI_PROD_CODE */
 
 	/**
@@ -409,7 +389,7 @@ static void printAnalogChannelInfoExt(const char *name, adc_channel_e hwChannel,
 	}
 
 	if (fastAdc.isHwUsed(hwChannel)) {
-		scheduleMsg(&logger, "fast enabled=%s", boolToString(CONFIGB(isFastAdcEnabled)));
+		scheduleMsg(&logger, "fast enabled=%s", boolToString(CONFIG(isFastAdcEnabled)));
 	}
 
 	float voltage = adcVoltage * dividerCoeff;
@@ -724,11 +704,11 @@ void initEngineContoller(Logging *sharedLogger DECLARE_ENGINE_PARAMETER_SUFFIX) 
 
 	initAlgo(sharedLogger);
 
-#if EFI_WAVE_ANALYZER
+#if EFI_LOGIC_ANALYZER
 	if (engineConfiguration->isWaveAnalyzerEnabled) {
 		initWaveAnalyzer(sharedLogger);
 	}
-#endif /* EFI_WAVE_ANALYZER */
+#endif /* EFI_LOGIC_ANALYZER */
 
 #if EFI_CJ125
 	/**
@@ -789,7 +769,7 @@ void initEngineContoller(Logging *sharedLogger DECLARE_ENGINE_PARAMETER_SUFFIX) 
 	initEgoAveraging(PASS_ENGINE_PARAMETER_SIGNATURE);
 
 #if EFI_ENGINE_CONTROL && EFI_SHAFT_POSITION_INPUT
-	if (CONFIGB(isEngineControlEnabled)) {
+	if (CONFIG(isEngineControlEnabled)) {
 		/**
 		 * This method initialized the main listener which actually runs injectors & ignition
 		 */
@@ -818,7 +798,7 @@ void initEngineContoller(Logging *sharedLogger DECLARE_ENGINE_PARAMETER_SUFFIX) 
 // help to notice when RAM usage goes up - if a code change adds to RAM usage these variables would fail
 // linking process which is the way to raise the alarm
 #ifndef RAM_UNUSED_SIZE
-#define RAM_UNUSED_SIZE 19000
+#define RAM_UNUSED_SIZE 14000
 #endif
 #ifndef CCM_UNUSED_SIZE
 #define CCM_UNUSED_SIZE 4600
@@ -839,6 +819,6 @@ int getRusEfiVersion(void) {
 	if (initBootloader() != 0)
 		return 123;
 #endif /* EFI_BOOTLOADER_INCLUDE_CODE */
-	return 20191110;
+	return 20191213;
 }
 #endif /* EFI_UNIT_TEST */

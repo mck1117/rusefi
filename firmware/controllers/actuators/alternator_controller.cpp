@@ -8,6 +8,11 @@
  */
 
 #include "global.h"
+
+#if EFI_TUNER_STUDIO
+#include "tunerstudio_configuration.h"
+#endif /* EFI_TUNER_STUDIO */
+
 #if EFI_ALTERNATOR_CONTROL
 #include "engine.h"
 #include "rpm_calculator.h"
@@ -19,11 +24,11 @@
 
 #include "pwm_generator.h"
 #include "pin_repository.h"
-#include "tunerstudio_configuration.h"
+
 
 #if defined(HAS_OS_ACCESS)
 #error "Unexpected OS ACCESS HERE"
-#endif
+#endif /* HAS_OS_ACCESS */
 
 EXTERN_ENGINE
 ;
@@ -81,7 +86,7 @@ class AlternatorController : public PeriodicTimerController {
 		float vBatt = getVBatt(PASS_ENGINE_PARAMETER_SIGNATURE);
 		float targetVoltage = engineConfiguration->targetVBatt;
 
-		if (CONFIGB(onOffAlternatorLogic)) {
+		if (CONFIG(onOffAlternatorLogic)) {
 			float h = 0.1;
 			bool newState = (vBatt < targetVoltage - h) || (currentPlainOnOffState && vBatt < targetVoltage);
 			enginePins.alternatorPin.setValue(newState);
@@ -97,7 +102,7 @@ class AlternatorController : public PeriodicTimerController {
 
 
 		currentAltDuty = alternatorPid.getOutput(targetVoltage, vBatt);
-		if (CONFIGB(isVerboseAlternator)) {
+		if (CONFIG(isVerboseAlternator)) {
 			scheduleMsg(logger, "alt duty: %.2f/vbatt=%.2f/p=%.2f/i=%.2f/d=%.2f int=%.2f", currentAltDuty, vBatt,
 					alternatorPid.getP(), alternatorPid.getI(), alternatorPid.getD(), alternatorPid.getIntegration());
 		}
@@ -111,7 +116,7 @@ static AlternatorController instance;
 
 void showAltInfo(void) {
 	scheduleMsg(logger, "alt=%s @%s t=%dms", boolToString(engineConfiguration->isAlternatorControlEnabled),
-			hwPortname(CONFIGB(alternatorControlPin)),
+			hwPortname(CONFIG(alternatorControlPin)),
 			engineConfiguration->alternatorControl.periodMs);
 	scheduleMsg(logger, "p=%.2f/i=%.2f/d=%.2f offset=%.2f", engineConfiguration->alternatorControl.pFactor,
 			0, 0, engineConfiguration->alternatorControl.offset); // todo: i & d
@@ -128,9 +133,9 @@ void setAltPFactor(float p) {
 
 static void applyAlternatorPinState(int stateIndex, PwmConfig *state) /* pwm_gen_callback */ {
 	efiAssertVoid(CUSTOM_ERR_6643, stateIndex < PWM_PHASE_MAX_COUNT, "invalid stateIndex");
-	efiAssertVoid(CUSTOM_IDLE_WAVE_CNT, state->multiWave.waveCount == 1, "invalid idle waveCount");
+	efiAssertVoid(CUSTOM_IDLE_WAVE_CNT, state->multiChannelStateSequence.waveCount == 1, "invalid idle waveCount");
 	OutputPin *output = state->outputPins[0];
-	int value = state->multiWave.getChannelState(/*channelIndex*/0, stateIndex);
+	int value = state->multiChannelStateSequence.getChannelState(/*channelIndex*/0, stateIndex);
 	/**
 	 * 'engine->isAlternatorControlEnabled' would be false is RPM is too low
 	 */
@@ -155,17 +160,17 @@ void onConfigurationChangeAlternatorCallback(engine_configuration_s *previousCon
 void initAlternatorCtrl(Logging *sharedLogger DECLARE_ENGINE_PARAMETER_SUFFIX) {
 	logger = sharedLogger;
 	addConsoleAction("altinfo", showAltInfo);
-	if (CONFIGB(alternatorControlPin) == GPIO_UNASSIGNED)
+	if (CONFIG(alternatorControlPin) == GPIO_UNASSIGNED)
 		return;
 
-	if (CONFIGB(onOffAlternatorLogic)) {
-		enginePins.alternatorPin.initPin("on/off alternator", CONFIGB(alternatorControlPin));
+	if (CONFIG(onOffAlternatorLogic)) {
+		enginePins.alternatorPin.initPin("on/off alternator", CONFIG(alternatorControlPin));
 
 	} else {
 		startSimplePwmExt(&alternatorControl,
 				"Alternator control",
 				&engine->executor,
-				CONFIGB(alternatorControlPin),
+				CONFIG(alternatorControlPin),
 				&enginePins.alternatorPin,
 				engineConfiguration->alternatorPwmFrequency, 0.1, (pwm_gen_callback*)applyAlternatorPinState);
 	}

@@ -4,16 +4,16 @@
  *
  *
  * @date Sep 26, 2014
- * @author Andrey Belomutskiy, (c) 2012-2017
+ * @author Andrey Belomutskiy, (c) 2012-2019
  */
-#ifndef efi_gpio_H_
-#define efi_gpio_H_
+
+#pragma once
 
 #include "global.h"
 #include "io_pins.h"
 #include "engine_configuration.h"
 
-void initPrimaryPins(void);
+void initPrimaryPins(Logging *sharedLogger);
 void initOutputPins(DECLARE_ENGINE_PARAMETER_SIGNATURE);
 
 #if EFI_GPIO_HARDWARE
@@ -41,7 +41,7 @@ public:
 	/**
 	 * dissociates pin from this output and un-registers it in pin repository
 	 */
-	void unregisterOutput(brain_pin_e oldPin, brain_pin_e newPin);
+	void unregisterOutput(brain_pin_e oldPin);
 
 	bool isInitialized();
 
@@ -124,6 +124,7 @@ public:
 	void stopInjectionPins();
 	void stopIgnitionPins();
 	OutputPin mainRelay;
+	OutputPin starterRelay;
 	OutputPin fanRelay;
 	// see acRelayPin
 	OutputPin acRelay;
@@ -190,5 +191,3 @@ const char *portname(ioportid_t GPIOx);
 
 brain_pin_e parseBrainPin(const char *str);
 const char *hwPortname(brain_pin_e brainPin);
-
-#endif /* efi_gpio_H_ */

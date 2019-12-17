@@ -34,6 +34,7 @@
 #include "rpm_calculator.h"
 #include "pwm_generator.h"
 #include "idle_thread.h"
+#include "engine_math.h"
 
 #include "engine.h"
 #include "periodic_task.h"
@@ -58,7 +59,7 @@ static bool shouldResetPid = false;
 // See automaticIdleController().
 static bool mightResetPid = false;
 
-#if EFI_IDLE_INCREMENTAL_PID_CIC
+#if EFI_IDLE_PID_CIC
 // Use new PID with CIC integrator
 PidCic idlePid;
 #else
@@ -85,13 +86,15 @@ public:
 };
 
 PidWithOverrides idlePid;
-#endif /* EFI_IDLE_INCREMENTAL_PID_CIC */
+#endif /* EFI_IDLE_PID_CIC */
 
 // todo: extract interface for idle valve hardware, with solenoid and stepper implementations?
 static SimplePwm idleSolenoid("idle");
 
 static uint32_t lastCrankingCyclesCounter = 0;
 static float lastCrankingIacPosition;
+
+static iacPidMultiplier_t iacPidMultMap("iacPidMultiplier");
 
 /**
  * When the IAC position value change is insignificant (lower than this threshold), leave the poor valve alone
@@ -109,18 +112,18 @@ void idleDebug(const char *msg, percent_t value) {
 static void showIdleInfo(void) {
 	const char * idleModeStr = getIdle_mode_e(engineConfiguration->idleMode);
 	scheduleMsg(logger, "idleMode=%s position=%.2f isStepper=%s", idleModeStr,
-			getIdlePosition(), boolToString(CONFIGB(useStepperIdle)));
+			getIdlePosition(), boolToString(CONFIG(useStepperIdle)));
 
-	if (CONFIGB(useStepperIdle)) {
-		scheduleMsg(logger, "directionPin=%s reactionTime=%.2f", hwPortname(CONFIGB(idle).stepperDirectionPin),
+	if (CONFIG(useStepperIdle)) {
+		scheduleMsg(logger, "directionPin=%s reactionTime=%.2f", hwPortname(CONFIG(idle).stepperDirectionPin),
 				engineConfiguration->idleStepperReactionTime);
-		scheduleMsg(logger, "stepPin=%s steps=%d", hwPortname(CONFIGB(idle).stepperStepPin),
+		scheduleMsg(logger, "stepPin=%s steps=%d", hwPortname(CONFIG(idle).stepperStepPin),
 				engineConfiguration->idleStepperTotalSteps);
 		scheduleMsg(logger, "enablePin=%s/%d", hwPortname(engineConfiguration->stepperEnablePin),
 				engineConfiguration->stepperEnablePinMode);
 	} else {
-		scheduleMsg(logger, "idle valve freq=%d on %s", CONFIGB(idle).solenoidFrequency,
-				hwPortname(CONFIGB(idle).solenoidPin));
+		scheduleMsg(logger, "idle valve freq=%d on %s", CONFIG(idle).solenoidFrequency,
+				hwPortname(CONFIG(idle).solenoidPin));
 	}
 
 
@@ -135,10 +138,10 @@ void setIdleMode(idle_mode_e value) {
 }
 
 static void applyIACposition(percent_t position) {
-	if (CONFIGB(useETBforIdleControl)) {
+	if (CONFIG(useETBforIdleControl)) {
 		engine->engineState.idle.etbIdleAddition = position / 100 * CONFIG(etbIdleThrottleRange);
 #if ! EFI_UNIT_TEST
-	} if (CONFIGB(useStepperIdle)) {
+	} if (CONFIG(useStepperIdle)) {
 		iacMotor.setTargetPosition(position / 100 * engineConfiguration->idleStepperTotalSteps);
 #endif /* EFI_UNIT_TEST */
 	} else {
@@ -162,14 +165,14 @@ void setIdleValvePosition(int positionPercent) {
 	showIdleInfo();
 #endif /* EFI_UNIT_TEST */
 	// todo: this is not great that we have to write into configuration here
-	CONFIGB(manIdlePosition) = positionPercent;
+	CONFIG(manIdlePosition) = positionPercent;
 }
 
 #endif /* EFI_UNIT_TEST */
 
 static percent_t manualIdleController(float cltCorrection DECLARE_ENGINE_PARAMETER_SUFFIX) {
 
-	percent_t correctedPosition = cltCorrection * CONFIGB(manIdlePosition);
+	percent_t correctedPosition = cltCorrection * CONFIG(manIdlePosition);
 
 	// let's put the value into the right range
 	correctedPosition = maxF(correctedPosition, 0.01);
@@ -220,7 +223,7 @@ static bool isOutOfAutomaticIdleCondition(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 		inputPosition = getTPS(PASS_ENGINE_PARAMETER_SIGNATURE);
 	}
 
-	return inputPosition > CONFIGB(idlePidDeactivationTpsThreshold);
+	return inputPosition > CONFIG(idlePidDeactivationTpsThreshold);
 }
 
 /**
@@ -273,17 +276,18 @@ static percent_t automaticIdleController(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	// the state of PID has been changed, so we might reset it now, but only when needed (see idlePidDeactivationTpsThreshold)
 	mightResetPid = true;
 
-#if EFI_IDLE_INCREMENTAL_PID_CIC
+	// Apply PID Multiplier if used
+	if (CONFIG(useIacPidMultTable)) {
+		float engineLoad = getEngineLoadT(PASS_ENGINE_PARAMETER_SIGNATURE);
+		float multCoef = iacPidMultMap.getValue(rpm / RPM_1_BYTE_PACKING_MULT, engineLoad);
+		// PID can be completely disabled of multCoef==0, or it just works as usual if multCoef==1
+		newValue = interpolateClamped(0.0f, engine->engineState.idle.baseIdlePosition, 1.0f, newValue, multCoef);
+	}
+	
+	// Apply PID Deactivation Threshold as a smooth taper for TPS transients.
 	percent_t tpsPos = getTPS(PASS_ENGINE_PARAMETER_SIGNATURE);
-
-	// Treat the 'newValue' as if it contains not an actual IAC position, but an incremental delta.
-	// So we add this delta to the base IAC position, with a smooth taper for TPS transients.
-	newValue = engine->engineState.idle.baseIdlePosition + interpolateClamped(0.0f, newValue, CONFIGB(idlePidDeactivationTpsThreshold), 0.0f, tpsPos);
-
-	// apply the PID limits
-	newValue = maxF(newValue, CONFIG(idleRpmPid.minValue));
-	newValue = minF(newValue, CONFIG(idleRpmPid.maxValue));
-#endif /* EFI_IDLE_INCREMENTAL_PID_CIC */
+	// if tps==0 then PID just works as usual, or we completely disable it if tps>=threshold
+	newValue = interpolateClamped(0.0f, newValue, CONFIG(idlePidDeactivationTpsThreshold), engine->engineState.idle.baseIdlePosition, tpsPos);
 
 	// Interpolate to the manual position when RPM is close to the upper RPM limit (if idlePidRpmUpperLimit is set).
 	// If RPM increases and the throttle is closed, then we're in coasting mode, and we should smoothly disable auto-pid.
@@ -293,7 +297,7 @@ static percent_t automaticIdleController(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	int idlePidLowerRpm = targetRpm + CONFIG(idlePidRpmDeadZone);
 	if (CONFIG(idlePidRpmUpperLimit) > 0) {
 		engine->engineState.idle.idleState = PID_UPPER;
-		if (CONFIGB(useIacTableForCoasting) && hasCltSensor()) {
+		if (CONFIG(useIacTableForCoasting) && hasCltSensor()) {
 			percent_t iacPosForCoasting = interpolate2d("iacCoasting", getCoolantTemperature(), CONFIG(iacCoastingBins), CONFIG(iacCoasting));
 			newValue = interpolateClamped(idlePidLowerRpm, newValue, idlePidLowerRpm + CONFIG(idlePidRpmUpperLimit), iacPosForCoasting, rpm);
 		} else {
@@ -337,8 +341,8 @@ static percent_t automaticIdleController(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 
 #if EFI_GPIO_HARDWARE
 		// this value is not used yet
-		if (CONFIGB(clutchDownPin) != GPIO_UNASSIGNED) {
-			engine->clutchDownState = efiReadPin(CONFIGB(clutchDownPin));
+		if (CONFIG(clutchDownPin) != GPIO_UNASSIGNED) {
+			engine->clutchDownState = efiReadPin(CONFIG(clutchDownPin));
 		}
 		if (hasAcToggle(PASS_ENGINE_PARAMETER_SIGNATURE)) {
 			bool result = getAcToggle(PASS_ENGINE_PARAMETER_SIGNATURE);
@@ -348,8 +352,8 @@ static percent_t automaticIdleController(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 			}
 			engine->acSwitchState = result;
 		}
-		if (CONFIGB(clutchUpPin) != GPIO_UNASSIGNED) {
-			engine->clutchUpState = efiReadPin(CONFIGB(clutchUpPin));
+		if (CONFIG(clutchUpPin) != GPIO_UNASSIGNED) {
+			engine->clutchUpState = efiReadPin(CONFIG(clutchUpPin));
 		}
 		if (CONFIG(throttlePedalUpPin) != GPIO_UNASSIGNED) {
 			engine->engineState.idle.throttlePedalUpState = efiReadPin(CONFIG(throttlePedalUpPin));
@@ -408,7 +412,7 @@ static percent_t automaticIdleController(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 			
 			percent_t tpsPos = getTPS(PASS_ENGINE_PARAMETER_SIGNATURE);
 			float additionalAir = (float)engineConfiguration->iacByTpsTaper;
-			iacPosition += interpolateClamped(0.0f, 0.0f, CONFIGB(idlePidDeactivationTpsThreshold), additionalAir, tpsPos);
+			iacPosition += interpolateClamped(0.0f, 0.0f, CONFIG(idlePidDeactivationTpsThreshold), additionalAir, tpsPos);
 
 			// taper transition from cranking to running (uint32_t to float conversion is safe here)
 			if (engineConfiguration->afterCrankingIACtaperDuration > 0)
@@ -451,6 +455,7 @@ IdleController idleControllerInstance;
 
 static void applyPidSettings(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	idlePid.updateFactors(engineConfiguration->idleRpmPid.pFactor, engineConfiguration->idleRpmPid.iFactor, engineConfiguration->idleRpmPid.dFactor);
+	iacPidMultMap.init(CONFIG(iacPidMultTable), CONFIG(iacPidMultLoadBins), CONFIG(iacPidMultRpmBins));
 }
 
 void setDefaultIdleParameters(DECLARE_CONFIG_PARAMETER_SIGNATURE) {
@@ -467,7 +472,7 @@ void setDefaultIdleParameters(DECLARE_CONFIG_PARAMETER_SIGNATURE) {
 
 void onConfigurationChangeIdleCallback(engine_configuration_s *previousConfiguration) {
 	shouldResetPid = !idlePid.isSame(&previousConfiguration->idleRpmPid);
-	idleSolenoid.setFrequency(CONFIGB(idle).solenoidFrequency);
+	idleSolenoid.setFrequency(CONFIG(idle).solenoidFrequency);
 }
 
 void setTargetIdleRpm(int value) {
@@ -516,9 +521,9 @@ void startIdleBench(void) {
 
 static void applyIdleSolenoidPinState(int stateIndex, PwmConfig *state) /* pwm_gen_callback */ {
 	efiAssertVoid(CUSTOM_ERR_6645, stateIndex < PWM_PHASE_MAX_COUNT, "invalid stateIndex");
-	efiAssertVoid(CUSTOM_ERR_6646, state->multiWave.waveCount == 1, "invalid idle waveCount");
+	efiAssertVoid(CUSTOM_ERR_6646, state->multiChannelStateSequence.waveCount == 1, "invalid idle waveCount");
 	OutputPin *output = state->outputPins[0];
-	int value = state->multiWave.getChannelState(/*channelIndex*/0, stateIndex);
+	int value = state->multiChannelStateSequence.getChannelState(/*channelIndex*/0, stateIndex);
 	if (!value /* always allow turning solenoid off */ ||
 			(GET_RPM_VALUE != 0 || timeToStopIdleTest != 0) /* do not run solenoid unless engine is spinning or bench testing in progress */
 			) {
@@ -529,30 +534,31 @@ static void applyIdleSolenoidPinState(int stateIndex, PwmConfig *state) /* pwm_g
 bool isIdleHardwareRestartNeeded() {
 	return  isConfigurationChanged(stepperEnablePin) ||
 			isConfigurationChanged(stepperEnablePinMode) ||
-			isConfigurationChanged(bc.idle.stepperStepPin) ||
-			isConfigurationChanged(bc.idle.solenoidFrequency) ||
-			isConfigurationChanged(bc.useStepperIdle) ||
+			isConfigurationChanged(idle.stepperStepPin) ||
+			isConfigurationChanged(idle.solenoidFrequency) ||
+			isConfigurationChanged(useStepperIdle) ||
 //			isConfigurationChanged() ||
-			isConfigurationChanged(bc.useETBforIdleControl) ||
-			isConfigurationChanged(bc.idle.solenoidPin);
+			isConfigurationChanged(useETBforIdleControl) ||
+			isConfigurationChanged(idle.solenoidPin);
 
 }
 
 void stopIdleHardware(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
+#if EFI_PROD_CODE
 	brain_pin_markUnused(activeConfiguration.stepperEnablePin);
-	brain_pin_markUnused(activeConfiguration.bc.idle.stepperStepPin);
-	brain_pin_markUnused(activeConfiguration.bc.idle.solenoidPin);
-//	brain_pin_markUnused(activeConfiguration.bc.idle.);
-//	brain_pin_markUnused(activeConfiguration.bc.idle.);
-//	brain_pin_markUnused(activeConfiguration.bc.idle.);
-//	brain_pin_markUnused(activeConfiguration.bc.idle.);
-
+	brain_pin_markUnused(activeConfiguration.idle.stepperStepPin);
+	brain_pin_markUnused(activeConfiguration.idle.solenoidPin);
+//	brain_pin_markUnused(activeConfiguration.idle.);
+//	brain_pin_markUnused(activeConfiguration.idle.);
+//	brain_pin_markUnused(activeConfiguration.idle.);
+//	brain_pin_markUnused(activeConfiguration.idle.);
+#endif /* EFI_PROD_CODE */
 }
 
 void initIdleHardware(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
-	if (CONFIGB(useStepperIdle)) {
-		iacMotor.initialize(CONFIGB(idle).stepperStepPin,
-				CONFIGB(idle).stepperDirectionPin,
+	if (CONFIG(useStepperIdle)) {
+		iacMotor.initialize(CONFIG(idle).stepperStepPin,
+				CONFIG(idle).stepperDirectionPin,
 				engineConfiguration->stepperDirectionPinMode,
 				engineConfiguration->idleStepperReactionTime,
 				engineConfiguration->idleStepperTotalSteps,
@@ -560,14 +566,14 @@ void initIdleHardware(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 				logger);
 		// This greatly improves PID accuracy for steppers with a small number of steps
 		idlePositionSensitivityThreshold = 1.0f / engineConfiguration->idleStepperTotalSteps;
-	} else if (!engineConfiguration->bc.useETBforIdleControl) {
+	} else if (!engineConfiguration->useETBforIdleControl) {
 		/**
 		 * Start PWM for idleValvePin
 		 */
 		startSimplePwmExt(&idleSolenoid, "Idle Valve",
 				&engine->executor,
-				CONFIGB(idle).solenoidPin, &enginePins.idleSolenoidPin,
-				CONFIGB(idle).solenoidFrequency, CONFIGB(manIdlePosition) / 100,
+				CONFIG(idle).solenoidPin, &enginePins.idleSolenoidPin,
+				CONFIG(idle).solenoidFrequency, CONFIG(manIdlePosition) / 100,
 				(pwm_gen_callback*)applyIdleSolenoidPinState);
 		idlePositionSensitivityThreshold = 0.0f;
 	}
@@ -577,7 +583,7 @@ void initIdleHardware(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 
 void startIdleThread(Logging*sharedLogger DECLARE_ENGINE_PARAMETER_SUFFIX) {
 	logger = sharedLogger;
-	INJECT_ENGINE_REFERENCE(idleControllerInstance);
+	INJECT_ENGINE_REFERENCE(&idleControllerInstance);
 
 	idlePid.initPidClass(&engineConfiguration->idleRpmPid);
 
@@ -636,19 +642,19 @@ void startIdleThread(Logging*sharedLogger DECLARE_ENGINE_PARAMETER_SUFFIX) {
 #if ! EFI_UNIT_TEST
 	// this is neutral/no gear switch input. on Miata it's wired both to clutch pedal and neutral in gearbox
 	// this switch is not used yet
-	if (CONFIGB(clutchDownPin) != GPIO_UNASSIGNED) {
-		efiSetPadMode("clutch down switch", CONFIGB(clutchDownPin),
-				getInputMode(CONFIGB(clutchDownPinMode)));
+	if (CONFIG(clutchDownPin) != GPIO_UNASSIGNED) {
+		efiSetPadMode("clutch down switch", CONFIG(clutchDownPin),
+				getInputMode(CONFIG(clutchDownPinMode)));
 	}
 
-	if (CONFIGB(clutchUpPin) != GPIO_UNASSIGNED) {
-		efiSetPadMode("clutch up switch", CONFIGB(clutchUpPin),
-				getInputMode(CONFIGB(clutchUpPinMode)));
+	if (CONFIG(clutchUpPin) != GPIO_UNASSIGNED) {
+		efiSetPadMode("clutch up switch", CONFIG(clutchUpPin),
+				getInputMode(CONFIG(clutchUpPinMode)));
 	}
 
 	if (CONFIG(throttlePedalUpPin) != GPIO_UNASSIGNED) {
 		efiSetPadMode("throttle pedal up switch", CONFIG(throttlePedalUpPin),
-				getInputMode(CONFIGB(throttlePedalUpPinMode)));
+				getInputMode(CONFIG(throttlePedalUpPinMode)));
 	}
 
 	if (engineConfiguration->brakePedalPin != GPIO_UNASSIGNED) {

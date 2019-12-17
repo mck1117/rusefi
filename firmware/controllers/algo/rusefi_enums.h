@@ -8,8 +8,7 @@
  * @author Andrey Belomutskiy, (c) 2012-2019
  */
 
-#ifndef RUSEFI_ENUMS_H_
-#define RUSEFI_ENUMS_H_
+#pragma once
 
 #include "efifeatures.h"
 #include "obd_error_codes.h"
@@ -69,7 +68,7 @@ typedef enum {
 
 	ROVER_V8 = 10,
 
-	MAZDA_323 = 11,
+	MRE_MIATA_NB2_MTB = 11,
 
 	MRE_MIATA_NA6 = 12,
 
@@ -96,7 +95,7 @@ typedef enum {
 	SUBARU_2003_WRX = 22,
 
 	DODGE_NEON_2003_CAM = 23,
-	MIATA_1994_SPAGS = 24,
+	BMW_M73_M = 24,
 
 	BMW_E34 = 25,
 
@@ -104,7 +103,7 @@ typedef enum {
 
 	// used by unit test
 	// see https://github.com/rusefi/rusefi/issues/898
-	// see TriggerShape::bothFrontsRequired
+	// see TriggerWaveform::bothFrontsRequired
 	ISSUE_898 = 27,
 
 	MAZDA_626 = 28,
@@ -131,7 +130,7 @@ typedef enum {
 
 	LADA_KALINA = 39,
 
-	GEO_STORM = 40,
+	BMW_M73_F = 40,
 
 	// Frankenso board
 	MIATA_NA6_MAP = 41,
@@ -187,6 +186,8 @@ typedef enum {
 	TLE8888_BENCH_ENGINE = 59,
 
 	MICRO_RUS_EFI = 60,
+
+	PROTEUS = 61,
 
 	/**
 	 * this configuration has as few pins configured as possible
@@ -719,6 +720,7 @@ typedef enum {
 	SC_MAP = 2,
 	SC_RPM_ACCEL = 3,
 	SC_DETAILED_RPM = 4,
+	SC_AUX_FAST1 = 5,
 
 	Internal_ForceMyEnumIntSize_sensor_chart = ENUM_32_BITS,
 } sensor_chart_e;
@@ -838,5 +840,3 @@ typedef enum {
 	 */
 	Force_4bytes_size_idle_state_e = ENUM_32_BITS,
 } idle_state_e;
-
-#endif /* RUSEFI_ENUMS_H_ */

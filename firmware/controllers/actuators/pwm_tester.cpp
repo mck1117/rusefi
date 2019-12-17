@@ -11,7 +11,7 @@
 #if EFI_PWM_TESTER
 
 #include "pwm_tester.h"
-#include "efi_wave.h"
+#include "state_requence.h"
 #include "pwm_generator_logic.h"
 #include "engine.h"
 #include "pwm_generator.h"
@@ -35,7 +35,7 @@ static void startPwmTest(int freq) {
 	/**
 	 * See custom_engine.cpp for pinout
 	 */
-	// currently this is PB9 by default - see CONFIGB(injectionPins)
+	// currently this is PB9 by default - see CONFIG(injectionPins)
 	startSimplePwm(&pwmTest[1], "tester", &enginePins.injectors[0], freq / 1.3333333333, 0.5f, applyPinState);
 	// currently this is PE2 by default
 	startSimplePwm(&pwmTest[2], "tester", &enginePins.injectors[1], freq / 1000, 0.5f, applyPinState);

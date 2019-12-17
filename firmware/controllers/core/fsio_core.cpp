@@ -254,7 +254,7 @@ bool LECalculator::processElement(LEElement *element DECLARE_ENGINE_PARAMETER_SU
 		float humanIndex = pop(LE_METHOD_FSIO_SETTING);
 		int index = (int) humanIndex - 1;
 		if (index >= 0 && index < FSIO_COMMAND_COUNT) {
-			push(element->action, CONFIGB(fsio_setting)[index]);
+			push(element->action, CONFIG(fsio_setting)[index]);
 		} else {
 			push(element->action, NAN);
 		}
@@ -287,7 +287,7 @@ bool LECalculator::processElement(LEElement *element DECLARE_ENGINE_PARAMETER_SU
 		push(element->action, getVoltage("fsio", engineConfiguration->fsioAdc[0] PASS_ENGINE_PARAMETER_SUFFIX));
 		break;
 	case LE_METHOD_KNOCK:
-		push(element->action, engine->knockCount);
+		push(element->action, ENGINE(knockCount));
 		break;
 	case LE_UNDEFINED:
 		warning(CUSTOM_UNKNOWN_FSIO, "FSIO undefined action");

@@ -41,19 +41,18 @@
  *
  */
 
-#define PORT_IDLE_THREAD_STACK_SIZE     1024
+#define PORT_IDLE_THREAD_STACK_SIZE     32
 
-// rusEfi main processing happens on IRQ so PORT_INT_REQUIRED_STACK has to be pretty large.
-// see also a strange comment about PORT_INT_REQUIRED_STACK in global_shared.h
+// See global_shared.h notes about stack requirements
 // see also http://www.chibios.org/dokuwiki/doku.php?id=chibios:kb:stacks
-#define PORT_INT_REQUIRED_STACK 	768
+#define PORT_INT_REQUIRED_STACK 	128
 
 #define CHPRINTF_USE_FLOAT          	TRUE
 
-#if !defined(EFI_CLOCK_LOCKS) || defined(__DOXYGEN__)
+#if !defined(ENABLE_PERF_TRACE) || defined(__DOXYGEN__)
 // looks like this value could not be defined in efifeatures.h - please define either externally or just change the value here
- #define EFI_CLOCK_LOCKS FALSE
-#endif /* EFI_CLOCK_LOCKS */
+ #define ENABLE_PERF_TRACE TRUE
+#endif /* ENABLE_PERF_TRACE */
 
 #include "chconf_common.h"
 
@@ -132,7 +131,7 @@
  *          must be set to zero in that case.
  */
 #if !defined(CH_CFG_TIME_QUANTUM)
-#define CH_CFG_TIME_QUANTUM                 20
+#define CH_CFG_TIME_QUANTUM                 0
 #endif
 
 /**
@@ -147,7 +146,7 @@
  * @note    Requires @p CH_CFG_USE_MEMCORE.
  */
 #if !defined(CH_CFG_MEMCORE_SIZE)
-#define CH_CFG_MEMCORE_SIZE                 2048
+#define CH_CFG_MEMCORE_SIZE                 0
 #endif
 
 /**
@@ -346,7 +345,7 @@
  * @note    The default is @p TRUE.
  * @note    Requires @p CH_CFG_USE_SEMAPHORES.
  */
-#define CH_CFG_USE_MAILBOXES                TRUE
+#define CH_CFG_USE_MAILBOXES                FALSE
 
 /**
  * @brief   I/O Queues APIs.
@@ -354,7 +353,7 @@
  *
  * @note    The default is @p TRUE.
  */
-#define CH_CFG_USE_QUEUES                   TRUE
+#define CH_CFG_USE_QUEUES                   FALSE
 
 /**
  * @brief   Core Memory Manager APIs.
@@ -364,7 +363,7 @@
  * @note    The default is @p TRUE.
  */
 #if !defined(CH_CFG_USE_MEMCORE)
-#define CH_CFG_USE_MEMCORE                  TRUE
+#define CH_CFG_USE_MEMCORE                  FALSE
 #endif
 
 /**
@@ -378,7 +377,7 @@
  * @note    Mutexes are recommended.
  */
 #if !defined(CH_CFG_USE_HEAP)
-#define CH_CFG_USE_HEAP                     TRUE
+#define CH_CFG_USE_HEAP                     FALSE
 #endif
 
 /**
@@ -389,7 +388,7 @@
  * @note    The default is @p TRUE.
  */
 #if !defined(CH_CFG_USE_MEMPOOLS)
-#define CH_CFG_USE_MEMPOOLS                 TRUE
+#define CH_CFG_USE_MEMPOOLS                 FALSE
 #endif
 
 /**
@@ -565,7 +564,7 @@
  * @note    The default is @p FALSE.
  */
 #ifndef CH_DBG_ENABLE_TRACE
-#define CH_DBG_ENABLE_TRACE                 TRUE
+#define CH_DBG_ENABLE_TRACE                 FALSE
 #endif
 
 /**
@@ -605,7 +604,7 @@
  *          tickless mode.
  */
 #if !defined(CH_DBG_THREADS_PROFILING)
-#define CH_DBG_THREADS_PROFILING            FALSE
+#define CH_DBG_THREADS_PROFILING            TRUE
 #endif
 
 /** @} */
@@ -670,7 +669,7 @@
  * @details This hook is invoked just before switching between threads.
  */
 #define CH_CFG_CONTEXT_SWITCH_HOOK(ntp, otp) {                              \
-  /* Context switch code here.*/                                            \
+  contextSwitchHook();                                            \
 }
 
 /**
@@ -696,7 +695,6 @@
  * @note    This macro can be used to activate a power saving mode.
  */
 #define CH_CFG_IDLE_ENTER_HOOK() {                                          \
-  /* Idle-enter code here.*/                                                \
 }
 
 /**
@@ -706,7 +704,6 @@
  * @note    This macro can be used to deactivate a power saving mode.
  */
 #define CH_CFG_IDLE_LEAVE_HOOK() {                                          \
-  /* Idle-leave code here.*/                                                \
 }
 
 /**
@@ -754,6 +751,9 @@
 
 #ifndef __ASSEMBLER__
 
+#ifdef __cplusplus
+extern "C"
+#endif
 void chDbgPanic3(const char *msg, const char * file, int line);
 #endif
 

@@ -30,12 +30,13 @@
 #include "adc_subscription.h"
 #include "AdcConfiguration.h"
 #include "mpu_util.h"
+#include "periodic_thread_controller.h"
 
 #include "pin_repository.h"
 #include "engine_math.h"
 #include "engine_controller.h"
 #include "maf.h"
-//#include "biquad.h"
+#include "perf_trace.h"
 
 /* Depth of the conversion buffer, channels are sampled X times each.*/
 #define ADC_BUF_DEPTH_SLOW      8
@@ -71,14 +72,6 @@ AdcDevice::AdcDevice(ADCConversionGroup* hwConfig) {
 	memset(internalAdcIndexByHardwareIndex, 0xFFFFFFFF, sizeof(internalAdcIndexByHardwareIndex));
 }
 
-#if !defined(PWM_FREQ_SLOW) || !defined(PWM_PERIOD_SLOW)
-// todo: migrate from hardware timer to software ADC conversion triggering
-// todo: I guess we would have to use ChibiOS timer and not our own timer because
-// todo: adcStartConversionI requires OS lock. currently slow ADC is 20Hz
-#define PWM_FREQ_SLOW 5000   /* PWM clock frequency. I wonder what does this setting mean?  */
-#define PWM_PERIOD_SLOW 25  /* PWM period (in PWM ticks).    */
-#endif /* PWM_FREQ_SLOW PWM_PERIOD_SLOW */
-
 #if !defined(PWM_FREQ_FAST) || !defined(PWM_PERIOD_FAST)
 /**
  * 8000 RPM is 133Hz
@@ -109,15 +102,16 @@ static int adcDebugReporting = false;
 EXTERN_ENGINE;
 
 static adcsample_t getAvgAdcValue(int index, adcsample_t *samples, int bufDepth, int numChannels) {
-	adcsample_t result = 0;
+	uint32_t result = 0;
 	for (int i = 0; i < bufDepth; i++) {
 		result += samples[index];
 		index += numChannels;
 	}
-	return result / bufDepth;
+
+	// this truncation is guaranteed to not be lossy - the average can't be larger than adcsample_t
+	return static_cast<adcsample_t>(result / bufDepth);
 }
 
-static void adc_callback_slow(ADCDriver *adcp, adcsample_t *buffer, size_t n);
 
 // See https://github.com/rusefi/rusefi/issues/976 for discussion on these values
 #define ADC_SAMPLING_SLOW ADC_SAMPLE_56
@@ -125,7 +119,7 @@ static void adc_callback_slow(ADCDriver *adcp, adcsample_t *buffer, size_t n);
 /*
  * ADC conversion group.
  */
-static ADCConversionGroup adcgrpcfgSlow = { FALSE, 0, adc_callback_slow, NULL,
+static ADCConversionGroup adcgrpcfgSlow = { FALSE, 0, nullptr, NULL,
 /* HW dependent part.*/
 ADC_TwoSamplingDelay_20Cycles,   // cr1
 		ADC_CR2_SWSTART, // cr2
@@ -207,38 +201,7 @@ ADC_TwoSamplingDelay_5Cycles,   // cr1
 
 AdcDevice fastAdc(&adcgrpcfg_fast);
 
-void doSlowAdc(void) {
-
-	efiAssertVoid(CUSTOM_ERR_6658, getCurrentRemainingStack()> 32, "lwStAdcSlow");
-
-#if EFI_INTERNAL_ADC
-
-	/* Starts an asynchronous ADC conversion operation, the conversion
-	 will be executed in parallel to the current PWM cycle and will
-	 terminate before the next PWM cycle.*/
-	slowAdc.conversionCount++;
-	chSysLockFromISR()
-	;
-	if (ADC_SLOW_DEVICE.state != ADC_READY &&
-	ADC_SLOW_DEVICE.state != ADC_COMPLETE &&
-	ADC_SLOW_DEVICE.state != ADC_ERROR) {
-		// todo: why and when does this happen? firmwareError(OBD_PCM_Processor_Fault, "ADC slow not ready?");
-		slowAdc.errorsCount++;
-		chSysUnlockFromISR()
-		;
-		return;
-	}
-	adcStartConversionI(&ADC_SLOW_DEVICE, &adcgrpcfgSlow, slowAdc.samples, ADC_BUF_DEPTH_SLOW);
-	chSysUnlockFromISR()
-	;
-#endif /* EFI_INTERNAL_ADC */
-}
-
 #if HAL_USE_PWM
-static void pwmpcb_slow(PWMDriver *pwmp) {
-	(void) pwmp;
-	doSlowAdc();
-}
 
 static void pwmpcb_fast(PWMDriver *pwmp) {
 	efiAssertVoid(CUSTOM_ERR_6659, getCurrentRemainingStack()> 32, "lwStAdcFast");
@@ -261,6 +224,7 @@ static void pwmpcb_fast(PWMDriver *pwmp) {
 		;
 		return;
 	}
+
 	adcStartConversionI(&ADC_FAST_DEVICE, &adcgrpcfg_fast, fastAdc.samples, ADC_BUF_DEPTH_FAST);
 	chSysUnlockFromISR()
 	;
@@ -309,12 +273,6 @@ int getInternalAdcValue(const char *msg, adc_channel_e hwChannel) {
 }
 
 #if HAL_USE_PWM
-static PWMConfig pwmcfg_slow = { PWM_FREQ_SLOW, PWM_PERIOD_SLOW, pwmpcb_slow, { {
-PWM_OUTPUT_DISABLED, NULL }, { PWM_OUTPUT_DISABLED, NULL }, {
-PWM_OUTPUT_DISABLED, NULL }, { PWM_OUTPUT_DISABLED, NULL } },
-/* HW dependent part.*/
-0, 0 };
-
 static PWMConfig pwmcfg_fast = { PWM_FREQ_FAST, PWM_PERIOD_FAST, pwmpcb_fast, { {
 PWM_OUTPUT_DISABLED, NULL }, { PWM_OUTPUT_DISABLED, NULL }, {
 PWM_OUTPUT_DISABLED, NULL }, { PWM_OUTPUT_DISABLED, NULL } },
@@ -422,8 +380,7 @@ static void printFullAdcReport(Logging *logger) {
 
 		adc_channel_e hwIndex = slowAdc.getAdcHardwareIndexByInternalIndex(index);
 
-		if(hwIndex != EFI_ADC_NONE && hwIndex != EFI_ADC_ERROR)
-		{
+		if (hwIndex != EFI_ADC_NONE && hwIndex != EFI_ADC_ERROR) {
 			ioportid_t port = getAdcChannelPort("print", hwIndex);
 			int pin = getAdcChannelPin(hwIndex);
 
@@ -456,31 +413,48 @@ int getSlowAdcCounter() {
 	return slowAdcCounter;
 }
 
-static void adc_callback_slow(ADCDriver *adcp, adcsample_t *buffer, size_t n) {
-	(void) buffer;
-	(void) n;
 
-	/* Note, only in the ADC_COMPLETE state because the ADC driver fires
-	 * an intermediate callback when the buffer is half full. */
-	if (adcp->state == ADC_COMPLETE) {
-		slowAdc.invalidateSamplesCache();
-
-		efiAssertVoid(CUSTOM_ERR_6671, getCurrentRemainingStack() > 128, "lowstck#9c");
-
-		/* Calculates the average values from the ADC samples.*/
-		for (int i = 0; i < slowAdc.size(); i++) {
-			int value = getAvgAdcValue(i, slowAdc.samples, ADC_BUF_DEPTH_SLOW, slowAdc.size());
-			adcsample_t prev = slowAdc.values.adc_data[i];
-			float result = (slowAdcCounter == 0) ? value :
-					CONFIG(slowAdcAlpha) * value + (1 - CONFIG(slowAdcAlpha)) * prev;
-
-			slowAdc.values.adc_data[i] = (int)result;
-		}
-		slowAdcCounter++;
-
-		AdcSubscription::UpdateSubscribers();
+class SlowAdcController : public PeriodicController<256> {
+public:
+	SlowAdcController() 
+		: PeriodicController("ADC", NORMALPRIO + 5, 200)
+	{
 	}
-}
+
+	void PeriodicTask(efitime_t nowNt) override {
+		{
+			ScopePerf perf(PE::AdcConversionSlow);
+
+			slowAdc.conversionCount++;
+			msg_t result = adcConvert(&ADC_SLOW_DEVICE, &adcgrpcfgSlow, slowAdc.samples, ADC_BUF_DEPTH_SLOW);
+
+			// If something went wrong - try again later
+			if (result == MSG_RESET || result == MSG_TIMEOUT) {
+				slowAdc.errorsCount++;
+				return;
+			}
+		}
+
+		{
+			ScopePerf perf(PE::AdcProcessSlow);
+
+			slowAdc.invalidateSamplesCache();
+
+			/* Calculates the average values from the ADC samples.*/
+			for (int i = 0; i < slowAdc.size(); i++) {
+				adcsample_t value = getAvgAdcValue(i, slowAdc.samples, ADC_BUF_DEPTH_SLOW, slowAdc.size());
+				adcsample_t prev = slowAdc.values.adc_data[i];
+				float result = (slowAdcCounter == 0) ? value :
+						CONFIG(slowAdcAlpha) * value + (1 - CONFIG(slowAdcAlpha)) * prev;
+
+				slowAdc.values.adc_data[i] = (adcsample_t)result;
+			}
+			slowAdcCounter++;
+
+			AdcSubscription::UpdateSubscribers();
+		}
+	}
+};
 
 static char errorMsgBuff[_MAX_FILLER + 2];
 
@@ -488,6 +462,11 @@ void addChannel(const char *name, adc_channel_e setting, adc_channel_mode_e mode
 	if (setting == EFI_ADC_NONE) {
 		return;
 	}
+	if (/*type-limited (int)setting < 0 || */(int)setting>=HW_MAX_ADC_INDEX) {
+		firmwareError(CUSTOM_INVALID_ADC, "Invalid ADC setting %s", name);
+		return;
+	}
+
 	if (adcHwChannelEnabled[setting] != ADC_OFF) {
 		getPinNameByAdcChannel(name, setting, errorMsgBuff);
 		firmwareError(CUSTOM_ERR_ADC_USED, "ADC mapping error: input %s for %s already used by %s?", errorMsgBuff, name, adcHwChannelUsage[setting]);
@@ -509,6 +488,12 @@ static void configureInputs(void) {
 	memset(adcHwChannelEnabled, 0, sizeof(adcHwChannelEnabled));
 	memset(adcHwChannelUsage, 0, sizeof(adcHwChannelUsage));
 
+	/**
+	 * order of analog channels here is totally random and has no meaning
+	 * we also have some weird implementation with internal indices - that all has no meaning, it's just a random implementation
+	 * which does not mean anything.
+	 */
+
 	addChannel("MAP", engineConfiguration->map.sensor.hwChannel, ADC_FAST);
 	if (hasMafSensor()) {
 		addChannel("MAF", engineConfiguration->mafAdcChannel, ADC_FAST);
@@ -517,14 +502,22 @@ static void configureInputs(void) {
 
 	addChannel("baro", engineConfiguration->baroSensor.hwChannel, ADC_SLOW);
 	addChannel("TPS", engineConfiguration->tps1_1AdcChannel, ADC_SLOW);
+	if (engineConfiguration->tps2_1AdcChannel != EFI_ADC_0) {
+		// allow EFI_ADC_0 next time we have an incompatible configuration change
+		addChannel("TPS2", engineConfiguration->tps2_1AdcChannel, ADC_SLOW);
+	}
 	addChannel("fuel", engineConfiguration->fuelLevelSensor, ADC_SLOW);
 	addChannel("pPS", engineConfiguration->throttlePedalPositionAdcChannel, ADC_SLOW);
 	addChannel("VBatt", engineConfiguration->vbattAdcChannel, ADC_SLOW);
 	// not currently used	addChannel("Vref", engineConfiguration->vRefAdcChannel, ADC_SLOW);
 	addChannel("CLT", engineConfiguration->clt.adcChannel, ADC_SLOW);
 	addChannel("IAT", engineConfiguration->iat.adcChannel, ADC_SLOW);
-	addChannel("AUX#1", engineConfiguration->auxTempSensor1.adcChannel, ADC_SLOW);
-	addChannel("AUX#2", engineConfiguration->auxTempSensor2.adcChannel, ADC_SLOW);
+	addChannel("AUXT#1", engineConfiguration->auxTempSensor1.adcChannel, ADC_SLOW);
+	addChannel("AUXT#2", engineConfiguration->auxTempSensor2.adcChannel, ADC_SLOW);
+	if (engineConfiguration->auxFastSensor1_adcChannel != EFI_ADC_0) {
+		// allow EFI_ADC_0 next time we have an incompatible configuration change
+		addChannel("AUXF#1", engineConfiguration->auxFastSensor1_adcChannel, ADC_FAST);
+	}
 	addChannel("AFR", engineConfiguration->afr.hwChannel, ADC_SLOW);
 	addChannel("OilP", engineConfiguration->oilPressure.hwChannel, ADC_SLOW);
 	addChannel("AC", engineConfiguration->acSwitchAdc, ADC_SLOW);
@@ -533,7 +526,7 @@ static void configureInputs(void) {
 	if (engineConfiguration->high_fuel_pressure_sensor_2 != INCOMPATIBLE_CONFIG_CHANGE)
 		addChannel("HFP2", engineConfiguration->high_fuel_pressure_sensor_2, ADC_SLOW);
 
-	if (CONFIGB(isCJ125Enabled)) {
+	if (CONFIG(isCJ125Enabled)) {
 		addChannel("cj125ur", engineConfiguration->cj125ur, ADC_SLOW);
 		addChannel("cj125ua", engineConfiguration->cj125ua, ADC_SLOW);
 	}
@@ -544,6 +537,8 @@ static void configureInputs(void) {
 
 	setAdcChannelOverrides();
 }
+
+static SlowAdcController slowAdcController;
 
 void initAdcInputs() {
 	printMsg(&logger, "initAdcInputs()");
@@ -584,12 +579,11 @@ void initAdcInputs() {
 #endif /* ADC_CHANNEL_SENSOR */
 
 	slowAdc.init();
-#if HAL_USE_PWM
-	pwmStart(EFI_INTERNAL_SLOW_ADC_PWM, &pwmcfg_slow);
-	pwmEnablePeriodicNotification(EFI_INTERNAL_SLOW_ADC_PWM);
-#endif /* HAL_USE_PWM */
 
-	if (CONFIGB(isFastAdcEnabled)) {
+	// Start the slow ADC thread
+	slowAdcController.Start();
+
+	if (CONFIG(isFastAdcEnabled)) {
 		fastAdc.init();
 		/*
 		 * Initializes the PWM driver.
@@ -599,8 +593,6 @@ void initAdcInputs() {
 		pwmEnablePeriodicNotification(EFI_INTERNAL_FAST_ADC_PWM);
 #endif /* HAL_USE_PWM */
 	}
-
-	//if(slowAdcChannelCount > ADC_MAX_SLOW_CHANNELS_COUNT) // todo: do we need this logic? do we need this check
 
 	addConsoleActionI("adc", (VoidInt) printAdcValue);
 #else

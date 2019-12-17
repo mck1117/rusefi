@@ -5,8 +5,8 @@ EELAYER END
 $Descr A 11000 8500
 encoding utf-8
 Sheet 1 1
-Title "Breakout board"
-Date "2019-11-10"
+Title "134pin 7-967288-1 Breakout board"
+Date "2019-11-16"
 Rev "R0.1"
 Comp "rusEFI.com"
 Comment1 "DAECU"
@@ -897,4 +897,138 @@ F 3 "~" H 6550 4175 50  0001 C CNN
 	1    6550 4175
 	-1   0    0    -1  
 $EndComp
+$Comp
+L power:GND #PWR01
+U 1 1 5DD0B38F
+P 1100 7725
+F 0 "#PWR01" H 1100 7475 50  0001 C CNN
+F 1 "GND" H 1105 7552 50  0000 C CNN
+F 2 "" H 1100 7725 50  0001 C CNN
+F 3 "" H 1100 7725 50  0001 C CNN
+	1    1100 7725
+	1    0    0    -1  
+$EndComp
+$Comp
+L Connector_Generic:Conn_01x01 J37
+U 1 1 5DD1444D
+P 1100 7525
+F 0 "J37" V 1018 7437 50  0000 R CNN
+F 1 "Conn_01x01" V 973 7437 50  0001 R CNN
+F 2 "TestPoint:TestPoint_Keystone_5000-5004_Miniature" H 1100 7525 50  0001 C CNN
+F 3 "~" H 1100 7525 50  0001 C CNN
+	1    1100 7525
+	0    -1   -1   0   
+$EndComp
+Text Label 1100 7725 0    50   ~ 0
+GND
+$Comp
+L power:PWR_FLAG #FLG0101
+U 1 1 5DD43FA1
+P 1100 7725
+F 0 "#FLG0101" H 1100 7800 50  0001 C CNN
+F 1 "PWR_FLAG" V 1100 7852 50  0000 L CNN
+F 2 "" H 1100 7725 50  0001 C CNN
+F 3 "~" H 1100 7725 50  0001 C CNN
+	1    1100 7725
+	0    -1   -1   0   
+$EndComp
+Connection ~ 1100 7725
+Text Label 2275 775  0    50   ~ 0
+101
+Text Label 2275 1575 0    50   ~ 0
+109
+Text Label 2250 3575 0    50   ~ 0
+201
+Text Label 2250 4075 0    50   ~ 0
+206
+Text Label 2250 4175 0    50   ~ 0
+207
+Text Label 2250 4675 0    50   ~ 0
+212
+Text Label 2250 4775 0    50   ~ 0
+213
+Text Label 2250 5275 0    50   ~ 0
+218
+Text Label 2250 5375 0    50   ~ 0
+219
+Text Label 2250 5875 0    50   ~ 0
+224
+Text Label 4700 5875 0    50   ~ 0
+352
+Text Label 4700 4675 0    50   ~ 0
+340
+Text Label 4700 5175 0    50   ~ 0
+345
+Text Label 4700 5675 0    50   ~ 0
+350
+Text Label 4700 4575 0    50   ~ 0
+339
+Text Label 4700 4175 0    50   ~ 0
+335
+Text Label 4700 3675 0    50   ~ 0
+330
+Text Label 4700 3375 0    50   ~ 0
+327
+Text Label 4700 3275 0    50   ~ 0
+326
+Text Label 4700 3175 0    50   ~ 0
+325
+Text Label 4700 2675 0    50   ~ 0
+320
+Text Label 4700 2175 0    50   ~ 0
+315
+Text Label 4700 2075 0    50   ~ 0
+314
+Text Label 4700 1975 0    50   ~ 0
+313
+Text Label 4700 1675 0    50   ~ 0
+310
+Text Label 4700 1175 0    50   ~ 0
+305
+Text Label 4700 775  0    50   ~ 0
+301
+Text Label 7050 775  0    50   ~ 0
+401
+Text Label 7050 1175 0    50   ~ 0
+405
+Text Label 7050 1675 0    50   ~ 0
+410
+Text Label 7050 1775 0    50   ~ 0
+411
+Text Label 7050 2175 0    50   ~ 0
+415
+Text Label 7050 2675 0    50   ~ 0
+420
+Text Label 7050 2775 0    50   ~ 0
+421
+Text Label 7050 3175 0    50   ~ 0
+425
+Text Label 7050 3675 0    50   ~ 0
+430
+Text Label 7050 3775 0    50   ~ 0
+431
+Text Label 7050 4175 0    50   ~ 0
+435
+Text Label 7050 4675 0    50   ~ 0
+440
+Text Label 7050 5075 0    50   ~ 0
+501
+Text Label 7050 5275 0    50   ~ 0
+503
+Text Label 7050 5375 0    50   ~ 0
+504
+Text Label 7050 5575 0    50   ~ 0
+506
+Text Label 7050 5675 0    50   ~ 0
+507
+Text Label 7050 5875 0    50   ~ 0
+509
+Text Label 2275 975  0    50   ~ 0
+103
+Text Label 2275 1075 0    50   ~ 0
+104
+Text Label 2275 1275 0    50   ~ 0
+106
+Text Label 2275 1375 0    50   ~ 0
+107
 $EndSCHEMATC

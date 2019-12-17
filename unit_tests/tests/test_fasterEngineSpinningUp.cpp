@@ -12,7 +12,7 @@ TEST(cranking, testFasterEngineSpinningUp) {
 
 	WITH_ENGINE_TEST_HELPER(TEST_ENGINE);
 	// turn on FasterEngineSpinUp mode
-	engineConfiguration->bc.isFasterEngineSpinUpEnabled = true;
+	engineConfiguration->isFasterEngineSpinUpEnabled = true;
 
 	// set ignition mode
 	engineConfiguration->ignitionMode = IM_INDIVIDUAL_COILS;
@@ -36,7 +36,6 @@ TEST(cranking, testFasterEngineSpinningUp) {
 	ASSERT_EQ(0, engine->executor.size()) << "plain#1";
 
 	// check all events starting from now
-	int timeStartUs = eth.getTimeNowUs();
 	// advance 1 revolution
 	// because we have trivial TT_ONE trigger here synchronization would happen with just one rise front
 	eth.fireRise(200);
@@ -81,7 +80,6 @@ TEST(cranking, testFasterEngineSpinningUp) {
 	eth.fireFall(60);
 
 	eth.clearQueue();
-	timeStartUs = eth.getTimeNowUs();
 	eth.fireTriggerEventsWithDuration(60);
 
 	// check if the mode is now changed to 'running' at higher RPM
@@ -102,7 +100,7 @@ TEST(cranking, testFasterEngineSpinningUp) {
 static void doTestFasterEngineSpinningUp60_2(int startUpDelayMs, int rpm1, int expectedRpm) {
 	WITH_ENGINE_TEST_HELPER(TEST_ENGINE);
 	// turn on FasterEngineSpinUp mode
-	engineConfiguration->bc.isFasterEngineSpinUpEnabled = true;
+	engineConfiguration->isFasterEngineSpinUpEnabled = true;
 
 	setupSimpleTestEngineWithMaf(&eth, IM_SEQUENTIAL, TT_TOOTHED_WHEEL_60_2);
 	eth.moveTimeForwardMs(startUpDelayMs);

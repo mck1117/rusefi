@@ -7,7 +7,6 @@
 
 #pragma once
 
-#include "global.h"
 #include "globalaccess.h"
 #include "engine_state.h"
 #include "rpm_calculator.h"
@@ -46,16 +45,34 @@ class RpmCalculator;
 #define CLEANUP_MODE_TPS 90
 #define STEPPER_PARKING_TPS CLEANUP_MODE_TPS
 
-class Engine {
+#define CYCLE_ALTERNATION 2
+
+class IEtbController;
+
+class Engine : public TriggerStateListener {
 public:
 	explicit Engine(persistent_config_s *config);
 	Engine();
+
+	IEtbController *etbControllers[ETB_COUNT];
+
+	void OnTriggerStateDecodingError() override;
+	void OnTriggerStateProperState(efitick_t nowNt) override;
+
 	void setConfig(persistent_config_s *config);
 	injection_mode_e getCurrentInjectionMode(DECLARE_ENGINE_PARAMETER_SIGNATURE);
 
 	LocalVersionHolder versionForConfigurationListeners;
 	LocalVersionHolder auxParametersVersion;
 	operation_mode_e getOperationMode(DECLARE_ENGINE_PARAMETER_SIGNATURE);
+
+	AuxActor auxValves[AUX_DIGITAL_VALVE_COUNT][2];
+
+	bool needTdcCallback = true;
+	/**
+	 * if 2nd TPS is not configured we do not run 2nd ETB
+	 */
+	int etbActualCount = 0;
 
 	/**
 	 * By the way 32-bit value should hold at least 400 hours of events at 6K RPM x 12 events per revolution
@@ -103,9 +120,11 @@ public:
 	bool needToStopEngine(efitick_t nowNt) const;
 	bool etbAutoTune = false;
 	/**
-	 * That's the linked list of pending spark firing events
+	 * That's the linked list of pending events scheduled in relation to trigger
+	 * At the moment we iterate over the whole list while looking for events for specific trigger index
+	 * We can make it an array of lists per trigger index, but that would take some RAM and probably not needed yet.
 	 */
-	IgnitionEvent *ignitionEventsHead = nullptr;
+	AngleBasedEvent *angleBasedEventsHead = nullptr;
 	/**
 	 * this is based on isEngineChartEnabled and engineSnifferRpmThreshold settings
 	 */
@@ -132,9 +151,6 @@ public:
 
 	// timestamp of most recent time RPM hard limit was triggered
 	efitime_t rpmHardLimitTimestamp = 0;
-
-	// todo: should be a field on some other class, not Engine?
-	bool isInitializingTrigger = false;
 
 	/**
 	 * This flag indicated a big enough problem that engine control would be
@@ -186,7 +202,7 @@ public:
 	void periodicFastCallback(DECLARE_ENGINE_PARAMETER_SIGNATURE);
 	void periodicSlowCallback(DECLARE_ENGINE_PARAMETER_SIGNATURE);
 	void updateSlowSensors(DECLARE_ENGINE_PARAMETER_SIGNATURE);
-	void eInitializeTriggerShape(Logging *logger DECLARE_ENGINE_PARAMETER_SUFFIX);
+	void initializeTriggerWaveform(Logging *logger DECLARE_ENGINE_PARAMETER_SUFFIX);
 
 	bool clutchUpState = false;
 	bool clutchDownState = false;

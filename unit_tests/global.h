@@ -7,8 +7,7 @@
  * @author Andrey Belomutskiy, (c) 2012-2017
  */
 
-#ifndef GLOBAL_H_
-#define GLOBAL_H_
+#pragma once
 
 #include <stdio.h>
 #include <time.h>
@@ -19,8 +18,8 @@ typedef uint32_t iomode_t;
 typedef uint32_t ioportid_t;
 typedef uint32_t ioportmask_t;
 
-//#define chThdGetSelfX() 0
-//#define getRemainingStack(x) (999999)
+// just a stub implementation for unit tests
+#define EXPECTED_REMAINING_STACK 1
 #define getCurrentRemainingStack() (999999)
 
 // this is needed by all DECLARE_ENGINE_PARAMETER_* usages
@@ -77,18 +76,8 @@ void print(const char *fmt, ...);
 
 #define EXTERN_CONFIG
 
-
 #define DEFINE_CONFIG_PARAM(x, y) , x y
 #define PASS_CONFIG_PARAM(x) , x
-
-/**
- * this macro is a work-around for uint tests to get all needed pointers only
- * if engine is in scope
- */
-#define EXPAND_Engine \
-	    engine_configuration_s *engineConfiguration = engine->engineConfigurationPtr; \
-		persistent_config_s *config = engine->config; \
-		board_configuration_s *boardConfiguration = &engineConfiguration->bc;
 
 /**
  * this macro provides references to engine from EngineTestHelper
@@ -105,5 +94,3 @@ void print(const char *fmt, ...);
 #define lockAnyContext() false
 
 #define unlockAnyContext() {}
-
-#endif /* GLOBAL_H_ */

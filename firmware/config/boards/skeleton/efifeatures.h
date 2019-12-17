@@ -33,7 +33,7 @@
 
 // Build the logic analyzer support.
 // A logic analyzer viewer is included in the java console.
-#define EFI_WAVE_ANALYZER TRUE
+#define EFI_LOGIC_ANALYZER TRUE
 
 // A development feature to test output jitter and consistency
 #define EFI_PWM_TESTER FALSE
@@ -175,7 +175,7 @@
 #define EFI_IDLE_CONTROL TRUE
 #endif
 
-#define EFI_IDLE_INCREMENTAL_PID_CIC FALSE
+#define EFI_IDLE_PID_CIC FALSE
 
 /**
  * Control the main power relay based on measured ignition voltage (Vbatt)
@@ -267,7 +267,6 @@
 
 // todo: switch to continuous ADC conversion for slow ADC?
 // https://github.com/rusefi/rusefi/issues/630
-#define EFI_INTERNAL_SLOW_ADC_PWM	&PWMD8
 // todo: switch to continues ADC conversion for fast ADC?
 #define EFI_INTERNAL_FAST_ADC_PWM	&PWMD4
 

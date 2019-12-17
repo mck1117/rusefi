@@ -77,6 +77,12 @@ case EFI_ADC_ERROR:
   return "EFI_ADC_ERROR";
 case EFI_ADC_NONE:
   return "EFI_ADC_NONE";
+#if EFI_UNIT_TEST
+case TEST_MAF_CHANNEL:
+case TEST_CLT_CHANNEL:
+case TEST_IAT_CHANNEL:
+  return "EFI_TEST";
+#endif /* EFI_UNIT_TEST */
   }
  return NULL;
 }
@@ -705,8 +711,10 @@ case FRANKENSO_QA_ENGINE:
   return "FRANKENSO_QA_ENGINE";
 case Force_4_bytes_size_engine_type:
   return "Force_4_bytes_size_engine_type";
-case GEO_STORM:
-  return "GEO_STORM";
+case BMW_M73_F:
+  return "BMW_M73_F";
+case BMW_M73_M:
+	return "BMW_M73_M";
 case MRE_BOARD_TEST:
   return "MRE_BOARD_TEST";
 case GY6_139QMB:
@@ -723,8 +731,8 @@ case HONDA_ACCORD_CD_TWO_WIRES:
   return "HONDA_ACCORD_CD_TWO_WIRES";
 case LADA_KALINA:
   return "LADA_KALINA";
-case MAZDA_323:
-  return "MAZDA_323";
+case MRE_MIATA_NB2_MTB:
+  return "MRE_MIATA_NB2_MTB";
 case MAZDA_626:
   return "MAZDA_626";
 case MAZDA_MIATA_2003:
@@ -741,7 +749,6 @@ case MIATA_1990:
   return "MIATA_1990";
 case MIATA_1994_DEVIATOR:
   return "MIATA_1994_DEVIATOR";
-case MIATA_1994_SPAGS:
 case MIATA_1996:
   return "MIATA_1996";
 case MIATA_NA6_MAP:
@@ -766,6 +773,8 @@ case SACHS:
   return "SACHS";
 case MRE_MIATA_NA6:
   return "MRE_MIATA_NA6";
+case PROTEUS:
+  return "PROTEUS";
 case SUBARUEJ20G_DEFAULTS:
   return "SUBARUEJ20G_DEFAULTS";
 case SUBARU_2003_WRX:
@@ -996,6 +1005,8 @@ case SC_DETAILED_RPM:
   return "SC_DETAILED_RPM";
 case SC_MAP:
   return "SC_MAP";
+case SC_AUX_FAST1:
+	return "SC_AUX_FAST1";
 case SC_OFF:
   return "SC_OFF";
 case SC_RPM_ACCEL:

@@ -1,6 +1,7 @@
 TESTS_SRC_CPP = \
 	tests/test_util.cpp \
 	tests/test_ion.cpp \
+	tests/test_aux_valves.cpp \
 	tests/test_on_demand_parameters.cpp \
 	tests/test_hip9011.cpp \
 	tests/test_cj125.cpp \
@@ -14,6 +15,8 @@ TESTS_SRC_CPP = \
 	tests/test_trigger_decoder.cpp \
 	tests/test_trigger_noiseless.cpp \
 	tests/test_issue_898.cpp \
+	tests/test_etb.cpp \
+	tests/test_ignition_scheduling.cpp \
 	tests/test_fuel_map.cpp \
 	tests/test_fuel_wall_wetting.cpp \
 	tests/test_one_cylinder_logic.cpp \
