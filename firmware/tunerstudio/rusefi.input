@@ -298,20 +298,6 @@ fileVersion = { 20190701 }
       etb1DutyCycle    = scalar,F32, 316, "%", 1, 0
       etb1Error        = scalar,F32, 320, "%", 1, 0
 
-      sensor_raw_clt   = scalar,F32, 324, "V", 1, 0
-      sensor_raw_iat   = scalar,F32, 328, "V", 1, 0
-      sensor_raw_aux1  = scalar,F32, 332, "V", 1, 0
-      sensor_raw_aux2  = scalar,F32, 336, "V", 1, 0
-
-      sensor_raw_pad1  = scalar,F32, 340, "V", 1, 0
-      sensor_raw_pad2  = scalar,F32, 344, "V", 1, 0
-      sensor_raw_pad3  = scalar,F32, 348, "V", 1, 0
-      sensor_raw_pad4  = scalar,F32, 352, "V", 1, 0
-      sensor_raw_pad5  = scalar,F32, 356, "V", 1, 0
-      sensor_raw_pad6  = scalar,F32, 360, "V", 1, 0
-      sensor_raw_pad7  = scalar,F32, 364, "V", 1, 0
-      sensor_raw_pad8  = scalar,F32, 368, "V", 1, 0
-
 ;
 ; see TunerStudioOutputChannels struct
 ;
