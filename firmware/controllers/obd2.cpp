@@ -96,10 +96,13 @@ static void obdSendValue(int mode, int PID, int numBytes, float value) {
 
 //#define MOCK_SUPPORTED_PIDS 0xffffffff
 
-static void obdWriteSupportedPids(int PID, int bitOffset, const int16_t *supportedPids) {
+template <size_t N>
+static constexpr uint32_t obdComputeSupportedPids(int bitOffset, const int16_t (&supportedPids)[N]) {
+	constexpr size_t fieldCount = N-1 > 32 ? 32 : N-1;
 	uint32_t value = 0;
+
 	// gather all 32 bit fields
-	for (int i = 0; i < 32 && supportedPids[i] > 0; i++)
+	for (size_t i = 0; i < fieldCount; i++)
 		value |= 1 << (31 + bitOffset - supportedPids[i]);
 
 #ifdef MOCK_SUPPORTED_PIDS
@@ -107,6 +110,12 @@ static void obdWriteSupportedPids(int PID, int bitOffset, const int16_t *support
 	value = MOCK_SUPPORTED_PIDS;
 #endif
 
+	return value;
+}
+
+template <size_t N>
+static void obdWriteSupportedPids(int PID, int bitOffset, const int16_t (&supportedPids)[N]) {
+	uint32_t value = obdComputeSupportedPids(bitOffset, supportedPids);
 	scheduleMsg(&logger, "Write bitfields 0x%08x", value);
 	obdSendPacket(1, PID, 4, value);
 }
