@@ -98,11 +98,12 @@ static void obdSendValue(int mode, int PID, int numBytes, float value) {
 
 template <size_t N>
 static constexpr uint32_t obdComputeSupportedPids(int bitOffset, const int16_t (&supportedPids)[N]) {
-	constexpr size_t fieldCount = N-1 > 32 ? 32 : N-1;
+	static_assert(N <= 33); // can't put more than 32 in a single word (plus -1 terminator)...
+
 	uint32_t value = 0;
 
 	// gather all 32 bit fields
-	for (size_t i = 0; i < fieldCount; i++)
+	for (size_t i = 0; i < N - 1; i++)
 		value |= 1 << (31 + bitOffset - supportedPids[i]);
 
 #ifdef MOCK_SUPPORTED_PIDS
