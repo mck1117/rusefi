@@ -809,9 +809,7 @@ void initEngineContoller(Logging *sharedLogger DECLARE_ENGINE_PARAMETER_SUFFIX) 
 	initLcdController();
 #endif /* EFI_HD44780_LCD */
 
-#if EFI_PROD_CODE
 	initTachometer(PASS_ENGINE_PARAMETER_SIGNATURE);
-#endif /* EFI_PROD_CODE */
 }
 
 // these two variables are here only to let us know how much RAM is available, also these
