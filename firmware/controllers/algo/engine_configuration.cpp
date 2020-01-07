@@ -679,7 +679,8 @@ static void setDefaultEngineConfiguration(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 
 	engineConfiguration->tachPulseDuractionMs = 4;
 	engineConfiguration->tachPulseTriggerIndex = 4;
-	engineConfiguration->tachPulsePerRev = 1;
+	// Default ppr for a 4cyl engine - most common use case
+	engineConfiguration->tachPulsePerRev = 2;
 
 	engineConfiguration->auxPid[0].minValue = 10;
 	engineConfiguration->auxPid[0].maxValue = 90;
