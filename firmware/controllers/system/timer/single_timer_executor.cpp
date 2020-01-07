@@ -70,6 +70,39 @@ void SingleTimerExecutor::scheduleForLater(scheduling_s *scheduling, int delayUs
 	scheduleByTimestamp(scheduling, getTimeNowUs() + delayUs, action);
 }
 
+
+void SchedulingBatch::scheduleByTimestamp(scheduling_s* scheduling, efitimeus_t timeUs, action_s action) {
+	scheduling->momentX = US2NT(timeUs);
+	scheduling->action = action;
+
+	// Push the scheduling in to our temporary linked list
+	scheduling->nextScheduling_s = m_head;
+	m_head = scheduling;
+}
+
+SchedulingBatch::~SchedulingBatch() {
+	// Nothing to do if list is empty
+	if (!m_head) {
+		return;
+	}
+	
+	auto current = m_head;
+
+	// Push all events in to the queue
+	while (current) {
+		auto x = current;
+		current = current->nextScheduling_s;
+
+		m_executor->enqueueTask(current);
+	}
+
+	m_executor->doExecute();
+}
+
+bool SingleTimerExecutor::enqueueTask(scheduling_s* task) {
+	return queue.insertTask(task, task->momentX, task->action);
+}
+
 /**
  * @brief Schedule an event at specific delay after now
  *

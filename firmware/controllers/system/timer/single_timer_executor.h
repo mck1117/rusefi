@@ -23,8 +23,11 @@ public:
 private:
 	EventQueue queue;
 	bool reentrantFlag;
-	void doExecute();
+	
 	void scheduleTimerCallback();
+
+	void doExecute() override;
+	bool enqueueTask(scheduling_s* task) override;
 };
 
 void initSingleTimerExecutorHardware(void);

@@ -49,10 +49,38 @@ struct scheduling_s {
 	action_s action;
 };
 
+struct ExecutorInterface;
+
+class SchedulingBatch {
+private:
+	// only called from ExecutorInterface
+	SchedulingBatch(ExecutorInterface* ei) : m_executor(ei) { }
+	friend class ExecutorInterface;
+
+public:
+	~SchedulingBatch();
+
+	void scheduleByTimestamp(scheduling_s* scheduling, efitimeus_t timeUs, action_s action);
+private:
+	scheduling_s* m_head = nullptr;
+	ExecutorInterface* m_executor;
+};
+
 struct ExecutorInterface {
+	friend class SchedulingBatch;
+
 	/**
 	 * see also scheduleByAngle
 	 */
 	virtual void scheduleByTimestamp(scheduling_s *scheduling, efitimeus_t timeUs, action_s action) = 0;
 	virtual void scheduleForLater(scheduling_s *scheduling, int delayUs, action_s action) = 0;
+
+	SchedulingBatch startBatch() {
+		return SchedulingBatch(this);
+	}
+
+protected:
+	virtual bool enqueueTask(scheduling_s* scheduling) = 0;
+
+	virtual void doExecute() = 0;
 };
