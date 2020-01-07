@@ -68,16 +68,16 @@ static void tachSignalCallback(trigger_event_e ckpSignalType,
 	// How many tach pulse periods do we have?
 	int periods = engineConfiguration->tachPulsePerRev;
 	// What is the angle per tach output period?
-	const angle_t period = 360.0 / periods;
+	const angle_t period = 360.0f / periods;
 
 	float duty;
 
 	if (engineConfiguration->tachPulseDurationAsDutyCycle) {
 		// Simple case - duty explicitly set
-		duty = engineConfiguration->tachPulseDuractionMs;
+		duty = engineConfiguration->tachPulseDuractionMs / 100.0f;
 	} else {
 		// Constant high-time mode - compute the correct duty cycle
-		float cycleTimeMs = 60000.0 / GET_RPM();
+		float cycleTimeMs = 60000.0f / GET_RPM();
 		float periodTimeMs = cycleTimeMs / periods;
 
 		duty = engineConfiguration->tachPulseDuractionMs / periodTimeMs;
