@@ -5,6 +5,7 @@
 /*static*/ void FrequencySensor::callbackAdapter(void* data)
 {
 	auto fs = reinterpret_cast<FrequencySensor*>(data);
+	fs->callback();
 }
 
 void FrequencySensor::callback() {
