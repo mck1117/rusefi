@@ -111,3 +111,9 @@ jobs:
       with:
         name: firmware-${{matrix.build-target}}-${{matrix.build-type}}-bin
         path: ./firmware/build/rusefi.bin
+
+    - name: Upload hex
+      uses: actions/upload-artifact@v1
+      with:
+        name: firmware-${{matrix.build-target}}-${{matrix.build-type}}-hex
+        path: ./firmware/build/rusefi.hex
