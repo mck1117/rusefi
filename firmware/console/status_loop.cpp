@@ -805,7 +805,7 @@ void updateTunerStudioState(TunerStudioOutputChannels *tsOutputChannels DECLARE_
 	// 120
 	tsOutputChannels->firmwareVersion = getRusEfiVersion();
 	// 268
-	tsOutputChannels->fuelPidCorrection = ENGINE(engineState.running.pidCorrection);
+	tsOutputChannels->fuelPidCorrection = 100.0f * (ENGINE(engineState.running.pidCorrection) - 1.0f);
 	// 276
 	tsOutputChannels->accelerationX = engine->sensors.accelerometer.x;
 	// 278
