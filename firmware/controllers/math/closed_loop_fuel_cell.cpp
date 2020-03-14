@@ -24,7 +24,7 @@ void ClosedLoopFuelCellBase::update()
 	float adjustAmount = getAdjustmentRate() / updateFreq;
 
 	// Nudge the adjustment up or down by the appropriate amount
-	float adjust = m_adjustment + adjustAmount * ((lambdaError > 0) ? 1 : -1);
+	float adjust = m_adjustment + adjustAmount * ((lambdaError < 0) ? 1 : -1);
 
 	// Clamp to bounds
 	float minAdjust = getMinAdjustment();
