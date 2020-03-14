@@ -169,9 +169,7 @@ void EngineState::periodicFastCallback(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	// todo: move this into slow callback, no reason for CLT corr to be here
 	running.coolantTemperatureCoefficient = getCltFuelCorrection(PASS_ENGINE_PARAMETER_SIGNATURE);
 
-	if (CONFIG(fuelClosedLoopCorrectionEnabled)) {
-		fuelClosedLoopCorrection();
-	}
+	running.pidCorrection = fuelClosedLoopCorrection();
 
 	// update fuel consumption states
 	fuelConsumption.update(nowNt PASS_ENGINE_PARAMETER_SUFFIX);

@@ -15,9 +15,13 @@ static const closed_loop_fuel_cfg cfg =
     0.005f
 };
 
-void fuelClosedLoopCorrection() {
+float fuelClosedLoopCorrection() {
+    if (!CONFIG(fuelClosedLoopCorrectionEnabled)) {
+        return 1.0f;
+    }
+
     cell.configure(&cfg);
 
     cell.update();
-	engine->engineState.running.pidCorrection = cell.getAdjustment();
+	return cell.getAdjustment();
 }
