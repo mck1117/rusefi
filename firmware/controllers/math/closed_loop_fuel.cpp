@@ -8,20 +8,87 @@
 
 EXTERN_ENGINE;
 
-ClosedLoopFuelCellImpl cell;
+ClosedLoopFuelCellImpl cells[16];
+
+static const int rpmSplitPoints[] =
+{
+	1100, 1800, 2500
+};
+
+static const float airmassSplitPoints[] =
+{
+	0.13f,
+	0.19f,
+	0.25f,
+}
 
 static const closed_loop_fuel_cfg cfg =
 {
-    0.005f
+	0.005f
 };
 
-float fuelClosedLoopCorrection() {
-    if (!CONFIG(fuelClosedLoopCorrectionEnabled)) {
-        return 1.0f;
-    }
+template <class TValue, size_t N>
+static size_t findInArray(TValue search, TValue (&arr)[N])
+{
+	size_t idx = 0;
 
-    cell.configure(&cfg);
+	while (true) {
+		if (idx == N) {
+			break;
+		}
 
-    cell.update();
+		if (arr[idx] < search) {
+			break;
+		}
+
+		idx++;
+	}
+
+	return idx;
+}
+
+static size_t computeBin(int rpm, float airmass) {
+	auto col = findInArray(rpm, rpmSplitPoints);
+	auto row = findInArray(airmass, airmassSplitPoints);
+
+	return 4 * col + row;
+}
+
+
+// 			getCoolantTemperature() < CONFIG(fuelClosedLoopCltThreshold) ||
+// 			getTPS(PASS_ENGINE_PARAMETER_SIGNATURE) > CONFIG(fuelClosedLoopTpsThreshold) ||
+// 			ENGINE(sensors.currentAfr) < CONFIG(fuelClosedLoopAfrLowThreshold) ||
+// 			ENGINE(sensors.currentAfr) > engineConfiguration->fuelClosedLoopAfrHighThreshold) {
+// 		engine->engineState.running.pidCorrection = 0;
+// 		fuelPid.reset();
+// 		return;
+// 	}
+
+static bool shouldCorrect(int rpm) {
+	if (!CONFIG(fuelClosedLoopCorrectionEnabled)) {
+		return false;
+	}
+
+	if (rpm < CONFIG(fuelClosedLoopRpmThreshold)) {
+		return false;
+	}
+
+	if (getCoolantTemperature() < CONFIG(fuelClosedLOopCltThreshold)) {
+		return false;
+	}
+
+	return true;
+}
+
+float fuelClosedLoopCorrection(int rpm, float airmass) {
+	if (!shouldCorrect(rpm, airmass)) {
+		return 1.0f;
+	}
+
+	auto& cell = cells[computeBin(rpm, airmass)];
+
+	cell.configure(&cfg);
+
+	cell.update();
 	return cell.getAdjustment();
 }
