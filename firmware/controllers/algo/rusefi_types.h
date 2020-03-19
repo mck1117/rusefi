@@ -99,7 +99,7 @@ typedef float fsio_table_8x8_f32t[FSIO_TABLE_8][FSIO_TABLE_8];
 typedef float tps_tps_table_t[TPS_TPS_ACCEL_TABLE][TPS_TPS_ACCEL_TABLE];
 typedef uint8_t fsio_table_8x8_u8t[FSIO_TABLE_8][FSIO_TABLE_8];
 typedef uint8_t boost_table_t[BOOST_LOAD_COUNT][BOOST_RPM_COUNT];
-
+typedef uint8_t stft_rate_table_t[STFT_LOAD_COUNT][STFT_RPM_COUNT];
 
 // this is different type simply to have different hi/low range in rusefi.ini
 typedef ignition_table_t angle_table_t;
