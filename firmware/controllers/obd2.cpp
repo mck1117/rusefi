@@ -51,6 +51,7 @@ static const int16_t supportedPids0120[] = {
 	PID_FUEL_SYSTEM_STATUS,
 	PID_ENGINE_LOAD,
 	PID_COOLANT_TEMP,
+	PID_STFT_BANK_1,
 	PID_INTAKE_MAP,
 	PID_RPM,
 	PID_SPEED,
@@ -142,6 +143,11 @@ static void handleGetDataRequest(CANRxFrame *rx) {
 	case PID_COOLANT_TEMP:
 		scheduleMsg(&logger, "Got CLT request");
 		obdSendValue(1, pid, 1, getCoolantTemperature() + 40.0f);
+		break;
+	case PID_STFT_BANK_1:
+		// 0 = -100%
+		// 255 = +99.2%
+		obdSendValue(1, pid, 2, (engine->engineState.running.pidCorrection - 1.0f) * 128);
 		break;
 	case PID_INTAKE_MAP:
 		scheduleMsg(&logger, "Got MAP request");
