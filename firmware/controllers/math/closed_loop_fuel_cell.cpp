@@ -3,15 +3,14 @@
 
 #include "global.h"
 #include "engine.h"
+#include "engine_configuration_generated_structures.h"
 
 EXTERN_ENGINE;
 
 constexpr float updateFreq = 1000.0f / FAST_CALLBACK_PERIOD_MS;
 
-void ClosedLoopFuelCellBase::update()
+void ClosedLoopFuelCellBase::update(float adjustRate, float lambdaDeadband)
 {
-	float lambdaDeadband = getLambdaDeadband();
-
 	// Compute how far off target we are
 	float lambdaError = getLambdaError();
 
@@ -21,7 +20,7 @@ void ClosedLoopFuelCellBase::update()
 	}
 
 	// Convert per-second to per-cycle (200hz)
-	float adjustAmount = getAdjustmentRate() / updateFreq;
+	float adjustAmount = adjustRate / updateFreq;
 
 	// Nudge the adjustment up or down by the appropriate amount
 	float adjust = m_adjustment + adjustAmount * ((lambdaError < 0) ? 1 : -1);
@@ -47,14 +46,7 @@ float ClosedLoopFuelCellImpl::getLambdaError() const {
 	return (ENGINE(engineState.targetAFR) - ENGINE(sensors.currentAfr)) / 14.7f;
 }
 
-float ClosedLoopFuelCellImpl::getLambdaDeadband() const {
-	if (!m_config) {
-		// If no config, return huge deadband, so no adjustment happens.
-		return 1.0f;
-	}
-
-	return m_config->lambdaDeadband;
-}
+#define MAX_ADJ (0.25f)
 
 float ClosedLoopFuelCellImpl::getMaxAdjustment() const {
 	if (!m_config) {
@@ -62,8 +54,9 @@ float ClosedLoopFuelCellImpl::getMaxAdjustment() const {
 		return 0;
 	}
 
-	// TODO: make this a function of [rpm, load]
-	return 0.1f;
+	float raw = m_config->maxRemove * 0.01f;
+	// Don't allow maximum less than 0, or more than maximum adjustment
+	return minF(MAX_ADJ, maxF(raw, 0));
 }
 
 float ClosedLoopFuelCellImpl::getMinAdjustment() const {
@@ -72,16 +65,7 @@ float ClosedLoopFuelCellImpl::getMinAdjustment() const {
 		return 0;
 	}
 
-	// TODO: make this a function of [rpm, load]
-	return -0.1f;
-}
-
-float ClosedLoopFuelCellImpl::getAdjustmentRate() const {
-	if (!m_config) {
-		// If no config, disallow adjustment.
-		return 0;
-	}
-
-	// TODO: make this a function of [rpm, load]
-	return 0.01f;
+	float raw = m_config->maxRemove * 0.01f;
+	// Don't allow minimum more than 0, or more than maximum adjustment
+	return maxF(-MAX_ADJ, minF(raw, 0));
 }

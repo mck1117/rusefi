@@ -125,6 +125,9 @@ struct_no_prefix engine_configuration_s
 #define BOOST_LOAD_COUNT 8
 #define PEDAL_TO_TPS_SIZE 8
 
+#define STFT_LOAD_COUNT 4
+#define STFT_RPM_COUNT 4
+#define STFT_CELL_COUNT 4
 
 ! 
 ! all the xxx_PACKING_xxx constants are about persisting tables in compact for, for example packing RPM with 50 increment in a byte
@@ -176,6 +179,26 @@ custom pedal_to_tps_t	@@PEDAL_TO_TPS_SIZE@@x@@PEDAL_TO_TPS_SIZE@@ array,   U08, 
 
 custom iac_pid_mult_t	@@IAC_PID_MULT_SIZE@@x@@IAC_PID_MULT_SIZE@@ array,   U08,   @OFFSET@, [@@IAC_PID_MULT_SIZE@@x@@IAC_PID_MULT_SIZE@@],"%",	   1,     0,     0,  999,    2
 custom boost_table_t	@@BOOST_RPM_COUNT@@x@@BOOST_LOAD_COUNT@@ array,   U08,   @OFFSET@, [@@BOOST_RPM_COUNT@@x@@BOOST_LOAD_COUNT@@],"",    @@LOAD_1_BYTE_PACKING_MULT@@,  0 ,    0,    3000,      0
+custom stft_rate_table_t	@@STFT_RPM_COUNT@@x@@STFT_LOAD_COUNT@@ array,   U08,   @OFFSET@, [@@STFT_RPM_COUNT@@x@@STFT_LOAD_COUNT@@],"",   0.1,  0,    0,    20,      0
+
+struct stft_cell_cfg_s
+	uint8_t maxAdd;;    S08, "%",        1, 0,  0, 25, 1
+	uint8_t maxRemove;; S08, "%",       -1, 0, -25, 0, 1
+end_struct
+
+struct stft_s
+	uint8_t[STFT_LOAD_COUNT] adjRateMapBins;;"",  @@LOAD_1_BYTE_PACKING_MULT@@,   0,        0,  600.0,   1
+	uint8_t[STFT_RPM_COUNT] adjRateRpmBins;;"RPM",   @@RPM_1_BYTE_PACKING_MULT@@,     0,      0.0,   12000.0,   0 
+	stft_rate_table_t adjRate
+
+	uint8_t maxIdleRegionRpm;;"RPM",   @@RPM_1_BYTE_PACKING_MULT@@,     0,      0.0,   12000.0,   0
+	uint8_t maxOverrunLoad;;  "load",  @@LOAD_1_BYTE_PACKING_MULT@@,    0,      0.0,   600.0,   0
+	uint8_t minPowerLoad;;    "load",  @@LOAD_1_BYTE_PACKING_MULT@@,    0,      0.0,   600.0,   0
+	uint8_t deadband;;  U08, "%",       0.1, 0, 2, 1
+
+	stft_cell_cfg_s[STFT_CELL_COUNT iterate] cellCfgs;
+end_struct
+
 struct pid_s
 	float pFactor;;"",      1,      0,       -10000, 10000,      4
 	float iFactor;;"",      1,      0,       -10000, 10000,      4
@@ -810,7 +833,9 @@ custom maf_sensor_type_e 4 bits, S32, @OFFSET@, [0:7], @@maf_sensor_type_e_enum@
     int launchBoostDuty;+Duty Cycle for the Boost Solenoid;"%",        1,     0,  0,    100.0,  0
 	int hardCutRpmRange;+RPM Range for Hard Cut;"rpm",    1,      0,       0, 3000.0,        2
 
-	int[103] unusedAtOldBoardConfigurationEnd;
+	stft_s stft
+
+	int[92] unusedAtOldBoardConfigurationEnd;
 
 	bit vvtDisplayInverted
 	bit fuelClosedLoopCorrectionEnabled;+Enables lambda sensor closed loop feedback for fuelling.

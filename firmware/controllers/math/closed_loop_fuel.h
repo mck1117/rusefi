@@ -1,3 +1,3 @@
 #pragma once
 
-float fuelClosedLoopCorrection();
+float fuelClosedLoopCorrection(int rpm, float airmass, float clt);

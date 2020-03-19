@@ -8,50 +8,30 @@
 
 EXTERN_ENGINE;
 
-ClosedLoopFuelCellImpl cells[16];
+ClosedLoopFuelCellImpl cells[STFT_CELL_COUNT];
 
-static const int rpmSplitPoints[] =
-{
-	1100, 1800, 2500
-};
 
-static const float airmassSplitPoints[] =
-{
-	0.13f,
-	0.19f,
-	0.25f,
-}
-
-static const closed_loop_fuel_cfg cfg =
-{
-	0.005f
-};
-
-template <class TValue, size_t N>
-static size_t findInArray(TValue search, TValue (&arr)[N])
-{
-	size_t idx = 0;
-
-	while (true) {
-		if (idx == N) {
-			break;
-		}
-
-		if (arr[idx] < search) {
-			break;
-		}
-
-		idx++;
+static size_t computeBin(int rpm, float load, stft_s& cfg) {
+	// Low RPM -> idle
+	if (rpm < cfg.maxIdleRegionRpm)
+	{
+		return 0;
 	}
 
-	return idx;
-}
+	// Low load -> overrun
+	if (load < cfg.maxOverrunLoad)
+	{
+		return 1;
+	}
 
-static size_t computeBin(int rpm, float airmass) {
-	auto col = findInArray(rpm, rpmSplitPoints);
-	auto row = findInArray(airmass, airmassSplitPoints);
+	// High load -> power
+	if (load > cfg.minPowerLoad)
+	{
+		return 2;
+	}
 
-	return 4 * col + row;
+	// Default -> normal "in the middle" cell
+	return 3;
 }
 
 
@@ -64,31 +44,35 @@ static size_t computeBin(int rpm, float airmass) {
 // 		return;
 // 	}
 
-static bool shouldCorrect(int rpm) {
+static bool shouldCorrect(float clt) {
 	if (!CONFIG(fuelClosedLoopCorrectionEnabled)) {
 		return false;
 	}
 
-	if (rpm < CONFIG(fuelClosedLoopRpmThreshold)) {
-		return false;
-	}
-
-	if (getCoolantTemperature() < CONFIG(fuelClosedLOopCltThreshold)) {
+	if (clt < CONFIG(fuelClosedLoopCltThreshold)) {
 		return false;
 	}
 
 	return true;
 }
 
-float fuelClosedLoopCorrection(int rpm, float airmass) {
-	if (!shouldCorrect(rpm, airmass)) {
+float fuelClosedLoopCorrection(int rpm, float load, float clt) {
+	if (!shouldCorrect(clt)) {
 		return 1.0f;
 	}
 
-	auto& cell = cells[computeBin(rpm, airmass)];
+	auto binIdx = computeBin(rpm, load, CONFIG(stft));
 
-	cell.configure(&cfg);
+	auto& cell = cells[binIdx];
 
-	cell.update();
+	// todo: push configuration at startup
+	cell.configure(&CONFIG(stft.cellCfgs[binIdx]));
+
+	cell.update(0.02f, 0.005f);
+
+	if (engineConfiguration->debugMode == DBG_FUEL_PID_CORRECTION) { 
+		tsOutputChannels.debugIntField1 = binIdx;
+	}
+
 	return cell.getAdjustment();
 }
