@@ -60,9 +60,6 @@ static const char *prevOutputName = nullptr;
 static InjectionEvent primeInjEvent;
 
 static Logging *logger;
-#if ! EFI_UNIT_TEST
-static Pid fuelPid(&persistentState.persistentConfiguration.engineConfiguration.fuelClosedLoopPid);
-#endif
 
 // todo: figure out if this even helps?
 //#if defined __GNUC__

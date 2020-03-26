@@ -829,14 +829,6 @@ static void setDefaultEngineConfiguration(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 
 	setDefaultCrankingSettings(PASS_ENGINE_PARAMETER_SIGNATURE);
 
-	engineConfiguration->fuelClosedLoopCorrectionEnabled = false;
-	engineConfiguration->fuelClosedLoopCltThreshold = 70;
-	engineConfiguration->fuelClosedLoopRpmThreshold = 900;
-	engineConfiguration->fuelClosedLoopTpsThreshold = 80;
-	engineConfiguration->fuelClosedLoopAfrLowThreshold = 10.3;
-	engineConfiguration->fuelClosedLoopAfrHighThreshold = 19.8;
-	engineConfiguration->fuelClosedLoopPid.pFactor = -0.1;
-
 	/**
 	 * Idle control defaults
 	 */
