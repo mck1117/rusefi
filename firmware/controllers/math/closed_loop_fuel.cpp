@@ -75,7 +75,7 @@ float fuelClosedLoopCorrection(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	// todo: push configuration at startup
 	cell.configure(&CONFIG(stft.cellCfgs[binIdx]));
 
-	cell.update(0.02f, 0.005f);
+	cell.update(0.02f, CONFIG(stft.deadband) * 0.001f);
 
 	return cell.getAdjustment();
 }
