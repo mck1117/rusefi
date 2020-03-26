@@ -4,6 +4,9 @@
 #include "global_shared.h"
 #include "engine.h"
 
+#include "thermistors.h"
+#include "engine_math.h"
+
 #include "closed_loop_fuel_cell.h"
 
 EXTERN_ENGINE;
@@ -34,34 +37,38 @@ static size_t computeBin(int rpm, float load, stft_s& cfg) {
 	return 3;
 }
 
-
-// 			getCoolantTemperature() < CONFIG(fuelClosedLoopCltThreshold) ||
-// 			getTPS(PASS_ENGINE_PARAMETER_SIGNATURE) > CONFIG(fuelClosedLoopTpsThreshold) ||
-// 			ENGINE(sensors.currentAfr) < CONFIG(fuelClosedLoopAfrLowThreshold) ||
-// 			ENGINE(sensors.currentAfr) > engineConfiguration->fuelClosedLoopAfrHighThreshold) {
-// 		engine->engineState.running.pidCorrection = 0;
-// 		fuelPid.reset();
-// 		return;
-// 	}
-
-static bool shouldCorrect(float clt) {
+static bool shouldCorrect(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
+	const auto& cfg = CONFIG(stft);
+	
 	if (!CONFIG(fuelClosedLoopCorrectionEnabled)) {
 		return false;
 	}
 
-	if (clt < CONFIG(fuelClosedLoopCltThreshold)) {
+	// Check that the engine is hot enough
+	if (getCoolantTemperature() < cfg.minClt) {
 		return false;
 	}
 
+	// Check that AFR is reasonable
+	float afr = ENGINE(sensors.currentAfr);
+	if (afr < (cfg.minAfr * 0.01f) || afr > (cfg.maxAfr * 0.01f)) {
+		return false;
+	}
+
+	// If all was well, then we're enabled!
 	return true;
 }
 
-float fuelClosedLoopCorrection(int rpm, float load, float clt) {
-	if (!shouldCorrect(clt)) {
+float fuelClosedLoopCorrection(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
+	if (!shouldCorrect(PASS_ENGINE_PARAMETER_SIGNATURE)) {
 		return 1.0f;
 	}
 
-	auto binIdx = computeBin(rpm, load, CONFIG(stft));
+	size_t binIdx = computeBin(GET_RPM(), getEngineLoadT(PASS_ENGINE_PARAMETER_SIGNATURE), CONFIG(stft));
+
+	if (engineConfiguration->debugMode == DBG_FUEL_PID_CORRECTION) {
+		tsOutputChannels.debugIntField1 = binIdx;
+	}
 
 	auto& cell = cells[binIdx];
 
@@ -69,10 +76,6 @@ float fuelClosedLoopCorrection(int rpm, float load, float clt) {
 	cell.configure(&CONFIG(stft.cellCfgs[binIdx]));
 
 	cell.update(0.02f, 0.005f);
-
-	if (engineConfiguration->debugMode == DBG_FUEL_PID_CORRECTION) { 
-		tsOutputChannels.debugIntField1 = binIdx;
-	}
 
 	return cell.getAdjustment();
 }

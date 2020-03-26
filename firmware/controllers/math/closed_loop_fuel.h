@@ -1,3 +1,5 @@
 #pragma once
 
-float fuelClosedLoopCorrection(int rpm, float airmass, float clt);
+#include "global_shared.h"
+
+float fuelClosedLoopCorrection(DECLARE_ENGINE_PARAMETER_SIGNATURE);
