@@ -1115,7 +1115,7 @@ menuDialog = main
 
 		# Targets & closed loop
 		subMenu = afrTableTbl,				"Target AFR", 0, {isInjectionEnabled == 1 && fuelAlgorithm == LM_SPEED_DENSITY}
-		subMenu = fuelClosedLoopDialog, 	"Closed loop correction", 0, {isInjectionEnabled == 1}
+		subMenu = fuelClosedLoopDialog, 	"Closed loop fueling", 0, {isInjectionEnabled == 1}
 		subMenu = coastingFuelCutControl, 	"Deceleration fuel cutoff (DFCO)", 0, {isInjectionEnabled == 1}
 		subMenu = std_separator
 
@@ -2155,22 +2155,47 @@ cmd_set_engine_type_default					= "w\x00\x31\x00\x00"
 		field = "SPI3sck mode",							spi3SckMode, {is_enabled_spi_3 == 1}
 		field = "LIS302DLCsPin",						LIS302DLCsPin
 
+	dialog = stftPartitioning, "Region Configuration"
+		field = "Idle region RPM",						stft_maxIdleRegionRpm
+		field = "Overrun region load",					stft_maxOverrunLoad
+		field = "Power region load",					stft_minPowerLoad
+
+	dialog = stftPartitionSettingsMain, "Main Region", xAxis
+		field = "Adj. rate",							stft_cellCfgs4_adjRate
+		field = "Max add",								stft_cellCfgs4_maxAdd
+		field = "Max remove",							stft_cellCfgs4_maxRemove
+
+	dialog = stftPartitionSettingsIdle, "Idle Region", xAxis
+		field = "Adj. rate",							stft_cellCfgs1_adjRate
+		field = "Max add",								stft_cellCfgs1_maxAdd
+		field = "Max remove",							stft_cellCfgs1_maxRemove
+
+	dialog = stftPartitionSettingsPower, "Power Region", xAxis
+		field = "Adj. rate",							stft_cellCfgs3_adjRate
+		field = "Max add",								stft_cellCfgs3_maxAdd
+		field = "Max remove",							stft_cellCfgs3_maxRemove
+
+	dialog = stftPartitionSettingsOverrun, "Overrun Region", xAxis
+		field = "Adj. rate",							stft_cellCfgs2_adjRate
+		field = "Max add",								stft_cellCfgs2_maxAdd
+		field = "Max remove",							stft_cellCfgs2_maxRemove
+
 	dialog = fuelClosedLoopDialog, "Fuel short-term closed-loop correction"
-		field = "#This is just the cherry on the cake once you have good VE table"
+
 		field = "Enabled",								fuelClosedLoopCorrectionEnabled
-		field = "!No correction below these value"
-		field = "CLT - low threshod", 					fuelClosedLoopCltThreshold, {fuelClosedLoopCorrectionEnabled == 1}
-		field = "RPM - low threshod", 					fuelClosedLoopRpmThreshold, {fuelClosedLoopCorrectionEnabled == 1}
-		field = "EGO - low threshod", 					fuelClosedLoopAfrLowThreshold, {fuelClosedLoopCorrectionEnabled == 1}
-		field = "!No correction above these value"
-		field = "TPS - high threshod", 					fuelClosedLoopTpsThreshold, {fuelClosedLoopCorrectionEnabled == 1}
-		field = "EGO - high threshod", 					fuelClosedLoopAfrHighThreshold, {fuelClosedLoopCorrectionEnabled == 1}
-		field = "!PID settings"
-		field = "P factor",								fuelClosedLoopPid_pFactor, {fuelClosedLoopCorrectionEnabled == 1}
-		field = "I factor",								fuelClosedLoopPid_iFactor, {fuelClosedLoopCorrectionEnabled == 1}
-		field = "D factor",								fuelClosedLoopPid_dFactor, {fuelClosedLoopCorrectionEnabled == 1}
-		field = "min",									fuelClosedLoopPid_minValue, {fuelClosedLoopCorrectionEnabled == 1}
-		field = "max",									fuelClosedLoopPid_maxValue, {fuelClosedLoopCorrectionEnabled == 1}
+
+		field = "Minimum CLT for correction",			stft_minClt, {fuelClosedLoopCorrectionEnabled == 1}
+		field = "Minimum AFR for correction",			stft_minAfr, {fuelClosedLoopCorrectionEnabled == 1}
+		field = "Maximum AFR for correction",			stft_maxAfr, {fuelClosedLoopCorrectionEnabled == 1}
+		field = "Adjustment deadband",					stft_deadband, {fuelClosedLoopCorrectionEnabled == 1}
+
+		panel = stftPartitioning, {fuelClosedLoopCorrectionEnabled == 1}
+		panel = stftPartitionSettingsMain, {fuelClosedLoopCorrectionEnabled == 1}
+		panel = stftPartitionSettingsIdle, {fuelClosedLoopCorrectionEnabled == 1}
+		panel = stftPartitionSettingsPower, {fuelClosedLoopCorrectionEnabled == 1}
+		panel = stftPartitionSettingsOverrun, {fuelClosedLoopCorrectionEnabled == 1}
+
+
 
 
 	dialog = auxPidDialog, "Aux PID"
