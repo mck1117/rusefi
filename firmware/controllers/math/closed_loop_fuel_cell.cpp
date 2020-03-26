@@ -9,7 +9,7 @@ EXTERN_ENGINE;
 
 constexpr float updateFreq = 1000.0f / FAST_CALLBACK_PERIOD_MS;
 
-void ClosedLoopFuelCellBase::update(float adjustRate, float lambdaDeadband)
+void ClosedLoopFuelCellBase::update(float lambdaDeadband)
 {
 	// Compute how far off target we are
 	float lambdaError = getLambdaError();
@@ -20,7 +20,7 @@ void ClosedLoopFuelCellBase::update(float adjustRate, float lambdaDeadband)
 	}
 
 	// Convert per-second to per-cycle (200hz)
-	float adjustAmount = adjustRate / updateFreq;
+	float adjustAmount = getAdjustmentRate() / updateFreq;
 
 	// Nudge the adjustment up or down by the appropriate amount
 	float adjust = m_adjustment + adjustAmount * ((lambdaError < 0) ? 1 : -1);
@@ -68,4 +68,16 @@ float ClosedLoopFuelCellImpl::getMinAdjustment() const {
 	float raw = m_config->maxRemove * 0.01f;
 	// Don't allow minimum more than 0, or more than maximum adjustment
 	return maxF(-MAX_ADJ, minF(raw, 0));
+}
+
+float ClosedLoopFuelCellImpl::getAdjustmentRate() const {
+	if (!m_config) {
+		// If no config, disallow adjustment.
+		return 0.0f;
+	}
+
+	// 0.1% per LSB
+	float raw = m_config->adjRate * 0.001f;
+	// Don't allow maximum less than 0, or more than maximum rate
+	return minF(0.2f, maxF(raw, 0));
 }

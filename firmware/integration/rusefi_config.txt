@@ -179,26 +179,23 @@ custom pedal_to_tps_t	@@PEDAL_TO_TPS_SIZE@@x@@PEDAL_TO_TPS_SIZE@@ array,   U08, 
 
 custom iac_pid_mult_t	@@IAC_PID_MULT_SIZE@@x@@IAC_PID_MULT_SIZE@@ array,   U08,   @OFFSET@, [@@IAC_PID_MULT_SIZE@@x@@IAC_PID_MULT_SIZE@@],"%",	   1,     0,     0,  999,    2
 custom boost_table_t	@@BOOST_RPM_COUNT@@x@@BOOST_LOAD_COUNT@@ array,   U08,   @OFFSET@, [@@BOOST_RPM_COUNT@@x@@BOOST_LOAD_COUNT@@],"",    @@LOAD_1_BYTE_PACKING_MULT@@,  0 ,    0,    3000,      0
-custom stft_rate_table_t	@@STFT_RPM_COUNT@@x@@STFT_LOAD_COUNT@@ array,   U08,   @OFFSET@, [@@STFT_RPM_COUNT@@x@@STFT_LOAD_COUNT@@],"",   0.1,  0,    0,    20,      0
 
 struct stft_cell_cfg_s
-	uint8_t maxAdd;;    S08, "%",        1, 0,  0, 25, 1
-	uint8_t maxRemove;; S08, "%",       -1, 0, -25, 0, 1
+	int8_t maxAdd;;    "%",        1, 0,  0, 25, 0
+	int8_t maxRemove;; "%",        1, 0, -25, 0, 0
+	uint8_t adjRate;;   "%/sec", 0.1, 0, 0,  20, 1
+	uint8_t pad
 end_struct
 
 struct stft_s
-	uint8_t[STFT_LOAD_COUNT] adjRateMapBins;;"",  @@LOAD_1_BYTE_PACKING_MULT@@,   0,        0,  600.0,   1
-	uint8_t[STFT_RPM_COUNT] adjRateRpmBins;;"RPM",   @@RPM_1_BYTE_PACKING_MULT@@,     0,      0.0,   12000.0,   0 
-	stft_rate_table_t adjRate
-
 	uint8_t maxIdleRegionRpm;;"RPM",   @@RPM_1_BYTE_PACKING_MULT@@,     0,      0.0,   12000.0,   0
 	uint8_t maxOverrunLoad;;  "load",  @@LOAD_1_BYTE_PACKING_MULT@@,    0,      0.0,   600.0,   0
 	uint8_t minPowerLoad;;    "load",  @@LOAD_1_BYTE_PACKING_MULT@@,    0,      0.0,   600.0,   0
-	uint8_t deadband;;  U08, "%",       0.1, 0, 2, 1
+	uint8_t deadband;;  "%",  0.1,     0,    0,      3,  1
 
-	int8_t minClt;;"C",        1,     0,  -20,    100,  0
-	int8_t minAfr;;"afr",   0.01,     0,   10,     20,  2
-	int8_t maxAfr;;"afr",   0.01,     0,   10,     20,  2
+	int8_t minClt;;"C",         1,     0,  -20,    100,  0
+	uint8_t minAfr;;"afr",    0.1,     0,   10,     20,  1
+	uint8_t maxAfr;;"afr",    0.1,     0,   10,     20,  1
 	int8_t pad
 
 	stft_cell_cfg_s[STFT_CELL_COUNT iterate] cellCfgs;
@@ -839,7 +836,7 @@ custom maf_sensor_type_e 4 bits, S32, @OFFSET@, [0:7], @@maf_sensor_type_e_enum@
 
 	stft_s stft
 
-	int[88] unusedAtOldBoardConfigurationEnd;
+	int[94] unusedAtOldBoardConfigurationEnd;
 
 	bit vvtDisplayInverted
 	bit fuelClosedLoopCorrectionEnabled;+Enables lambda sensor closed loop feedback for fuelling.

@@ -3,7 +3,7 @@
 
 class ClosedLoopFuelCellBase {
 public:
-	void update(float adjustRate, float lambdaDeadband);
+	void update(float lambdaDeadband);
 	float getAdjustment() const;
 
 protected:
@@ -11,6 +11,7 @@ protected:
 	virtual float getLambdaError() const = 0;
 	virtual float getMaxAdjustment() const = 0;
 	virtual float getMinAdjustment() const = 0;
+	virtual float getAdjustmentRate() const = 0;
 
 private:
 	// Current fueling adjustment.
@@ -34,4 +35,5 @@ protected:
 	float getLambdaError() const override;
 	float getMaxAdjustment() const override;
 	float getMinAdjustment() const override;
+	float getAdjustmentRate() const override;
 };

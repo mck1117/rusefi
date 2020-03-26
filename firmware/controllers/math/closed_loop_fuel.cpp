@@ -51,7 +51,7 @@ static bool shouldCorrect(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 
 	// Check that AFR is reasonable
 	float afr = ENGINE(sensors.currentAfr);
-	if (afr < (cfg.minAfr * 0.01f) || afr > (cfg.maxAfr * 0.01f)) {
+	if (afr < (cfg.minAfr * 0.1f) || afr > (cfg.maxAfr * 0.1f)) {
 		return false;
 	}
 
@@ -75,7 +75,7 @@ float fuelClosedLoopCorrection(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	// todo: push configuration at startup
 	cell.configure(&CONFIG(stft.cellCfgs[binIdx]));
 
-	cell.update(0.02f, CONFIG(stft.deadband) * 0.001f);
+	cell.update(CONFIG(stft.deadband) * 0.001f);
 
 	return cell.getAdjustment();
 }
