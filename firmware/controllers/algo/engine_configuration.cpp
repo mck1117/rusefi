@@ -318,7 +318,9 @@ void prepareVoidConfiguration(engine_configuration_s *engineConfiguration) {
 /* this breaks unit tests lovely TODO: fix this?
 	engineConfiguration->tps1_1AdcChannel = EFI_ADC_NONE;
 */
+	engineConfiguration->tps1_2AdcChannel = EFI_ADC_NONE;
 	engineConfiguration->tps2_1AdcChannel = EFI_ADC_NONE;
+	engineConfiguration->tps2_2AdcChannel = EFI_ADC_NONE;
 	engineConfiguration->auxFastSensor1_adcChannel = EFI_ADC_NONE;
 	engineConfiguration->acSwitchAdc = EFI_ADC_NONE;
 	engineConfiguration->externalKnockSenseAdc = EFI_ADC_NONE;
@@ -618,6 +620,17 @@ int getTargetRpmForIdleCorrection(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	return targetRpm + engine->fsioState.fsioIdleTargetRPMAdjustment;
 }
 
+void setDefaultMultisparkParameters(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
+	// 1ms spark + 2ms dwell
+	engineConfiguration->multisparkSparkDuration = 1000;
+	engineConfiguration->multisparkDwell = 2000;
+
+	// Conservative defaults - probably won't blow up coils
+	engineConfiguration->multisparkMaxRpm = 1500;
+	engineConfiguration->multisparkMaxExtraSparkCount = 2;
+	engineConfiguration->multisparkMaxSparkingAngle = 30;
+}
+
 /**
  * @brief	Global default engine configuration
  * This method sets the global engine configuration defaults. These default values are then
@@ -667,14 +680,18 @@ static void setDefaultEngineConfiguration(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	engineConfiguration->canWriteEnabled = true;
 	engineConfiguration->canNbcType = CAN_BUS_MAZDA_RX8;
 
+	// Don't enable, but set default address
+	engineConfiguration->verboseCanBaseAddress = 0x200;
+
 	engineConfiguration->sdCardPeriodMs = 50;
 
 	for (int i = 0; i < FSIO_COMMAND_COUNT; i++) {
 		config->fsioFormulas[i][0] = 0;
 	}
 
-
 	CONFIG(mapMinBufferLength) = 1;
+
+	CONFIG(startCrankingDuration) = 7;
 
 	engineConfiguration->idlePidRpmDeadZone = 50;
 	engineConfiguration->startOfCrankingPrimingPulse = 0;
@@ -854,6 +871,8 @@ static void setDefaultEngineConfiguration(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 
 	engineConfiguration->timingMode = TM_DYNAMIC;
 	engineConfiguration->fixedModeTiming = 50;
+
+	setDefaultMultisparkParameters(PASS_ENGINE_PARAMETER_SIGNATURE);
 
 #if !EFI_UNIT_TEST
 	engineConfiguration->analogInputDividerCoefficient = 2;

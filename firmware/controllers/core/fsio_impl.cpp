@@ -72,8 +72,6 @@ static LENameOrdinalPair leInShutdown(LE_METHOD_IN_SHUTDOWN, "in_shutdown");
 
 #define LE_EVAL_POOL_SIZE 32
 
-extern EnginePins enginePins;
-
 static LECalculator evalCalc;
 static LEElement evalPoolElements[LE_EVAL_POOL_SIZE];
 static LEElementPool evalPool(evalPoolElements, LE_EVAL_POOL_SIZE);
@@ -102,7 +100,7 @@ static LEElement * acRelayLogic;
 static LEElement * fuelPumpLogic;
 static LEElement * radiatorFanLogic;
 static LEElement * alternatorLogic;
-static LEElement * starterRelayLogic;
+static LEElement * starterRelayDisableLogic;
 
 #if EFI_MAIN_RELAY_CONTROL
 static LEElement * mainRelayLogic;
@@ -165,7 +163,7 @@ float getEngineValue(le_action_e action DECLARE_ENGINE_PARAMETER_SUFFIX) {
 #include "pin_repository.h"
 #include "pwm_generator.h"
 // todo: that's about bench test mode, wrong header for sure!
-#include "injector_central.h"
+#include "bench_test.h"
 
 static void setFsioAnalogInputPin(const char *indexStr, const char *pinName) {
 // todo: reduce code duplication between all "set pin methods"
@@ -467,8 +465,8 @@ void runFsio(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 		enginePins.mainRelay.setValue(true);
 #endif /* EFI_MAIN_RELAY_CONTROL */
 
-	if (CONFIG(starterRelayPin) != GPIO_UNASSIGNED)
-		setPinState("starter_relay", &enginePins.starterRelay, starterRelayLogic PASS_ENGINE_PARAMETER_SUFFIX);
+	if (CONFIG(starterRelayDisablePin) != GPIO_UNASSIGNED)
+		setPinState("starter_relay", &enginePins.starterRelayDisable, starterRelayDisableLogic PASS_ENGINE_PARAMETER_SUFFIX);
 
 	/**
 	 * o2 heater is off during cranking
@@ -679,8 +677,8 @@ void initFsioImpl(Logging *sharedLogger DECLARE_ENGINE_PARAMETER_SUFFIX) {
 	if (CONFIG(mainRelayPin) != GPIO_UNASSIGNED)
 		mainRelayLogic = sysPool.parseExpression(MAIN_RELAY_LOGIC);
 #endif /* EFI_MAIN_RELAY_CONTROL */
-	if (CONFIG(starterRelayPin) != GPIO_UNASSIGNED)
-		starterRelayLogic = sysPool.parseExpression(STARTER_RELAY_LOGIC);
+	if (CONFIG(starterRelayDisablePin) != GPIO_UNASSIGNED)
+		starterRelayDisableLogic = sysPool.parseExpression(STARTER_RELAY_LOGIC);
 
 #if EFI_PROD_CODE
 	for (int i = 0; i < FSIO_COMMAND_COUNT; i++) {
@@ -693,7 +691,7 @@ void initFsioImpl(Logging *sharedLogger DECLARE_ENGINE_PARAMETER_SUFFIX) {
 			} else {
 				startSimplePwmExt(&fsioPwm[i], "FSIOpwm",
 						&engine->executor,
-						brainPin, &enginePins.fsioOutputs[i], frequency, 0.5f, (pwm_gen_callback*)applyPinState);
+						brainPin, &enginePins.fsioOutputs[i], frequency, 0.5f);
 			}
 		}
 	}
@@ -736,7 +734,6 @@ void initFsioImpl(Logging *sharedLogger DECLARE_ENGINE_PARAMETER_SUFFIX) {
 
 EXTERN_ENGINE
 ;
-extern EnginePins enginePins;
 
 // "Limp-mode" implementation for some RAM-limited configs without FSIO
 void runHardcodedFsio(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
@@ -745,8 +742,8 @@ void runHardcodedFsio(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 		enginePins.mainRelay.setValue((getTimeNowSeconds() < 2) || (getVBatt(PASS_ENGINE_PARAMETER_SIGNATURE) > 5) || engine->isInShutdownMode());
 	}
 	// see STARTER_RELAY_LOGIC
-	if (CONFIG(starterRelayPin) != GPIO_UNASSIGNED) {
-		enginePins.starterRelay.setValue(engine->rpmCalculator.getRpm() < engineConfiguration->cranking.rpm);
+	if (CONFIG(starterRelayDisablePin) != GPIO_UNASSIGNED) {
+		enginePins.starterRelayDisable.setValue(engine->rpmCalculator.getRpm() < engineConfiguration->cranking.rpm);
 	}
 	// see FAN_CONTROL_LOGIC
 	if (CONFIG(fanPin) != GPIO_UNASSIGNED) {

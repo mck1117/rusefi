@@ -1,4 +1,4 @@
-// this section was generated automatically by rusEfi tool ConfigDefinition.jar based on integration\rusefi_config.txt Mon Mar 09 19:26:17 EDT 2020
+// this section was generated automatically by rusEfi tool ConfigDefinition.jar based on integration\rusefi_config.txt Wed Mar 25 17:51:52 PDT 2020
 // by class com.rusefi.output.CHeaderConsumer
 // begin
 #ifndef CONTROLLERS_GENERATED_ENGINE_CONFIGURATION_GENERATED_STRUCTURES_H
@@ -278,33 +278,6 @@ struct injector_s {
 
 typedef struct injector_s injector_s;
 
-// start of bi_quard_s
-struct bi_quard_s {
-	/**
-	 * offset 0
-	 */
-	float a0;
-	/**
-	 * offset 4
-	 */
-	float a1;
-	/**
-	 * offset 8
-	 */
-	float a2;
-	/**
-	 * offset 12
-	 */
-	float b1;
-	/**
-	 * offset 16
-	 */
-	float b2;
-	/** total size 20*/
-};
-
-typedef struct bi_quard_s bi_quard_s;
-
 // start of specs_s
 struct specs_s {
 	/**
@@ -339,10 +312,10 @@ struct trigger_config_s {
 	trigger_type_e type;
 	/**
 	offset 4 bit 0 */
-	bool unusedTriggerBit0 : 1;
+	bool todoRemoveMeOneDay0 : 1;
 	/**
 	offset 4 bit 1 */
-	bool unusedTriggerBit1 : 1;
+	bool todoRemoveMeOneDay1 : 1;
 	/**
 	 * This option could be used if your second trigger channel is broken
 	offset 4 bit 2 */
@@ -578,8 +551,9 @@ struct engine_configuration_s {
 	bool isVerboseAuxPid4 : 1;
 	/**
 	offset 76 bit 9 */
-	bool useBiQuadAnalogFiltering : 1;
+	bool unused76b9 : 1;
 	/**
+	 * Is your UA CJ125 output wired to MCU via resistor divider?
 	offset 76 bit 10 */
 	bool cj125isUaDivided : 1;
 	/**
@@ -595,7 +569,8 @@ struct engine_configuration_s {
 	offset 76 bit 14 */
 	bool showSdCardWarning : 1;
 	/**
-	 * looks like 3v range should be enough, divider not needed
+	 * Is your UR CJ125 output wired to MCU via resistor divider?
+	 * Looks like 3v range should be enough, divider generally not needed.
 	offset 76 bit 15 */
 	bool cj125isUrDivided : 1;
 	/**
@@ -1297,7 +1272,7 @@ struct engine_configuration_s {
 	bool verboseTLE8888 : 1;
 	/**
 	offset 744 bit 14 */
-	bool unusedOldWarmupAfr : 1;
+	bool enableVerboseCanTx : 1;
 	/**
 	 *  +This will cause the alternator to be operated in a basic on or off mode, this is the simplest alternator control.
 	offset 744 bit 15 */
@@ -1380,11 +1355,11 @@ struct engine_configuration_s {
 	/**
 	 * offset 756
 	 */
-	uint8_t unusedHereWeHave[4];
+	uint32_t verboseCanBaseAddress;
 	/**
 	 * offset 760
 	 */
-	int unrealisticRpmThreashold;
+	int unusedOneMoreHere;
 	/**
 	 * offset 764
 	 */
@@ -1414,20 +1389,22 @@ struct engine_configuration_s {
 	/**
 	 * offset 808
 	 */
-	output_pin_e starterRelayPin;
+	output_pin_e starterRelayDisablePin;
 	/**
+	 * On some vehicles we can disable starter once engine is already running
 	 * offset 809
 	 */
-	pin_output_mode_e starterRelayPinMode;
+	pin_output_mode_e starterRelayDisableMode;
 	/**
 	 * Some Subaru and some Mazda use double-solenoid idle air valve
 	 * offset 810
 	 */
 	brain_pin_e secondSolenoidPin;
 	/**
+	 * See also starterControlPin
 	 * offset 811
 	 */
-	uint8_t unuseduartPadding1;
+	switch_input_pin_e startStopButtonPin;
 	/**
 	 * offset 812
 	 */
@@ -1441,15 +1418,18 @@ struct engine_configuration_s {
 	 */
 	int16_t stepperParkingExtraSteps;
 	/**
-	 * This magic property is specific to Mazda Miata NB2
 	 * offset 820
 	 */
-	float unusedmiataNb2VVTRatioFrom;
+	float unusedAntilagTimeout;
 	/**
-	 * This magic property is specific to Mazda Miata NB2
 	 * offset 824
 	 */
-	float unusedmiataNb2VVTRatioTo;
+	int16_t antiLagRpmTreshold;
+	/**
+	 * Maximum time to crank starter
+	 * offset 826
+	 */
+	int16_t startCrankingDuration;
 	/**
 	 * This pin is used for debugging - snap a logic analyzer on it and see if it's ever high
 	 * offset 828
@@ -1576,7 +1556,15 @@ struct engine_configuration_s {
 	/**
 	 * offset 972
 	 */
-	float unused;
+	uint16_t multisparkMaxRpm;
+	/**
+	 * offset 974
+	 */
+	uint8_t multisparkMaxSparkingAngle;
+	/**
+	 * offset 975
+	 */
+	uint8_t multisparkMaxExtraSparkCount;
 	/**
 	offset 976 bit 0 */
 	bool todoClutchUpPinInverted : 1;
@@ -1588,16 +1576,16 @@ struct engine_configuration_s {
 	bool useHbridges : 1;
 	/**
 	offset 976 bit 3 */
-	bool unusedBit_251_3 : 1;
+	bool multisparkEnable : 1;
 	/**
 	offset 976 bit 4 */
-	bool unusedBit_251_4 : 1;
+	bool enableLaunchRetard : 1;
 	/**
 	offset 976 bit 5 */
-	bool unusedBit_251_5 : 1;
+	bool enableLaunchBoost : 1;
 	/**
 	offset 976 bit 6 */
-	bool unusedBit_251_6 : 1;
+	bool launchDisableBySpeed : 1;
 	/**
 	offset 976 bit 7 */
 	bool unusedBit_251_7 : 1;
@@ -1669,10 +1657,10 @@ struct engine_configuration_s {
 	bool unusedBit_251_29 : 1;
 	/**
 	offset 976 bit 30 */
-	bool unusedBit_278_30 : 1;
+	bool unusedBit_281_30 : 1;
 	/**
 	offset 976 bit 31 */
-	bool unusedBit_278_31 : 1;
+	bool unusedBit_281_31 : 1;
 	/**
 	 * offset 980
 	 */
@@ -1746,7 +1734,19 @@ struct engine_configuration_s {
 	/**
 	 * offset 1052
 	 */
-	int unusedAtOldBoardConfigurationEnd[103];
+	int launchAdvanceRpmRange;
+	/**
+	 * offset 1056
+	 */
+	int launchTpsTreshold;
+	/**
+	 * offset 1060
+	 */
+	float launchActivateDelay;
+	/**
+	 * offset 1064
+	 */
+	int unusedAtOldBoardConfigurationEnd[100];
 	/**
 	offset 1464 bit 0 */
 	bool vvtDisplayInverted : 1;
@@ -2135,9 +2135,18 @@ struct engine_configuration_s {
 	 */
 	int16_t tps2Max;
 	/**
+	 * See also startStopButtonPin
 	 * offset 1772
 	 */
-	uint8_t unusedFormerWarmupAfrPid[3];
+	output_pin_e starterControlPin;
+	/**
+	 * offset 1773
+	 */
+	pin_input_mode_e startStopButtonMode;
+	/**
+	 * offset 1774
+	 */
+	uint8_t unusedFormerWarmupAfrPid;
 	/**
 	 * offset 1775
 	 */
@@ -2155,7 +2164,11 @@ struct engine_configuration_s {
 	/**
 	 * offset 1784
 	 */
-	uint8_t unusedSomething[4];
+	uint16_t multisparkSparkDuration;
+	/**
+	 * offset 1786
+	 */
+	uint16_t multisparkDwell;
 	/**
 	 * See cltIdleRpmBins
 	 * offset 1788
@@ -2454,7 +2467,7 @@ struct engine_configuration_s {
 	/**
 	 * offset 2332
 	 */
-	bi_quard_s biQuad;
+	uint8_t unusedOldBiquad[20];
 	/**
 	 * CLT-based timing correction
 	 * offset 2352
@@ -2550,6 +2563,7 @@ struct engine_configuration_s {
 	 */
 	pin_mode_e spi1SckMode;
 	/**
+	 * Modes count be used for 3v<>5v integration using pull-ups/pull-downs etc.
 	 * offset 2597
 	 */
 	pin_mode_e spi1MosiMode;
@@ -3216,4 +3230,4 @@ typedef struct persistent_config_s persistent_config_s;
 
 #endif
 // end
-// this section was generated automatically by rusEfi tool ConfigDefinition.jar based on integration\rusefi_config.txt Mon Mar 09 19:26:17 EDT 2020
+// this section was generated automatically by rusEfi tool ConfigDefinition.jar based on integration\rusefi_config.txt Wed Mar 25 17:51:52 PDT 2020
