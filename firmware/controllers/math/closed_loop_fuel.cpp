@@ -13,7 +13,6 @@ EXTERN_ENGINE;
 
 ClosedLoopFuelCellImpl cells[STFT_CELL_COUNT];
 
-
 static size_t computeBin(int rpm, float load, stft_s& cfg) {
 	// Low RPM -> idle
 	if (rpm < cfg.maxIdleRegionRpm)
@@ -41,6 +40,10 @@ static bool shouldCorrect(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	const auto& cfg = CONFIG(stft);
 	
 	if (!CONFIG(fuelClosedLoopCorrectionEnabled)) {
+		return false;
+	}
+
+	if (cfg.startupDelay > ENGINE(engineState.running.timeSinceCrankingInSecs)) {
 		return false;
 	}
 

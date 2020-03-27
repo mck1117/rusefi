@@ -196,7 +196,7 @@ struct stft_s
 	int8_t minClt;+Below this temperature, correction is disabled.;"C",         1,     0,  -20,    100,  0
 	uint8_t minAfr;+Below this AFR, correction is paused;"afr",    0.1,     0,   10,     20,  1
 	uint8_t maxAfr;+Above this AFR, correction is paused;"afr",    0.1,     0,   10,     20,  1
-	int8_t pad
+	uint8_t startupDelay;+Delay after starting the engine before beginning closed loop correction.;"seconds", 1, 0, 0, 250, 0
 
 	stft_cell_cfg_s[STFT_CELL_COUNT iterate] cellCfgs;
 end_struct
