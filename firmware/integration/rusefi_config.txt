@@ -189,8 +189,8 @@ end_struct
 
 struct stft_s
 	uint8_t maxIdleRegionRpm;+Below this RPM, the idle region is active;"RPM",   @@RPM_1_BYTE_PACKING_MULT@@,     0,      0.0,   12000.0,   0
-	uint8_t maxOverrunLoad;+Below this engine load, the overrun region is active;  "load",  @@LOAD_1_BYTE_PACKING_MULT@@,    0,      0.0,   600.0,   0
-	uint8_t minPowerLoad;+Above this engine load, the power region is active;    "load",  @@LOAD_1_BYTE_PACKING_MULT@@,    0,      0.0,   600.0,   0
+	uint8_t maxOverrunLoad;+Below this engine load, the overrun region is active;  "load",  1,    0,      0.0,   250,   0
+	uint8_t minPowerLoad;+Above this engine load, the power region is active;    "load",  1,    0,      0.0,   250,   0
 	uint8_t deadband;+When close to correct AFR, pause correction.  This can improve stability by not changing the adjustment if the error is extremely small, but is not required.;  "%",  0.1,     0,    0,      3,  1
 
 	int8_t minClt;+Below this temperature, correction is disabled.;"C",         1,     0,  -20,    100,  0
@@ -1389,7 +1389,7 @@ end_struct
 #define GAUGE_NAME_FUEL_RUNNING "fuel: running"
 #define GAUGE_NAME_FUEL_LAST_INJECTION  "fuel: Last injection"
 #define GAUGE_NAME_FUEL_BASE "fuel: base"
-#define GAUGE_NAME_FUEL_PID_CORR "fuel: Short-term closed loop correction"
+#define GAUGE_NAME_FUEL_PID_CORR "fuel: Short term fuel trim"
 #define GAUGE_NAME_FUEL_WALL_AMOUNT "fuel: wall amount"
 #define GAUGE_NAME_FUEL_WALL_CORRECTION "fuel: wall corr ms"
 
