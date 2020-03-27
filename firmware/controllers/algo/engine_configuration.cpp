@@ -631,6 +631,35 @@ void setDefaultMultisparkParameters(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	engineConfiguration->multisparkMaxSparkingAngle = 30;
 }
 
+void setDefaultStftSettings(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
+	auto& cfg = CONFIG(stft);
+
+	// Only correct in [120, 170]
+	cfg.minAfr = 120;
+	cfg.maxAfr = 170;
+
+	// Above 40 deg C
+	cfg.minClt = 40;
+
+	// 0.5% deadband
+	cfg.deadband = 5;
+
+	// Sensible region defaults
+	cfg.maxIdleRegionRpm = 1200 / RPM_1_BYTE_PACKING_MULT;
+	cfg.maxOverrunLoad = 35;
+	cfg.minPowerLoad = 75;
+
+	// Sensible cell defaults
+	for (size_t i = 0; i < efi::size(cfg.cellCfgs); i++) {
+		// 1%/second
+		cfg.cellCfgs[i].adjRate = 10;
+
+		/// Allow +-5%
+		cfg.cellCfgs[i].maxAdd = 5;
+		cfg.cellCfgs[i].maxRemove = -5;
+	}
+}
+
 /**
  * @brief	Global default engine configuration
  * This method sets the global engine configuration defaults. These default values are then
@@ -828,6 +857,8 @@ static void setDefaultEngineConfiguration(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	engineConfiguration->noAccelAfterHardLimitPeriodSecs = 3;
 
 	setDefaultCrankingSettings(PASS_ENGINE_PARAMETER_SIGNATURE);
+
+	setDefaultStftSettings(PASS_ENGINE_PARAMETER_SIGNATURE);
 
 	/**
 	 * Idle control defaults
