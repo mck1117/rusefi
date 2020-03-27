@@ -2184,6 +2184,7 @@ cmd_set_engine_type_default					= "w\x00\x31\x00\x00"
 
 		field = "Enabled",								fuelClosedLoopCorrectionEnabled
 
+		field = "Startup delay"							stft_startupDelay, {fuelClosedLoopCorrectionEnabled == 1}
 		field = "Minimum CLT for correction",			stft_minClt, {fuelClosedLoopCorrectionEnabled == 1}
 		field = "Minimum AFR for correction",			stft_minAfr, {fuelClosedLoopCorrectionEnabled == 1}
 		field = "Maximum AFR for correction",			stft_maxAfr, {fuelClosedLoopCorrectionEnabled == 1}
