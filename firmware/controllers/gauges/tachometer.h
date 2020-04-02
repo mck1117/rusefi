@@ -10,4 +10,4 @@
 #include "engine.h"
 
 void initTachometer(DECLARE_ENGINE_PARAMETER_SIGNATURE);
-
+void updateTachometer(int rpm DECLARE_ENGINE_PARAMETER_SUFFIX);

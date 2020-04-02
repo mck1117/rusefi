@@ -17,8 +17,8 @@
 EXTERN_ENGINE;
 
 static SimplePwm tachControl("tach"); 
-static float tachFreq;  
-static float duty;   
+static float tachFreq;
+static float duty;
 
 #if EFI_UNIT_TEST
 float getTachFreq(void) {
@@ -30,21 +30,12 @@ float getTachDuty(void) {
 }
 #endif
 
-static void tachSignalCallback(trigger_event_e ckpSignalType,
-		uint32_t index, efitick_t edgeTimestamp DECLARE_ENGINE_PARAMETER_SUFFIX) {
-	// only process at index configured to avoid too much cpu time for index 0?
-	if (index != (uint32_t)CONFIG(tachPulseTriggerIndex)) {
+bool hasTach = false;
+
+void updateTachometer(int rpm DECLARE_ENGINE_PARAMETER_SUFFIX) {
+	if (!hasTach) {
 		return;
 	}
-
-#if EFI_UNIT_TEST
-	printf("tachSignalCallback(%d %d)\n", ckpSignalType, index);
-	printf("Current RPM: %d\n",GET_RPM());
-	UNUSED(edgeTimestamp);
-#else
-	UNUSED(ckpSignalType);
-	UNUSED(edgeTimestamp);
-#endif
 
 	// How many tach pulse periods do we have?
 	int periods = CONFIG(tachPulsePerRev);
@@ -55,7 +46,7 @@ static void tachSignalCallback(trigger_event_e ckpSignalType,
 	}
 
 	// What is the angle per tach output period?
-	float cycleTimeMs = 60000.0 / GET_RPM();
+	float cycleTimeMs = 60000.0 / rpm;
 	float periodTimeMs = cycleTimeMs / periods;
 	tachFreq = 1000.0 / periodTimeMs;
 	
@@ -74,7 +65,6 @@ static void tachSignalCallback(trigger_event_e ckpSignalType,
 	
 	tachControl.setSimplePwmDutyCycle(duty);	
 	tachControl.setFrequency(tachFreq);
-
 }
 
 void initTachometer(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
@@ -82,14 +72,12 @@ void initTachometer(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 		return;
 	}
 
+	hasTach = true;
+
 	startSimplePwmExt(&tachControl,
 				"Tachometer",
 				&engine->executor,
 				CONFIG(tachOutputPin),
 				&enginePins.tachOut,
 				NAN, 0.1, (pwm_gen_callback*)applyPinState);
-
-#if EFI_SHAFT_POSITION_INPUT
-	addTriggerEventListener(tachSignalCallback, "tach", engine);
-#endif /* EFI_SHAFT_POSITION_INPUT */
 }

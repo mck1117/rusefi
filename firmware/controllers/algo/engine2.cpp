@@ -16,6 +16,7 @@
 #include "advance_map.h"
 #include "aux_valves.h"
 #include "perf_trace.h"
+#include "tachometer.h"
 
 #if EFI_PROD_CODE
 #include "svnversion.h"
@@ -223,6 +224,8 @@ void EngineState::periodicFastCallback(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	} else {
 		baseTableFuel = getBaseTableFuel(rpm, engineLoad);
 	}
+
+	updateTachometer(rpm PASS_ENGINE_PARAMETER_SUFFIX);
 #endif
 }
 
