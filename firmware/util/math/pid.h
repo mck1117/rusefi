@@ -68,6 +68,8 @@ public:
 	// todo: move this to pid_s one day
 	float iTermMin = -1000000.0;
 	float iTermMax =  1000000.0;
+
+	virtual float getIGain(float errorMagnitude) const;
 protected:
 	pid_s *parameters;
 

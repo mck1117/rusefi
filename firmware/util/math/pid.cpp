@@ -57,12 +57,16 @@ float Pid::getUnclampedOutput(float target, float input, float dTime) {
 	this->input = input;
 
 	float pTerm = parameters->pFactor * error;
-	updateITerm(parameters->iFactor * dTime * error);
+	updateITerm(getIGain(absF(error)) * dTime * error);
 	dTerm = parameters->dFactor / dTime * (error - previousError);
 
 	previousError = error;
 
 	return pTerm + iTerm + dTerm + getOffset();
+}
+
+float Pid::getIGain(float) const {
+	return parameters->iFactor;
 }
 
 /**

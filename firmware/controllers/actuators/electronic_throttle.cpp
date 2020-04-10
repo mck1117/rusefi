@@ -604,4 +604,26 @@ void initElectronicThrottle(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	doInitElectronicThrottle(PASS_ENGINE_PARAMETER_SIGNATURE);
 }
 
+static const float gainSchedBins[] = {
+	0,
+	5,
+	10,
+	15,
+	20,
+	50
+};
+
+static const float gainSchedValues[] = {
+	10,
+	10,
+	7,
+	5,
+	2,
+	0
+};
+
+float GainScheduledPid::getIGain(float errorMagnitude) const {
+	return interpolate2d("pid gain sched", errorMagnitude, gainSchedBins, gainSchedValues);
+}
+
 #endif /* EFI_ELECTRONIC_THROTTLE_BODY */

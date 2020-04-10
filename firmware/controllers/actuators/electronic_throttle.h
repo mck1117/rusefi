@@ -24,6 +24,10 @@ public:
 	virtual void reset() = 0;
 };
 
+class GainScheduledPid : public Pid {
+	float getIGain(float errorMagnitude) const override;
+};
+
 class EtbController final : public IEtbController {
 public:
 	void init(DcMotor *motor, int ownIndex, pid_s *pidParameters) override;
@@ -46,7 +50,7 @@ public:
 private:
 	int m_myIndex;
 	DcMotor *m_motor;
-	Pid m_pid;
+	GainScheduledPid m_pid;
 	bool m_shouldResetPid = false;
 };
 
