@@ -112,17 +112,18 @@ static void doResetConfiguration(void) {
 
 persisted_configuration_state_e flashState;
 
-static persisted_configuration_state_e doReadConfiguration(flashaddr_t address, Logging * logger) {
-	printMsg(logger, "readFromFlash %x", address);
-	flashRead(address, (char *) &persistentState, sizeof(persistentState));
+#include <stdlib.h>
 
-	if (!isValidCrc(&persistentState)) {
-		return CRC_FAILED;
-	} else if (persistentState.version != FLASH_DATA_VERSION || persistentState.size != sizeof(persistentState)) {
-		return INCOMPATIBLE_VERSION;
-	} else {
-		return PC_OK;
+static persisted_configuration_state_e doReadConfiguration(flashaddr_t address, Logging * logger) {
+	uint8_t* data = reinterpret_cast<uint8_t*>(&persistentState.persistentConfiguration);
+
+	srand(0xdeadbeef);
+
+	for (int i = 0; i < sizeof(persistentState.persistentConfiguration); i++) {
+		data[i] = rand();
 	}
+
+	return PC_OK;
 }
 
 /**
