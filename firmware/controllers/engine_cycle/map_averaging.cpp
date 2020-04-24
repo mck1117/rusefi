@@ -37,6 +37,7 @@
 #include "engine.h"
 #include "engine_math.h"
 #include "perf_trace.h"
+#include "thread_controller.h"
 
 #if EFI_SENSOR_CHART
 #include "sensor_chart.h"
@@ -59,34 +60,10 @@ static volatile int measurementsPerRevolutionCounter = 0;
  */
 static volatile int measurementsPerRevolution = 0;
 
-/**
- * In this lock-free implementation 'readIndex' is always pointing
- * to the consistent copy of accumulator and counter pair
- */
-static int readIndex = 0;
-static float accumulators[2];
-static int counters[2];
-
-/**
- * Running MAP accumulator - sum of all measurements within averaging window
- */
-static volatile float mapAdcAccumulator = 0;
-/**
- * Running counter of measurements to consider for averaging
- */
-static volatile int mapMeasurementsCounter = 0;
-
-/**
- * v_ for Voltage
- */
-static float v_averagedMapValue;
-
 // allow a bit more smoothing
 #define MAX_MAP_BUFFER_LENGTH (INJECTION_PIN_COUNT * 2)
 // in MAP units, not voltage!
-static float averagedMapRunningBuffer[MAX_MAP_BUFFER_LENGTH];
 int mapMinBufferLength = 0;
-static int averagedMapBufIdx = 0;
 // we need this 'NO_VALUE_YET' to properly handle transition from engine not running to engine already running
 // but prior to first processed result
 #define NO_VALUE_YET -100
@@ -95,136 +72,113 @@ static float currentPressure = NO_VALUE_YET;
 
 EXTERN_ENGINE;
 
-/**
- * here we have averaging start and averaging end points for each cylinder
- */
 static scheduling_s startTimer[INJECTION_PIN_COUNT][2];
-static scheduling_s endTimer[INJECTION_PIN_COUNT][2];
 
-/**
- * that's a performance optimization: let's not bother averaging
- * if we are outside of of the window
- */
-static bool isAveraging = false;
+
+SEMAPHORE_DECL(map_avg_start, 0);
 
 static void startAveraging(void *arg) {
 	(void) arg;
-	efiAssertVoid(CUSTOM_ERR_6649, getCurrentRemainingStack() > 128, "lowstck#9");
 
-	bool wasLocked = lockAnyContext();
-	// with locking we would have a consistent state
-	mapAdcAccumulator = 0;
-	mapMeasurementsCounter = 0;
-	isAveraging = true;
-	if (!wasLocked) {
-		unlockAnyContext();
-	}
+	ScopePerf perf(PE::Temporary1);
 
-	mapAveragingPin.setHigh();
+	syssts_t sts = chSysGetStatusAndLockX();
+	chSemSignalI(&map_avg_start);
+
+	/*if (!port_is_isr_context()) {
+		chSchRescheduleS();
+	}*/
+
+	chSysRestoreStatusX(sts);
 }
 
-#if HAL_USE_ADC
-/**
- * This method is invoked from ADC callback.
- * @note This method is invoked OFTEN, this method is a potential bottle-next - the implementation should be
- * as fast as possible
- */
-void mapAveragingAdcCallback(adcsample_t adcValue) {
-	if (!isAveraging && ENGINE(sensorChartMode) != SC_MAP) {
-		return;
-	}
 
-	/* Calculates the average values from the ADC samples.*/
-	measurementsPerRevolutionCounter++;
-	efiAssertVoid(CUSTOM_ERR_6650, getCurrentRemainingStack() > 128, "lowstck#9a");
+static ADCConversionGroup adcConvGroup = { FALSE, 1, nullptr, nullptr,
+	0,
+	ADC_CR2_SWSTART,
+	0, // sample times for channels 10...18
+	ADC_SMPR2_SMP_AN9(ADC_SAMPLE_84),
 
-#if EFI_SENSOR_CHART && EFI_ANALOG_SENSORS
-	if (ENGINE(sensorChartMode) == SC_MAP) {
-		if (measurementsPerRevolutionCounter % FAST_MAP_CHART_SKIP_FACTOR
-				== 0) {
-			float voltage = adcToVoltsDivided(adcValue);
-			float currentPressure = getMapByVoltage(voltage);
-			scAddData(
-					getCrankshaftAngleNt(getTimeNowNt() PASS_ENGINE_PARAMETER_SUFFIX),
-					currentPressure);
+	0,	// htr
+	0,	// ltr
+
+	0,	// sqr1
+	0,	// sqr2
+	ADC_SQR3_SQ1_N(ADC_CHANNEL_IN9)	// sqr3 - vbatt is on pf3 = adc9
+};
+
+struct MapAverager : public ThreadController<512> {
+	adcsample_t m_samples[256];
+
+	MapAverager() : ThreadController("map avg", NORMALPRIO + 20){}
+
+	void ThreadTask() override {
+		while (true) {
+			// Timeout in 10ms = 100hz
+			msg_t msg = chSemWaitTimeout(&map_avg_start, TIME_MS2I(1000));
+
+			ScopePerf perf(PE::Temporary2);
+
+			mapAveragingPin.setValue(1);
+
+			float sampleDurationUs;
+
+			//if (msg == MSG_TIMEOUT) {
+				// Sample for 1ms in case of timeout - low engine speed
+			//	sampleDurationUs = 1e3f;
+			//} else {
+				sampleDurationUs = engine->rpmCalculator.oneDegreeUs * ENGINE(engineState.mapAveragingDuration);
+			//}
+
+			(void)sampleDurationUs;
+
+			constexpr float sampleRate = 48681.54;
+			float sampleDurationSec = sampleDurationUs / 1e6f;
+
+			int sampleCount = sampleDurationSec * sampleRate;
+
+			if (sampleCount != 1) {
+				// make sure it's an even number
+				sampleCount &= 0xFFFFFFFE;
+			}
+
+			int samplesRemaining = sampleCount;
+
+			uint32_t sum = 0;
+
+			while (samplesRemaining > 0) {
+				size_t batchSize = minI(samplesRemaining, efi::size(m_samples));
+				sum += sampleBatch(batchSize);
+				samplesRemaining -= batchSize;
+			}
+
+			float average = (float)sum / sampleCount;
+
+			mapAveragingPin.setValue(0);
 		}
 	}
-#endif /* EFI_SENSOR_CHART */
 
-	/**
-	 * Local copy is now safe, but it's an overkill: we only
-	 * have one writing thread anyway
-	 */
-	int readIndexLocal = readIndex;
-	int writeIndex = readIndexLocal ^ 1;
-	accumulators[writeIndex] = accumulators[readIndexLocal] + adcValue;
-	counters[writeIndex] = counters[readIndexLocal] + 1;
-	// this would commit the new pair of values
-	readIndex = writeIndex;
+	uint32_t sampleBatch(size_t sampleCount) {
+		ScopePerf perf(PE::Temporary3);
 
-	// todo: migrate to the lock-free implementation
-	bool alreadyLocked = lockAnyContext();
-	;
-	// with locking we would have a consistent state
-
-	mapAdcAccumulator += adcValue;
-	mapMeasurementsCounter++;
-	if (!alreadyLocked)
-		unlockAnyContext();
-	;
-}
-#endif
-
-static void endAveraging(void *arg) {
-	(void) arg;
-#if ! EFI_UNIT_TEST
-	bool wasLocked = lockAnyContext();
-#endif
-	isAveraging = false;
-	// with locking we would have a consistent state
-#if HAL_USE_ADC
-	if (mapMeasurementsCounter > 0) {
-		v_averagedMapValue = adcToVoltsDivided(mapAdcAccumulator / mapMeasurementsCounter);
-		// todo: move out of locked context?
-		averagedMapRunningBuffer[averagedMapBufIdx] = getMapByVoltage(v_averagedMapValue);
-		// increment circular running buffer index
-		averagedMapBufIdx = (averagedMapBufIdx + 1) % mapMinBufferLength;
-		// find min. value (only works for pressure values, not raw voltages!)
-		float minPressure = averagedMapRunningBuffer[0];
-		for (int i = 1; i < mapMinBufferLength; i++) {
-			if (averagedMapRunningBuffer[i] < minPressure)
-				minPressure = averagedMapRunningBuffer[i];
+		{
+			ScopePerf perf(PE::Temporary3);
+			adcConvert(&ADCD2, &adcConvGroup, m_samples, sampleCount);
 		}
-		currentPressure = minPressure;
-	} else {
-		warning(CUSTOM_UNEXPECTED_MAP_VALUE, "No MAP values");
-	}
-#endif
-#if ! EFI_UNIT_TEST
-	if (!wasLocked)
-		unlockAnyContext();
-	;
-#endif
-	mapAveragingPin.setLow();
-}
 
-static void applyMapMinBufferLength(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
-	// check range
-	mapMinBufferLength = maxI(minI(CONFIG(mapMinBufferLength), MAX_MAP_BUFFER_LENGTH), 1);
-	// reset index
-	averagedMapBufIdx = 0;
-	// fill with maximum values
-	for (int i = 0; i < mapMinBufferLength; i++) {
-		averagedMapRunningBuffer[i] = FLT_MAX;
+		uint32_t sum = 0;
+
+		for (size_t i = 0; i < sampleCount; i++)
+		{
+			sum += m_samples[i];
+		}
+
+		return sum;
 	}
-}
+};
 
 #if EFI_TUNER_STUDIO
 void postMapState(TunerStudioOutputChannels *tsOutputChannels) {
-	tsOutputChannels->debugFloatField1 = v_averagedMapValue;
-	tsOutputChannels->debugFloatField2 = engine->engineState.mapAveragingDuration;
-	tsOutputChannels->debugFloatField3 = currentPressure;
-	tsOutputChannels->debugIntField1 = mapMeasurementsCounter;
 }
 #endif /* EFI_TUNER_STUDIO */
 
@@ -277,10 +231,6 @@ static void mapAveragingTriggerCallback(trigger_event_e ckpEventType,
 		return;
 	}
 
-	if (CONFIG(mapMinBufferLength) != mapMinBufferLength) {
-		applyMapMinBufferLength(PASS_ENGINE_PARAMETER_SIGNATURE);
-	}
-
 	measurementsPerRevolution = measurementsPerRevolutionCounter;
 	measurementsPerRevolutionCounter = 0;
 
@@ -313,8 +263,6 @@ static void mapAveragingTriggerCallback(trigger_event_e ckpEventType,
 		// todo: schedule this based on closest trigger event, same as ignition works
 		scheduleByAngle(&startTimer[i][structIndex], edgeTimestamp, samplingStart,
 				startAveraging PASS_ENGINE_PARAMETER_SUFFIX);
-		scheduleByAngle(&endTimer[i][structIndex], edgeTimestamp, samplingEnd,
-				endAveraging PASS_ENGINE_PARAMETER_SUFFIX);
 	}
 #endif
 }
@@ -344,13 +292,10 @@ float getMap(void) {
 }
 #endif /* EFI_PROD_CODE */
 
+MapAverager avgThread;
+
 void initMapAveraging(Logging *sharedLogger DECLARE_ENGINE_PARAMETER_SUFFIX) {
 	logger = sharedLogger;
-
-//	startTimer[0].name = "map start0";
-//	startTimer[1].name = "map start1";
-//	endTimer[0].name = "map end0";
-//	endTimer[1].name = "map end1";
 
 #if EFI_SHAFT_POSITION_INPUT
 	addTriggerEventListener(&mapAveragingTriggerCallback, "MAP averaging", engine);
@@ -360,7 +305,7 @@ void initMapAveraging(Logging *sharedLogger DECLARE_ENGINE_PARAMETER_SUFFIX) {
 	addConsoleAction("faststat", showMapStats);
 #endif /* EFI_UNIT_TEST */
 
-	applyMapMinBufferLength(PASS_ENGINE_PARAMETER_SIGNATURE);
+	avgThread.Start();
 }
 
 #else
