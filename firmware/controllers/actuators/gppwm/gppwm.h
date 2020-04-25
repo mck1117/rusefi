@@ -1,0 +1,4 @@
+#pragma once
+
+void initGpPwm(DECLARE_ENGINE_PARAMETER_SIGNATURE);
+void updateGppwm(DECLARE_ENGINE_PARAMETER_SIGNATURE);
