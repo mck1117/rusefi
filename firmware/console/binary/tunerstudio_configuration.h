@@ -18,6 +18,16 @@ typedef struct {
 	uint16_t values[EGT_CHANNEL_COUNT];
 } egt_values_s;
 
+
+enum class TsCalMode : uint8_t {
+	None = 0,
+	Tps1Min = 0,
+	Tps1Max = 1,
+	EtbKp = 2,
+	EtbKi = 3,
+	EtbKd = 4,
+};
+
 /**
  * At the moment rusEfi does NOT have any code generation around TS output channels, three locations have to be changed manually
  * 1) this TunerStudioOutputChannels firmware version of the structure
@@ -62,7 +72,6 @@ typedef struct {
 	unsigned int isPedalError : 1; // bit 26
 	unsigned int isKnockChipOk : 1; // bit 27
 	unsigned int launchTriggered : 1; // bit 28
-	unsigned int calibrateDone : 1; // bit 29
 
 	// RPM, vss
 	scaled_channel<uint16_t> rpm;   // 4
@@ -153,15 +162,20 @@ typedef struct {
 	uint32_t firmwareVersion; // 120
 	uint32_t tsConfigVersion; // 124
 
+	// These two fields indicate to TS that we'd like to set a particular field to a particular value
+	float calibrationValue;	// 128
+	TsCalMode calibrationMode; // 132
+	uint8_t padding[3]; // 133-135
+
 	// Errors
-	int totalTriggerErrorCounter; // 128
-	int orderingErrorCounter; // 132
-	int16_t warningCounter; // 136
-	int16_t lastErrorCode; // 138
-	int16_t recentErrorCodes[8]; // 140
+	int totalTriggerErrorCounter; // 136
+	int orderingErrorCounter; // 140
+	int16_t warningCounter; // 144
+	int16_t lastErrorCode; // 146
+	int16_t recentErrorCodes[8]; // 148-162
 
 	// Debug
-	float debugFloatField1; // 156
+	float debugFloatField1; // 164
 	float debugFloatField2;
 	float debugFloatField3;
 	float debugFloatField4;
@@ -172,20 +186,18 @@ typedef struct {
 	int debugIntField2;
 	int debugIntField3;
 	int16_t debugIntField4;
-	int16_t debugIntField5; // 198
-
-	scaled_channel<int16_t> calibrationHelper1;	// 200
-	scaled_channel<int16_t> calibrationHelper2;	// 200
+	int16_t debugIntField5; // 206
 
 	// EGT
-	egt_values_s egtValues; // 204
-	scaled_percent throttle2Position;    // 220
+	egt_values_s egtValues; // 208
 
-	scaled_voltage rawTps1Primary;		// 222
-	scaled_voltage rawPpsPrimary;		// 224
-	scaled_voltage rawClt;				// 226
-	scaled_voltage rawIat;				// 228
-	scaled_voltage rawOilPressure;		// 230
+	scaled_percent throttle2Position;    // 224
+
+	scaled_voltage rawTps1Primary;		// 226
+	scaled_voltage rawPpsPrimary;		// 228
+	scaled_voltage rawClt;				// 230
+	scaled_voltage rawIat;				// 232
+	scaled_voltage rawOilPressure;		// 234
 
 	uint8_t unusedAtTheEnd[8]; // we have some unused bytes to allow compatible TS changes
 

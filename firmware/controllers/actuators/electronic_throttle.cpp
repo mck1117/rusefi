@@ -344,7 +344,8 @@ void EtbController::PeriodicTask(efitick_t nowNt) {
 		m_motor->set(0.5f);
 		m_motor->enable();
 		chThdSleepMilliseconds(1000);
-		tsOutputChannels.calibrationHelper1 = Sensor::getRaw(indexToTpsSensor(m_myIndex)) * TPS_TS_CONVERSION;
+		tsOutputChannels.calibrationMode = TsCalMode::Tps1Max;
+		tsOutputChannels.calibrationValue = Sensor::getRaw(indexToTpsSensor(m_myIndex)) * TPS_TS_CONVERSION;
 
 		// Let it return
 		m_motor->set(0);
@@ -353,17 +354,15 @@ void EtbController::PeriodicTask(efitick_t nowNt) {
 		// Now grab closed
 		m_motor->set(-0.5f);
 		chThdSleepMilliseconds(1000);
-		tsOutputChannels.calibrationHelper2 = Sensor::getRaw(indexToTpsSensor(m_myIndex)) * TPS_TS_CONVERSION;
+		tsOutputChannels.calibrationMode = TsCalMode::Tps1Min;
+		tsOutputChannels.calibrationValue = Sensor::getRaw(indexToTpsSensor(m_myIndex)) * TPS_TS_CONVERSION;
 
 		// Finally disable and reset state
 		m_motor->disable();
-		// Wait to let TS grab the state before we leave cal mode
-		chThdSleepMilliseconds(200);
 
-		// Strobe calibrateDone to tell TS to take us out of calibrate mode
-		tsOutputChannels.calibrateDone = true;
-		chThdSleepMilliseconds(200);
-		tsOutputChannels.calibrateDone = false;
+		// Wait to let TS grab the state before we leave cal mode
+		chThdSleepMilliseconds(500);
+		tsOutputChannels.calibrationMode = TsCalMode::None;
 
 		m_isAutocal = false;
 		return;
