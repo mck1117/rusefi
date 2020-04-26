@@ -37,8 +37,10 @@
 #include "idle_thread.h"
 #include "periodic_thread_controller.h"
 #include "tps.h"
+#include "electronic_throttle.h"
 #include "cj125.h"
 #include "malfunction_central.h"
+#include "sensor.h"
 
 #if EFI_PROD_CODE
 #include "rusefi.h"
@@ -228,18 +230,8 @@ static void handleCommandX14(uint16_t index) {
 		fuelPumpBench();
 		return;
 	case 2:
-		grabTPSIsClosed();
-		return;
-	case 3:
-		grabTPSIsWideOpen();
-		return;
-	// case 4: tps2_closed
-	// case 5: tps2_wot
-	case 6:
-		grabPedalIsUp();
-		return;
-	case 7:
-		grabPedalIsWideOpen();
+		// In case we don't have an ETB, go ahead and grab the value now
+		etbAutocal();
 		return;
 	case 8:
 #if (BOARD_TLE8888_COUNT > 0)

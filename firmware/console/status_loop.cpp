@@ -800,10 +800,6 @@ void updateTunerStudioState(TunerStudioOutputChannels *tsOutputChannels DECLARE_
 	tsOutputChannels->firmwareVersion = getRusEfiVersion();
 	// 268
 	tsOutputChannels->fuelPidCorrection = ENGINE(engineState.running.pidCorrection);
-	// 276
-	tsOutputChannels->accelerationX = engine->sensors.accelerometer.x;
-	// 278
-	tsOutputChannels->accelerationY = engine->sensors.accelerometer.y;
 	// 280
 	tsOutputChannels->oilPressure = Sensor::get(SensorType::OilPressure).Value;
 	// 288

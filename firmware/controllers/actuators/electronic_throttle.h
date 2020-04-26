@@ -14,17 +14,25 @@
 #include "engine.h"
 #include "closed_loop_controller.h"
 #include "expected.h"
-#include "periodic_task.h"
+#include "periodic_thread_controller.h"
 
 class DcMotor;
 class Logging;
 
-class IEtbController : public PeriodicTimerController, public ClosedLoopController<percent_t, percent_t> {
+class IEtbController : public PeriodicController<512>, public ClosedLoopController<percent_t, percent_t> {
 public:
+	IEtbController() : PeriodicController("ETB", NORMALPRIO, 200) {}
+
 	DECLARE_ENGINE_PTR;
 	virtual void init(DcMotor *motor, int ownIndex, pid_s *pidParameters, const ValueProvider3D* pedalMap) = 0;
 	virtual void reset() = 0;
 	virtual void setIdlePosition(percent_t pos) = 0;
+};
+
+enum class AutoCalibrateMode {
+	None,
+	Min,
+	Max,
 };
 
 class EtbController final : public IEtbController {
@@ -33,8 +41,8 @@ public:
 	void setIdlePosition(percent_t pos) override;
 
 	// PeriodicTimerController implementation
-	int getPeriodMs() override;
-	void PeriodicTask() override;
+	int getPeriodMs();
+	void PeriodicTask(efitick_t nowNt) override;
 	void reset() override;
 
 	// Called when the configuration may have changed.  Controller will
@@ -57,6 +65,8 @@ public:
 	// Used to inspect the internal PID controller's state
 	const pid_state_s* getPidState() const { return &m_pid; };
 
+	void autocal();
+
 private:
 	int m_myIndex = 0;
 	DcMotor *m_motor = nullptr;
@@ -75,6 +85,9 @@ private:
 	float m_maxCycleTps = 0;
 	float m_a = 0;
 	float m_tu = 0;
+
+	// Automatic calibration helpers
+	bool m_isAutocal = false;
 };
 
 void initElectronicThrottle(DECLARE_ENGINE_PARAMETER_SIGNATURE);
@@ -91,3 +104,5 @@ void setEtbOffset(int value);
 void setThrottleDutyCycle(percent_t level);
 void onConfigurationChangeElectronicThrottleCallback(engine_configuration_s *previousConfiguration);
 void unregisterEtbPins();
+
+void etbAutocal();

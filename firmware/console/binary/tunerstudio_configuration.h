@@ -62,6 +62,7 @@ typedef struct {
 	unsigned int isPedalError : 1; // bit 26
 	unsigned int isKnockChipOk : 1; // bit 27
 	unsigned int launchTriggered : 1; // bit 28
+	unsigned int calibrateDone : 1; // bit 29
 
 	// RPM, vss
 	scaled_channel<uint16_t> rpm;   // 4
@@ -173,9 +174,8 @@ typedef struct {
 	int16_t debugIntField4;
 	int16_t debugIntField5; // 198
 
-	// accelerometer
-	int16_t accelerationX; // 200
-	int16_t accelerationY; // 202
+	scaled_channel<int16_t> calibrationHelper1;	// 200
+	scaled_channel<int16_t> calibrationHelper2;	// 200
 
 	// EGT
 	egt_values_s egtValues; // 204

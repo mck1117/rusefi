@@ -313,7 +313,7 @@ void EtbController::setOutput(expected<percent_t> outputValue) {
 	}
 }
 
-void EtbController::PeriodicTask() {
+void EtbController::PeriodicTask(efitick_t nowNt) {
 #if EFI_TUNER_STUDIO
 	// Only debug throttle #0
 	if (m_myIndex == 0) {
@@ -330,6 +330,42 @@ void EtbController::PeriodicTask() {
 
 	if (!cisnan(directPwmValue)) {
 		m_motor->set(directPwmValue);
+		return;
+	}
+
+	if (m_isAutocal) {
+		// Don't allow if engine is running!
+		if (GET_RPM() > 0) {
+			m_isAutocal = false;
+			return;
+		}
+
+		// First grab open
+		m_motor->set(0.5f);
+		m_motor->enable();
+		chThdSleepMilliseconds(1000);
+		tsOutputChannels.calibrationHelper1 = Sensor::getRaw(indexToTpsSensor(m_myIndex)) * TPS_TS_CONVERSION;
+
+		// Let it return
+		m_motor->set(0);
+		chThdSleepMilliseconds(200);
+
+		// Now grab closed
+		m_motor->set(-0.5f);
+		chThdSleepMilliseconds(1000);
+		tsOutputChannels.calibrationHelper2 = Sensor::getRaw(indexToTpsSensor(m_myIndex)) * TPS_TS_CONVERSION;
+
+		// Finally disable and reset state
+		m_motor->disable();
+		// Wait to let TS grab the state before we leave cal mode
+		chThdSleepMilliseconds(200);
+
+		// Strobe calibrateDone to tell TS to take us out of calibrate mode
+		tsOutputChannels.calibrateDone = true;
+		chThdSleepMilliseconds(200);
+		tsOutputChannels.calibrateDone = false;
+
+		m_isAutocal = false;
 		return;
 	}
 
@@ -388,6 +424,10 @@ void EtbController::PeriodicTask() {
 /* DISPLAY_ELSE */
 	DISPLAY_TEXT(No_Pedal_Sensor);
 /* DISPLAY_ENDIF */
+}
+
+void EtbController::autocal() {
+	m_isAutocal = true;
 }
 
 // real implementation (we mock for some unit tests)
@@ -502,7 +542,11 @@ void setEtbOffset(int value) {
 	showEthInfo();
 }
 
-#endif /* EFI_UNIT_TEST */
+void etbAutocal() {
+	etbControllers[0].autocal();
+}
+
+#endif /* !EFI_UNIT_TEST */
 
 /**
  * This specific throttle has default position of about 7% open
@@ -625,25 +669,6 @@ void doInitElectronicThrottle(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 		startupPositionError = true;
 	}
 #endif /* EFI_UNIT_TEST */
-
-#if EFI_PROD_CODE
-	if (engineConfiguration->etbCalibrationOnStart) {
-
-		for (int i = 0 ; i < engine->etbActualCount; i++) {
-			setDcMotorDuty(i, 70);
-			chThdSleep(600);
-			// todo: grab with proper index
-			grabTPSIsWideOpen();
-			setDcMotorDuty(i, -70);
-			chThdSleep(600);
-			// todo: grab with proper index
-			grabTPSIsClosed();
-		}
-	}
-
-	// manual duty cycle control without PID. Percent value from 0 to 100
-	addConsoleActionNANF(CMD_ETB_DUTY, setThrottleDutyCycle);
-#endif /* EFI_PROD_CODE */
 
 	etbPidReset(PASS_ENGINE_PARAMETER_SIGNATURE);
 
