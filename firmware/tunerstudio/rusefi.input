@@ -467,11 +467,12 @@ fileVersion = { @@TS_FILE_VERSION@@ }
      
      readOnly = warning_message
 
+	maintainConstantValue = tpsMax, { (calibrationMode == 1 ) ? calibrationValue : tpsMax }
+	maintainConstantValue = tpsMin, { (calibrationMode == 2 ) ? calibrationValue : tpsMin }
 
-	maintainConstantValue = tpsMax, { (tpsCalMode) ? calibrationHelper1 : tpsMax }
-	maintainConstantValue = tpsMin, { (tpsCalMode) ? calibrationHelper2 : tpsMin }
-
-	maintainConstantValue = tpsCalMode, { (calibrateDone) ? 0 : tpsCalMode }
+	maintainConstantValue = etb_pFactor, { (calibrationMode == 3) ? calibrationValue : etb_pFactor }
+	maintainConstantValue = etb_iFactor, { (calibrationMode == 4) ? calibrationValue : etb_iFactor }
+	maintainConstantValue = etb_dFactor, { (calibrationMode == 5) ? calibrationValue : etb_dFactor }
 
 [CurveEditor]
 ;	xAxis       =  leftValue, rightValue, step
@@ -1765,12 +1766,10 @@ cmd_set_engine_type_default					= "w\x00\x31\x00\x00"
 		field = "TPS low value detection threshold",	tpsErrorDetectionTooLow, {tps1_1AdcChannel != 16}
 		field = "TPS high value detection threshold",	tpsErrorDetectionTooHigh, {tps1_1AdcChannel != 16}
 
-		radio = horizontal, "TPS cal", tpsCalMode
-
 		field = "min", tpsMin, 0
 		field = "max", tpsMax, 0
 
-		commandButton = "Capture Closed", cmd_calibrate_tps_1_closed, { tpsCalMode }
+		commandButton = "Autocalibrate ETB TPS", cmd_calibrate_tps_1_closed
 
 	dialog = pedalSensorLeft, "Accelerator pedal"
 		field = "Accelerator position sensor",			throttlePedalPositionAdcChannel
