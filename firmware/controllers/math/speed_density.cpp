@@ -58,6 +58,12 @@ temperature_t getTCharge(int rpm, float tps DECLARE_ENGINE_PARAMETER_SUFFIX) {
 
 	float coolantTemp = clt.Value;
 
+	// If cranking, just use coolant temperature
+	// The air is moving slowly, so the intake temperature has almost no influence
+	if (rpm < CONFIG(cranking.rpm)) {
+		return coolantTemp;
+	}
+
 	DISPLAY_STATE(Engine)
 
 	if ((engine->engineState.sd.DISPLAY_IF(isTChargeAirModel) = (CONFIG(tChargeMode) == TCHARGE_MODE_AIR_INTERP))) {
