@@ -499,6 +499,25 @@ static void setDefaultFuelCutParameters(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 static void setDefaultCrankingSettings(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	CONFIG(useTLE8888_cranking_hack) = true;
 
+	/**
+	 * Cranking defaults
+	 */
+	engineConfiguration->startUpFuelPumpDuration = 2;
+	engineConfiguration->cranking.baseFuel = 5;
+
+	// Default to use the running fuel math (fuel table, VE) for cranking too.
+	// This method is already mostly compensated for temperature, displacement, injector flow, etc,
+	// so it generally gives better results.
+	engineConfiguration->useRunningMathForCranking = true;
+
+	/**
+	 * Default to dwell-based duration during cranking
+	 */
+	engineConfiguration->useConstantDwellDuringCranking = true;
+	engineConfiguration->ignitionDwellForCrankingMs = 6;
+	engineConfiguration->crankingChargeAngle = 70;
+
+
 	setLinearCurve(engineConfiguration->crankingTpsCoef, /*from*/1, /*to*/1, 1);
 	setLinearCurve(engineConfiguration->crankingTpsBins, 0, 100, 1);
 
@@ -736,12 +755,6 @@ static void setDefaultEngineConfiguration(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	 * if you only have one coil and many cylinders or high RPM you would need lower value at higher RPM
 	 */
 	setConstantDwell(4 PASS_CONFIG_PARAMETER_SUFFIX);
-	/**
-	 * Use angle-based duration during cranking
-	 * this is equivalent to 'disable cranking_constant_dwell' console command
-	 */
-	engineConfiguration->useConstantDwellDuringCranking = true;
-	engineConfiguration->ignitionDwellForCrankingMs = 6;
 
 	setFuelLoadBin(1.2, 4.4 PASS_CONFIG_PARAMETER_SUFFIX);
 	setFuelRpmBin(800, 7000 PASS_CONFIG_PARAMETER_SUFFIX);
@@ -857,14 +870,6 @@ static void setDefaultEngineConfiguration(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	engineConfiguration->useStepperIdle = false;
 
 	setDefaultStepperIdleParameters(PASS_ENGINE_PARAMETER_SIGNATURE);
-
-	/**
-	 * Cranking defaults
-	 */
-	engineConfiguration->startUpFuelPumpDuration = 4;
-	engineConfiguration->cranking.baseFuel = 5;
-	engineConfiguration->crankingChargeAngle = 70;
-
 
 	engineConfiguration->timingMode = TM_DYNAMIC;
 	engineConfiguration->fixedModeTiming = 50;
