@@ -2329,22 +2329,34 @@ cmd_set_engine_type_default					= "w\x00\x31\x00\x00"
 		field = "SPI device",							hip9011SpiDevice, {isHip9011Enabled == 1}
 		panel = knockThresholdCurve
 		
-;			Engine->cj125 Settings
-	dialog = cj125Function, "CJ125 Settings (wbo decoder)"
-		field = "Enabled",								isCJ125Enabled
-		commandButton = "Calibrate",					cmd_cj125_calibrate
-		field = "Using 4.9 sensor?",					cj125isLsu49
-		field = "!ECU reboot needed to apply these settings"
-		field = "ChipSelect pin",						cj125CsPin, {isCJ125Enabled == 1}
-		field = "ChipSelect mode",						cj125CsPinMode, {isCJ125Enabled == 1}
-		field = "!See also 'Controller-SPI setting'"
-		field = "SPI device",							cj125SpiDevice
-		field = "Heater pin",							wboHeaterPin, {isCJ125Enabled == 1}
-		field = "UA input",								cj125ua, {isCJ125Enabled == 1}
-		field = "UR input",								cj125ur, {isCJ125Enabled == 1}
-		field = "Is UA input divided?"					cj125isUaDivided, {isCJ125Enabled == 1}
-		field = "Is UR input divided?"					cj125isUrDivided, {isCJ125Enabled == 1}
-		
+	dialog = cj125HeaterPid, "CJ125 Heater PID", yAxis
+		field = "kP",							cj125_heaterPid_pFactor
+		field = "kI",							cj125_heaterPid_iFactor
+		field = "kD",							cj125_heaterPid_dFactor
+
+	dialog = cj125Main, "CJ125 Main", yAxis
+		field = "Enable",						cj125_enable
+		field = "Is LSU4.9? (false for 4.2)",	cj125_isLsu49, {cj125_enable == 1}
+		panel = cj125HeaterPid
+
+	dialog = cj125Pins, "CJ125 Pinout", yAxis
+		field = "UA input pin",			cj125_adcUa, {cj125_enable == 1}
+		field = "UR input pin",			cj125_adcUr, {cj125_enable == 1}
+		field = "Heater control pin",	cj125_heaterPin, {cj125_enable == 1}
+
+	dialog = cj125Spi, "CJ125 SPI", yAxis
+		field = "#CJ125 is functional without SPI, but cannot perform fault detection,  "
+		field = "#so sensor harm is possible. You've been warned!"
+		field = "SPI Device", 		cj125_spi_spiDevice, {cj125_enable == 1}
+		field = "SPI CS Pin",		cj125_spi_csPin,  {cj125_enable == 1 && cj125_spi_spiDevice != 0}
+		field = "SPI CS Pin Mode",	cj125_spi_csMode, {cj125_enable == 1 && cj125_spi_spiDevice != 0}
+		field = "Enable calibration", cj125_enableCalibration, {cj125_enable == 1 && cj125_spi_spiDevice != 0}
+
+	dialog = cj125Function, "CJ125 Wideband O2", yAxis
+		panel = cj125Main
+		panel = cj125Pins
+		panel = cj125Spi
+	
 	dialog = spiFunction, "SPI settings"
 		field = "!ECU reboot needed to apply these settings"
 		field = "SPI1 enable",							is_enabled_spi_1

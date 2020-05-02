@@ -1162,8 +1162,8 @@ tle8888_mode_e tle8888mode;
 	brain_pin_e mc33816_driven
 
 	switch_input_pin_e brakePedalPin;Brake pedal switch
-	adc_channel_e cj125ua;lambda input
-	adc_channel_e cj125ur;heater input
+	adc_channel_e cj125ua;+CJ125 pump current cense
+	adc_channel_e cj125ur;+CJ125 temperature feedback
 	pin_input_mode_e brakePedalPinMode;
 
 
