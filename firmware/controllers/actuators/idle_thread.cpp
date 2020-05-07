@@ -120,12 +120,16 @@ static void showIdleInfo(void) {
 			getIdlePosition(), boolToString(CONFIG(useStepperIdle)));
 
 	if (CONFIG(useStepperIdle)) {
-		scheduleMsg(logger, "directionPin=%s reactionTime=%.2f", hwPortname(CONFIG(idle).stepperDirectionPin),
-				engineConfiguration->idleStepperReactionTime);
-		scheduleMsg(logger, "stepPin=%s steps=%d", hwPortname(CONFIG(idle).stepperStepPin),
-				engineConfiguration->idleStepperTotalSteps);
-		scheduleMsg(logger, "enablePin=%s/%d", hwPortname(engineConfiguration->stepperEnablePin),
-				engineConfiguration->stepperEnablePinMode);
+		if (CONFIG(useHbridges)) {
+			/* TODO */
+		} else {
+			scheduleMsg(logger, "directionPin=%s reactionTime=%.2f", hwPortname(CONFIG(idle).stepperDirectionPin),
+					engineConfiguration->idleStepperReactionTime);
+			scheduleMsg(logger, "stepPin=%s steps=%d", hwPortname(CONFIG(idle).stepperStepPin),
+					engineConfiguration->idleStepperTotalSteps);
+			scheduleMsg(logger, "enablePin=%s/%d", hwPortname(engineConfiguration->stepperEnablePin),
+					engineConfiguration->stepperEnablePinMode);
+		}
 	} else {
 		if (!CONFIG(isDoubleSolenoidIdle)) {
 			scheduleMsg(logger, "idle valve freq=%d on %s", CONFIG(idle).solenoidFrequency,
@@ -595,8 +599,8 @@ void initIdleHardware(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 		StepperHw* hw;
 
 		if (CONFIG(useHbridges)) {
-			auto motorA = initDcMotor(0 PASS_ENGINE_PARAMETER_SUFFIX);
-			auto motorB = initDcMotor(1 PASS_ENGINE_PARAMETER_SUFFIX);
+			auto motorA = initDcMotor(2, /*useTwoWires*/ true PASS_ENGINE_PARAMETER_SUFFIX);
+			auto motorB = initDcMotor(3, /*useTwoWires*/ true PASS_ENGINE_PARAMETER_SUFFIX);
 
 			if (motorA && motorB) {
 				iacHbridgeHw.initialize(
