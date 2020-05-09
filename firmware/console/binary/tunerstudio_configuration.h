@@ -160,7 +160,7 @@ typedef struct {
 	uint32_t timeSeconds; // 112
 	uint32_t engineMode; // 116
 	uint32_t firmwareVersion; // 120
-	uint32_t tsConfigVersion; // 124
+	uint8_t padding[4]; // 124
 
 	// These two fields indicate to TS that we'd like to set a particular field to a particular value
 	// We use a maintainConstantValue in TS for each field we'd like to set, like this:
