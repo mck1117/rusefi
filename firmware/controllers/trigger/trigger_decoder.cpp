@@ -411,8 +411,6 @@ void TriggerState::decodeTriggerEvent(TriggerWaveform *triggerShape, const Trigg
 
 	currentCycle.eventCount[triggerWheel]++;
 
-	gapTracker.trackTooth(nowNt);
-
 	bool isPrimary = triggerWheel == T_PRIMARY;
 
 	if (needToSkipFall(type) || needToSkipRise(type) || (!considerEventForGap())) {
@@ -479,7 +477,9 @@ void TriggerState::decodeTriggerEvent(TriggerWaveform *triggerShape, const Trigg
 #endif /* EFI_TUNER_STUDIO */
 			}
 
-			isSynchronizationPoint = gapTracker.isMatch({3, 1, 1}, 0.8f, 1.2f);
+			gapTracker.trackTooth(nowNt);
+			isSynchronizationPoint = gapTracker.isMatch(triggerShape->syncronizationRatioFrom, triggerShape->syncronizationRatioTo);
+			//isSynchronizationPoint = gapTracker.isMatch({3, 1, 1}, 0.8f, 1.2f);
 			if (isSynchronizationPoint) {
 				enginePins.debugTriggerSync.setValue(1);
 			}
