@@ -442,18 +442,6 @@ void TriggerState::decodeTriggerEvent(TriggerWaveform *triggerShape, const Trigg
 		}
 #endif /* EFI_UNIT_TEST */
 
-// todo: skip a number of signal from the beginning
-
-#if EFI_PROD_CODE
-//	scheduleMsg(&logger, "from %.2f to %.2f %d %d", triggerConfig->syncRatioFrom, triggerConfig->syncRatioTo, toothDurations[0], shaftPositionState->toothDurations[1]);
-//	scheduleMsg(&logger, "ratio %.2f", 1.0 * toothDurations[0]/ shaftPositionState->toothDurations[1]);
-#else
-		if (printTriggerTrace) {
-			printf("decodeTriggerEvent ratio %.2f: current=%d previous=%d\r\n", 1.0 * toothDurations[0] / toothDurations[1],
-					toothDurations[0], toothDurations[1]);
-		}
-#endif
-
 		bool isSynchronizationPoint;
 		bool wasSynchronized = shaft_is_synchronized;
 
@@ -534,18 +522,6 @@ void TriggerState::decodeTriggerEvent(TriggerWaveform *triggerShape, const Trigg
 				}
 			}
 #else
-			if (printTriggerTrace) {
-				float gap = 1.0 * toothDurations[0] / toothDurations[1];
-				for (int i = 0;i<GAP_TRACKING_LENGTH;i++) {
-					float gap = 1.0 * toothDurations[i] / toothDurations[i + 1];
-					print("index=%d: gap=%.2f expected from %.2f to %.2f error=%s\r\n",
-							i,
-							gap,
-							triggerShape->syncronizationRatioFrom[i],
-							triggerShape->syncronizationRatioTo[i],
-							boolToString(someSortOfTriggerError));
-				}
-			}
 
 
 #endif /* EFI_PROD_CODE */
