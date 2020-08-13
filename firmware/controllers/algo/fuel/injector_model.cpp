@@ -1,4 +1,5 @@
 #include "injector_model.h"
+#include "map.h"
 
 EXTERN_ENGINE;
 
@@ -47,13 +48,18 @@ float InjectorModel::getInjectorMassFlowRate() const {
 	switch (mode) {
 	case 1:
 		railPressure = getCfgRailPressure();
+		break;
 	case 2:
 		// Since rail pressure is constant, as MAP goes up, injector differential pressure drops
-		railPressure = getCfgRailPressure() - getMap();
+		// at 1atm, the injectors flow the configured amount
+		railPressure = getCfgRailPressure() + (101.325f - getMap(PASS_ENGINE_PARAMETER_SIGNATURE));
+		break;
 	case 3:
-		railPressure = getActualRailPressure() - getMap();
+		railPressure = getActualRailPressure() - getMap(PASS_ENGINE_PARAMETER_SIGNATURE);
+		break;
 	case 4:
 		railPressure = getActualRailPressure();
+		break;
 	}
 
 	// Flow rate varies with the square root of the pressure - correct flow rate based on the pressure difference
