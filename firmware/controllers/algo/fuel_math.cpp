@@ -183,7 +183,13 @@ AirmassModelBase* getAirmassModel(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 #if EFI_UNIT_TEST
 		case LM_MOCK: return engine->mockAirmassModel;
 #endif
-		default: return nullptr;
+		default:
+			// this is a bad work-around for https://github.com/rusefi/rusefi/issues/1690 issue
+			warning(CUSTOM_ERR_ASSERT, "Invalid airmass mode %d", CONFIG(fuelAlgorithm));
+			return &sdAirmass;
+/* todo: this should be the implementation
+			return nullptr;
+*/
 	}
 }
 
@@ -215,6 +221,10 @@ floatms_t getBaseFuel(int rpm DECLARE_ENGINE_PARAMETER_SUFFIX) {
 
 	float baseFuelMass = fuelComputer.getCycleFuel(airmass.CylinderAirmass, rpm, airmass.EngineLoadPercent);
 	float baseFuel = getInjectionDurationForFuelMass(baseFuelMass PASS_ENGINE_PARAMETER_SUFFIX) * 1000;
+	if (cisnan(baseFuel)) {
+		// todo: we should not have this here but https://github.com/rusefi/rusefi/issues/1690
+		return 0;
+	}
 	efiAssert(CUSTOM_ERR_ASSERT, !cisnan(baseFuel), "NaN baseFuel", 0);
 
 	engine->engineState.baseFuel = baseFuel;
@@ -267,8 +277,16 @@ float getInjectionModeDurationMultiplier(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	injection_mode_e mode = ENGINE(getCurrentInjectionMode(PASS_ENGINE_PARAMETER_SIGNATURE));
 
 	switch (mode) {
-	case IM_SIMULTANEOUS:
-		return 1.0f / engineConfiguration->specs.cylindersCount;
+	case IM_SIMULTANEOUS: {
+		auto cylCount = engineConfiguration->specs.cylindersCount;
+
+		if (cylCount == 0) {
+			// we can end up here during configuration reset
+			return 0;
+		}
+
+		return 1.0f / cylCount;
+	}
 	case IM_SEQUENTIAL:
 	case IM_SINGLE_POINT:
 		return 1;
