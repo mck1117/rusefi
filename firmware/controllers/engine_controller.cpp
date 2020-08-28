@@ -618,6 +618,8 @@ void commonInitEngineController(Logging *sharedLogger DECLARE_ENGINE_PARAMETER_S
 		 */
 		initSparkLogic(sharedLogger);
 		initMainEventListener(sharedLogger PASS_ENGINE_PARAMETER_SUFFIX);
+		void initTriggerValidator();
+		initTriggerValidator();
 	}
 #endif /* EFI_ENGINE_CONTROL */
 
