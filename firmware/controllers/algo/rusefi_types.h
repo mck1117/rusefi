@@ -90,9 +90,8 @@ typedef char le_formula_t[LE_COMMAND_LENGTH];
 typedef brain_pin_e egt_cs_array_t[EGT_CHANNEL_COUNT];
 
 typedef uint8_t afr_table_t[FUEL_LOAD_COUNT][FUEL_RPM_COUNT];
-// todo: merge these two types together? but these tables have different TS parameters like ranges etc
-typedef float fuel_table_t[FUEL_LOAD_COUNT][FUEL_RPM_COUNT];
-typedef float ignition_table_t[IGN_LOAD_COUNT][IGN_RPM_COUNT];
+typedef uint16_t ve_table_t[FUEL_LOAD_COUNT][FUEL_RPM_COUNT];
+typedef int16_t ignition_table_t[IGN_LOAD_COUNT][IGN_RPM_COUNT];
 typedef int16_t ignition_tps_table_t[IGN_LOAD_COUNT][IGN_RPM_COUNT];
 typedef uint8_t pedal_to_tps_t[PEDAL_TO_TPS_SIZE][PEDAL_TO_TPS_SIZE];
 typedef uint8_t iac_pid_mult_t[IAC_PID_MULT_SIZE][IAC_PID_MULT_SIZE];
@@ -121,8 +120,6 @@ typedef float cfg_float_t_1f;
 
 typedef brain_pin_e brain_input_pin_e;
 typedef brain_pin_e switch_input_pin_e;
-
-typedef fuel_table_t ve_table_t;
 
 typedef void (*VoidPtr)(void*);
 
