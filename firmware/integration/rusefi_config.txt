@@ -65,7 +65,7 @@
 ! Any time an incompatible change is made to the configuration format stored in flash,
 ! update this string to the current date! It is required to also update TS_SIGNATURE above
 ! when this happens.
-#define FLASH_DATA_VERSION 10002
+#define FLASH_DATA_VERSION 10003
 
 ! all the sub-structures are going to be nested within the primary structure, that's
 ! needed to get a proper TunerStudio file
@@ -1440,8 +1440,8 @@ float[IAT_CURVE_SIZE] iatFuelCorr;;"ratio",      1,     0,      0.0,    5.0,   2
 float[CLT_CURVE_SIZE] cltIdleCorrBins;CLT-based idle position multiplier for simple manual idle controller;"C",        1,     0,   -100.0,    250.0,  2
 float[CLT_CURVE_SIZE] cltIdleCorr;    CLT-based idle position multiplier for simple manual idle controller;"ratio",      1,     0,      0.0,    10.0,   2
 
-float[MAF_DECODING_COUNT] mafDecoding;Also known as MAF transfer function.\nkg/hour value.\nBy the way 2.081989116 kg/h = 1 ft3/m;"kg/hour", 1, 0, -500.0, 4000.0, 2
-float[MAF_DECODING_COUNT] mafDecodingBins;; "V", 1, 0, -5.0, 150.0, 2
+uint16_t[MAF_DECODING_COUNT] mafDecoding;Also known as MAF transfer function.\nkg/hour value.\nBy the way 2.081989116 kg/h = 1 ft3/m;"kg/hour", 0.1, 0, -500.0, 4000.0, 2
+uint16_t[MAF_DECODING_COUNT] mafDecodingBins;; "V", {1/@@PACK_MULT_VOLTAGE@@}, 0, -5.0, 150.0, 2
 
 angle_table_t ignitionIatCorrTable;
 float[IGN_LOAD_COUNT] ignitionIatCorrLoadBins;;"Temperature",   1,   0.0,        0,  500.0,   2
