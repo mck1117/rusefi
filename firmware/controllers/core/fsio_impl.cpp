@@ -330,7 +330,7 @@ float getFsioOutputValue(int index DECLARE_ENGINE_PARAMETER_SUFFIX) {
 		warning(CUSTOM_NO_FSIO, "no FSIO for #%d %s", index + 1, hwPortname(CONFIG(fsioOutputPins)[index]));
 		return NAN;
 	} else {
-		return calc.getValue2(engine->fsioState.fsioLastValue[index], state.fsioLogics[index] PASS_ENGINE_PARAMETER_SUFFIX);
+		return calc.getValue2(engine->fsioState.fsioLastValue[index], state.fsioLogics[index] PASS_ENGINE_PARAMETER_SUFFIX).asFloatWithNan();
 	}
 }
 
@@ -395,7 +395,7 @@ static void setPinState(const char * msg, OutputPin *pin, LEElement *element DEC
 	if (!element) {
 		warning(CUSTOM_FSIO_INVALID_EXPRESSION, "invalid expression for %s", msg);
 	} else {
-		int value = (int)calc.getValue2(pin->getLogicValue(), element PASS_ENGINE_PARAMETER_SUFFIX);
+		int value = (int)calc.getValue2(pin->getLogicValue(), element PASS_ENGINE_PARAMETER_SUFFIX).asFloatWithNan();
 		if (pin->isInitialized() && value != pin->getLogicValue()) {
 
 			for (int i = 0;i < calc.currentCalculationLogPosition;i++) {
@@ -437,7 +437,7 @@ static bool updateValueOrWarning(int humanIndex, const char *msg, float *value D
 		return false;
 	} else {
 		float beforeValue = *value;
-		*value = calc.getValue2(beforeValue, element PASS_ENGINE_PARAMETER_SUFFIX);
+		*value = calc.getValue2(beforeValue, element PASS_ENGINE_PARAMETER_SUFFIX).asFloatWithNan();
 		// floating '==' comparison without EPS seems fine here
 		return (beforeValue != *value);
 	}
@@ -504,7 +504,7 @@ void runFsio(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 #if EFI_ENABLE_CRITICAL_ENGINE_STOP
 	if (engineConfiguration->useFSIO5ForCriticalIssueEngineStop) {
 		bool changed = updateValueOrWarning(MAGIC_OFFSET_FOR_CRITICAL_ENGINE, "eng critical", &ENGINE(fsioState.isCriticalEngineCondition) PASS_ENGINE_PARAMETER_SUFFIX);
-		if (changed && float2bool(ENGINE(fsioState.isCriticalEngineCondition))) {
+		if (changed && (ENGINE(fsioState.isCriticalEngineCondition) != 0)) {
 			doScheduleStopEngine(PASS_ENGINE_PARAMETER_SIGNATURE);
 		}
 	}
@@ -657,7 +657,7 @@ static void rpnEval(char *line) {
 	if (e == NULL) {
 		scheduleMsg(logger, "parsing failed");
 	} else {
-		float result = evalCalc.getValue2(0, e PASS_ENGINE_PARAMETER_SUFFIX);
+		float result = evalCalc.getValue2(0, e PASS_ENGINE_PARAMETER_SUFFIX).asFloatWithNan();
 		scheduleMsg(logger, "Evaluate result: %.2f", result);
 	}
 #endif

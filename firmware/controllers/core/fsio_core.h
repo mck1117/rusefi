@@ -16,6 +16,7 @@ typedef enum {
 
 	LE_UNDEFINED = 0 ,
 	LE_NUMERIC_VALUE = 1,
+	LE_BOOLEAN_VALUE = 126,
 	LE_OPERATOR_LESS = 2,
 	LE_OPERATOR_MORE = 3,
 	LE_OPERATOR_LESS_OR_EQUAL = 4,
@@ -66,9 +67,10 @@ class LEElement {
 public:
 	LEElement();
 	void clear();
-//	void init(le_action_e action, int iValue);
+
 	void init(le_action_e action);
-	void init(le_action_e action, float fValue);
+	void init(float fValue);
+	void init(bool bValue);
 
 	le_action_e action;
 	float fValue;
@@ -90,29 +92,67 @@ private:
 	int size;
 };
 
+enum class FsioValueType : uint8_t {
+	None,
+	Float,
+	BoolTrue,
+	BoolFalse,
+};
+
+struct FsioValue {
+	FsioValueType Type = FsioValueType::None;
+	float Value = 0.0f;
+
+	FsioValue() = default;
+
+	FsioValue(float value)
+		: Type(FsioValueType::Float)
+		, Value(value)
+	{}
+
+	FsioValue(int value)
+		: FsioValue((float)value)
+	{}
+
+	FsioValue(bool value)
+		: Type(value ? FsioValueType::BoolTrue : FsioValueType::BoolFalse)
+	{}
+
+	float conformToFloat() const {
+		if (Type == FsioValueType::Float) {
+			return Value;
+		} else {
+			return boolValue();
+		}
+	}
+
+	bool boolValue() const {
+		return Type == FsioValueType::BoolTrue;
+	}
+};
 
 #define MAX_STACK_DEPTH 32
 
-typedef FLStack<float, MAX_STACK_DEPTH> calc_stack_t;
+typedef FLStack<FsioValue, MAX_STACK_DEPTH> calc_stack_t;
 
 #define MAX_CALC_LOG 64
 
 class LECalculator {
 public:
 	LECalculator();
-	float getValue(float selfValue DECLARE_ENGINE_PARAMETER_SUFFIX);
-	float getValue2(float selfValue, LEElement *fistElementInList DECLARE_ENGINE_PARAMETER_SUFFIX);
+	expected<float> getValue(float selfValue DECLARE_ENGINE_PARAMETER_SUFFIX);
+	expected<float> getValue2(float selfValue, LEElement *fistElementInList DECLARE_ENGINE_PARAMETER_SUFFIX);
 	void add(LEElement *element);
 	bool isEmpty() const;
 	void reset();
 	void reset(LEElement *element);
 	le_action_e calcLogAction[MAX_CALC_LOG];
-	float calcLogValue[MAX_CALC_LOG];
+	FsioValue calcLogValue[MAX_CALC_LOG];
 	int currentCalculationLogPosition;
 private:
-	void push(le_action_e action, float value);
+	void push(le_action_e action, FsioValue value);
 	bool processElement(LEElement *element DECLARE_ENGINE_PARAMETER_SUFFIX);
-	float pop(le_action_e action);
+	expected<FsioValue> pop(le_action_e action);
 	LEElement *first;
 	calc_stack_t stack;
 };
@@ -133,4 +173,3 @@ public:
 const char *getNextToken(const char *line, char *buffer, const int bufferSize);
 bool isNumeric(const char* line);
 le_action_e parseAction(const char * line);
-bool float2bool(float v);

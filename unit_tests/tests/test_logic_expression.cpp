@@ -40,7 +40,7 @@ float getEngineValue(le_action_e action DECLARE_ENGINE_PARAMETER_SUFFIX) {
 	}
 }
 
-static void testParsing(void) {
+TEST(fsio, testParsing) {
 	char buffer[64];
 
 	ASSERT_TRUE(strEqualCaseInsensitive("hello", "HELlo"));
@@ -95,7 +95,7 @@ static void testExpression2(float selfValue, const char *line, float expected, E
 
 	EXPAND_Engine;
 
-	ASSERT_EQ(expected, c.getValue2(selfValue, element PASS_ENGINE_PARAMETER_SUFFIX)) << line;
+	ASSERT_NEAR(expected, c.getValue2(selfValue, element PASS_ENGINE_PARAMETER_SUFFIX).asFloatWithNan(), EPS4D) << line;
 }
 
 static void testExpression2(float selfValue, const char *line, float expected, const std::unordered_map<SensorType, float>& sensorVals = {}) {
@@ -108,7 +108,7 @@ static void testExpression(const char *line, float expectedValue, const std::uno
 }
 
 TEST(fsio, testIfFunction) {
-	testExpression("1 22 33 if", 22);
+	testExpression("true 22 33 if", 22);
 }
 
 TEST(fsio, testHysteresisSelf) {
@@ -126,46 +126,60 @@ TEST(fsio, testHysteresisSelf) {
 	double selfValue = 0;
 
 	engine->fsioState.mockRpm = 0;
-	selfValue = c.getValue2(selfValue, element PASS_ENGINE_PARAMETER_SUFFIX);
+	selfValue = c.getValue2(selfValue, element PASS_ENGINE_PARAMETER_SUFFIX).asFloatWithNan();
 	ASSERT_EQ(0, selfValue);
 
 	engine->fsioState.mockRpm = 430;
-	selfValue = c.getValue2(selfValue, element PASS_ENGINE_PARAMETER_SUFFIX);
+	selfValue = c.getValue2(selfValue, element PASS_ENGINE_PARAMETER_SUFFIX).asFloatWithNan();
 	// OFF since not ON yet
 	ASSERT_EQ(0, selfValue);
 
 	engine->fsioState.mockRpm = 460;
-	selfValue = c.getValue2(selfValue, element PASS_ENGINE_PARAMETER_SUFFIX);
+	selfValue = c.getValue2(selfValue, element PASS_ENGINE_PARAMETER_SUFFIX).asFloatWithNan();
 	ASSERT_EQ(1, selfValue);
 
 	engine->fsioState.mockRpm = 430;
-	selfValue = c.getValue2(selfValue, element PASS_ENGINE_PARAMETER_SUFFIX);
+	selfValue = c.getValue2(selfValue, element PASS_ENGINE_PARAMETER_SUFFIX).asFloatWithNan();
 	// OFF since was ON yet
 	ASSERT_EQ(1, selfValue);
 }
 
 TEST(fsio, testLogicExpressions) {
-	testParsing();
 	{
 
 	WITH_ENGINE_TEST_HELPER(FORD_INLINE_6_1995);
 
+
+	testExpression("123", 123.0f);
+
+	// Test basic operations
+	testExpression("123 456 +", 579);
+	testExpression("123 456 -", -333);
+	testExpression("123 456 *", 56088);
+	testExpression("123 456 /", 0.269737f);
+
+	// Boolean operators
+	testExpression("true true and", 1);
+	testExpression("true false and", 0);
+	testExpression("true false or", 1);
+	testExpression("false false or", 0);
+
 	LECalculator c;
 
 	LEElement value1;
-	value1.init(LE_NUMERIC_VALUE, 123.0);
+	value1.init(123.0f);
 	c.add(&value1);
 
-	assertEqualsM("123", 123.0, c.getValue(0 PASS_ENGINE_PARAMETER_SUFFIX));
+	assertEqualsM("123", 123.0, c.getValue(0 PASS_ENGINE_PARAMETER_SUFFIX).asFloatWithNan());
 
 	LEElement value2;
-	value2.init(LE_NUMERIC_VALUE, 321.0);
+	value2.init(321.0f);
 	c.add(&value2);
 
 	LEElement value3;
 	value3.init(LE_OPERATOR_AND);
 	c.add(&value3);
-	assertEqualsM("123 and 321", 1.0, c.getValue(0 PASS_ENGINE_PARAMETER_SUFFIX));
+	assertEqualsM("123 and 321", 1.0, c.getValue(0 PASS_ENGINE_PARAMETER_SUFFIX).asFloatWithNan());
 
 	/**
 	 * fuel_pump = (time_since_boot < 4 seconds) OR (rpm > 0)
@@ -180,7 +194,7 @@ TEST(fsio, testLogicExpressions) {
 	e->init(LE_METHOD_TIME_SINCE_BOOT);
 
 	e = pool.next();
-	e->init(LE_NUMERIC_VALUE, 4);
+	e->init(4.0f);
 
 	e = pool.next();
 	e->init(LE_OPERATOR_LESS);
@@ -189,7 +203,7 @@ TEST(fsio, testLogicExpressions) {
 	e->init(LE_METHOD_RPM);
 
 	e = pool.next();
-	e->init(LE_NUMERIC_VALUE, 0);
+	e->init(0.0f);
 
 	e = pool.next();
 	e->init(LE_OPERATOR_MORE);
@@ -231,11 +245,11 @@ TEST(fsio, testLogicExpressions) {
 		LEElement * element = pool.parseExpression("fan NOT coolant 90 > AND fan coolant 85 > AND OR");
 		ASSERT_TRUE(element != NULL) << "Not NULL expected";
 		LECalculator c;
-		ASSERT_EQ( 1,  c.getValue2(0, element PASS_ENGINE_PARAMETER_SUFFIX)) << "that expression";
+		ASSERT_EQ( 1,  c.getValue2(0, element PASS_ENGINE_PARAMETER_SUFFIX).asFloatWithNan()) << "that expression";
 
 		ASSERT_EQ(12, c.currentCalculationLogPosition);
 		ASSERT_EQ(102, c.calcLogAction[0]);
-		ASSERT_EQ(0, c.calcLogValue[0]);
+		ASSERT_EQ(0, c.calcLogValue[0].Value);
 	}
 
 

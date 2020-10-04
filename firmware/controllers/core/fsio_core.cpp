@@ -81,9 +81,14 @@ void LEElement::init(le_action_e action) {
 	this->action = action;
 }
 
-void LEElement::init(le_action_e action, float fValue) {
-	this->action = action;
+void LEElement::init(float fValue) {
+	this->action = LE_NUMERIC_VALUE;
 	this->fValue = fValue;
+}
+
+void LEElement::init(bool bValue) {
+	this->action = LE_BOOLEAN_VALUE;
+	this->fValue = bValue ? 1 : 0;
 }
 
 LECalculator::LECalculator() {
@@ -114,24 +119,112 @@ void LECalculator::add(LEElement *element) {
 	}
 }
 
-bool float2bool(float v) {
-	return v != 0;
-}
-
-float LECalculator::pop(le_action_e action) {
+expected<FsioValue> LECalculator::pop(le_action_e action) {
 	if (stack.size() == 0) {
 		warning(CUSTOM_EMPTY_FSIO_STACK, "empty stack for action=%d", action);
-		return NAN;
+		return unexpected;
 	}
+
 	return stack.pop();
 }
 
-void LECalculator::push(le_action_e action, float value) {
+void LECalculator::push(le_action_e action, FsioValue value) {
 	stack.push(value);
 	if (currentCalculationLogPosition < MAX_CALC_LOG) {
 		calcLogAction[currentCalculationLogPosition] = action;
 		calcLogValue[currentCalculationLogPosition] = value;
 		currentCalculationLogPosition++;
+	}
+}
+
+static bool isFloat(expected<FsioValue> x) {
+	if (!x || x.Value.Type != FsioValueType::Float) {
+		return false;
+	}
+
+	return true;
+}
+
+static bool isBoolean(expected<FsioValue> x) {
+	if (!x ||
+		(x.Value.Type != FsioValueType::BoolTrue
+		&& x.Value.Type != FsioValueType::BoolFalse)) {
+		return false;
+	}
+
+	return true;
+}
+
+expected<FsioValue> doBinaryBoolean(le_action_e action, expected<FsioValue> lhs, expected<FsioValue> rhs) {
+	// Both inputs should be valid and numeric
+	if (!isBoolean(lhs)) {
+		return unexpected;
+	}
+
+	if (!isBoolean(rhs)) {
+		return unexpected;
+	}
+
+	bool v1 = lhs.Value.boolValue();
+	bool v2 = rhs.Value.boolValue();
+
+	switch (action) {
+		case LE_OPERATOR_AND:
+			return FsioValue(v1 && v2);
+		case LE_OPERATOR_OR:
+			return FsioValue(v1 || v2);
+		default:
+			return unexpected;
+	}
+}
+
+expected<float> doBinaryNumericInternal(le_action_e action, float v1, float v2) {
+	// Process based on the action type
+	switch (action) {
+		case LE_OPERATOR_ADDITION:
+			return v1 + v2;
+		case LE_OPERATOR_SUBTRACTION:
+			return v1 - v2;
+		case LE_OPERATOR_MULTIPLICATION:
+			return v1 * v2;
+		case LE_OPERATOR_DIVISION:
+			return v1 / v2;
+		case LE_OPERATOR_LESS:
+			return v1 < v2;
+		case LE_OPERATOR_MORE:
+			return v1 > v2;
+		case LE_OPERATOR_LESS_OR_EQUAL:
+			return v1 <= v2;
+		case LE_OPERATOR_MORE_OR_EQUAL:
+			return v1 >= v2;
+		case LE_METHOD_MIN:
+			return minF(v1, v2);
+		case LE_METHOD_MAX:
+			return maxF(v1, v2);
+		default:
+			return unexpected;
+	}
+}
+
+expected<FsioValue> doBinaryNumeric(le_action_e action, expected<FsioValue> lhs, expected<FsioValue> rhs) {
+	// Both inputs should be valid and numeric
+	if (!isFloat(lhs)) {
+		return unexpected;
+	}
+
+	if (!isFloat(rhs)) {
+		return unexpected;
+	}
+
+	float v1 = lhs.Value.Value;
+	float v2 = rhs.Value.Value;
+
+	auto result = doBinaryNumericInternal(action, v1, v2);
+
+	if (result) {
+		return FsioValue(result.Value);
+	} else {
+		return unexpected;
 	}
 }
 
@@ -143,116 +236,88 @@ bool LECalculator::processElement(LEElement *element DECLARE_ENGINE_PARAMETER_SU
 	efiAssert(CUSTOM_ERR_ASSERT, getCurrentRemainingStack() > 64, "FSIO logic", false);
 #endif
 	switch (element->action) {
-
 	case LE_NUMERIC_VALUE:
 		push(element->action, element->fValue);
 		break;
-	case LE_OPERATOR_AND: {
-		float v1 = pop(LE_OPERATOR_AND);
-		float v2 = pop(LE_OPERATOR_AND);
-
-		push(element->action, float2bool(v1) && float2bool(v2));
-	}
+	case LE_BOOLEAN_VALUE:
+		push(element->action, element->fValue != 0);
 		break;
+	// Boolean input binary operators
+	case LE_OPERATOR_AND:
 	case LE_OPERATOR_OR: {
-		float v1 = pop(LE_OPERATOR_OR);
-		float v2 = pop(LE_OPERATOR_OR);
+		expected<FsioValue> v1 = pop(LE_OPERATOR_AND);
+		expected<FsioValue> v2 = pop(LE_OPERATOR_AND);
 
-		push(element->action, float2bool(v1) || float2bool(v2));
+		expected<FsioValue> result = doBinaryBoolean(element->action, v1, v2);
+
+		if (!result) {
+			return true;
+		}
+
+		push(element->action, result.Value);
 	}
 		break;
-	case LE_OPERATOR_LESS: {
+	// Numeric input binary operators
+	case LE_OPERATOR_ADDITION:
+	case LE_OPERATOR_SUBTRACTION:
+	case LE_OPERATOR_MULTIPLICATION:
+	case LE_OPERATOR_DIVISION:
+	case LE_OPERATOR_LESS:
+	case LE_OPERATOR_MORE:
+	case LE_OPERATOR_LESS_OR_EQUAL:
+	case LE_OPERATOR_MORE_OR_EQUAL:
+	case LE_METHOD_MIN:
+	case LE_METHOD_MAX: {
 		// elements on stack are in reverse order
-		float v2 = pop(LE_OPERATOR_LESS);
-		float v1 = pop(LE_OPERATOR_LESS);
+		expected<FsioValue> v2 = pop(element->action);
+		expected<FsioValue> v1 = pop(element->action);
 
-		push(element->action, v1 < v2);
+		expected<FsioValue> result = doBinaryNumeric(element->action, v1, v2);
+
+		if (!result) {
+			return true;
+		}
+
+		push(element->action, result.Value);
 	}
 		break;
+	// Boolean input unary operator
 	case LE_OPERATOR_NOT: {
-		float v = pop(LE_OPERATOR_NOT);
-		push(element->action, !float2bool(v));
-	}
-		break;
-	case LE_OPERATOR_MORE: {
-		// elements on stack are in reverse order
-		float v2 = pop(LE_OPERATOR_MORE);
-		float v1 = pop(LE_OPERATOR_MORE);
+		expected<FsioValue> v = pop(LE_OPERATOR_NOT);
 
-		push(element->action, v1 > v2);
-	}
-		break;
-	case LE_OPERATOR_ADDITION: {
-		// elements on stack are in reverse order
-		float v2 = pop(LE_OPERATOR_MORE);
-		float v1 = pop(LE_OPERATOR_MORE);
+		if (!isBoolean(v)) {
+			return true;
+		}
 
-		push(element->action, v1 + v2);
+		push(element->action, !v.Value.boolValue());
 	}
 		break;
-	case LE_OPERATOR_SUBTRACTION: {
-		// elements on stack are in reverse order
-		float v2 = pop(LE_OPERATOR_MORE);
-		float v1 = pop(LE_OPERATOR_MORE);
 
-		push(element->action, v1 - v2);
-	}
-		break;
-	case LE_OPERATOR_MULTIPLICATION: {
-		// elements on stack are in reverse order
-		float v2 = pop(LE_OPERATOR_MORE);
-		float v1 = pop(LE_OPERATOR_MORE);
-
-		push(element->action, v1 * v2);
-	}
-		break;
-	case LE_OPERATOR_DIVISION: {
-		// elements on stack are in reverse order
-		float v2 = pop(LE_OPERATOR_MORE);
-		float v1 = pop(LE_OPERATOR_MORE);
-
-		push(element->action, v1 / v2);
-	}
-		break;
-	case LE_OPERATOR_LESS_OR_EQUAL: {
-		// elements on stack are in reverse order
-		float v2 = pop(LE_OPERATOR_LESS_OR_EQUAL);
-		float v1 = pop(LE_OPERATOR_LESS_OR_EQUAL);
-
-		push(element->action, v1 <= v2);
-	}
-		break;
-	case LE_OPERATOR_MORE_OR_EQUAL: {
-		// elements on stack are in reverse order
-		float v2 = pop(LE_OPERATOR_MORE_OR_EQUAL);
-		float v1 = pop(LE_OPERATOR_MORE_OR_EQUAL);
-
-		push(element->action, v1 >= v2);
-	}
-		break;
 	case LE_METHOD_IF: {
 		// elements on stack are in reverse order
-		float vFalse = pop(LE_METHOD_IF);
-		float vTrue = pop(LE_METHOD_IF);
-		float vCond = pop(LE_METHOD_IF);
-		push(element->action, vCond != 0 ? vTrue : vFalse);
-	}
-		break;
-	case LE_METHOD_MAX: {
-		float v2 = pop(LE_METHOD_MAX);
-		float v1 = pop(LE_METHOD_MAX);
-		push(element->action, maxF(v1, v2));
-	}
-		break;
-	case LE_METHOD_MIN: {
-		float v2 = pop(LE_METHOD_MIN);
-		float v1 = pop(LE_METHOD_MIN);
-		push(element->action, minF(v1, v2));
+		expected<FsioValue> vFalse = pop(LE_METHOD_IF);
+		expected<FsioValue> vTrue = pop(LE_METHOD_IF);
+		expected<FsioValue> vCond = pop(LE_METHOD_IF);
+
+		if (!isBoolean(vCond)) {
+			return true;
+		}
+
+		// no validation on the type of vFalse/vTrue - we don't care what type they are
+		if (!vFalse || !vTrue) {
+			return true;
+		}
+
+		push(element->action, vCond.Value.boolValue() ? vTrue.Value : vFalse.Value);
 	}
 		break;
 	case LE_METHOD_FSIO_SETTING: {
-		float humanIndex = pop(LE_METHOD_FSIO_SETTING);
-		int index = (int) humanIndex - 1;
+		auto humanIndex = pop(LE_METHOD_FSIO_SETTING);
+		if (!isFloat(humanIndex)) {
+			return true;
+		}
+
+		int index = (int) humanIndex.Value.Value - 1;
 		if (index >= 0 && index < FSIO_COMMAND_COUNT) {
 			push(element->action, CONFIG(fsio_setting)[index]);
 		} else {
@@ -261,10 +326,26 @@ bool LECalculator::processElement(LEElement *element DECLARE_ENGINE_PARAMETER_SU
 	}
 		break;
 	case LE_METHOD_FSIO_TABLE: {
-		float i = pop(LE_METHOD_FSIO_TABLE);
-		float yValue = pop(LE_METHOD_FSIO_TABLE);
-		float xValue = pop(LE_METHOD_FSIO_TABLE);
-		int index = (int) i;
+		auto iRaw = pop(LE_METHOD_FSIO_TABLE);
+		auto yValueRaw = pop(LE_METHOD_FSIO_TABLE);
+		auto xValueRaw = pop(LE_METHOD_FSIO_TABLE);
+
+		if (!isFloat(iRaw)) {
+			return true;
+		}
+
+		if (!isFloat(yValueRaw)) {
+			return true;
+		}
+
+		if (!isFloat(xValueRaw)) {
+			return true;
+		}
+
+		float xValue = xValueRaw.Value.Value;
+		float yValue = yValueRaw.Value.Value;
+
+		int index = (int) iRaw.Value.Value;
 		if (index < 1 || index > MAX_TABLE_INDEX) {
 			push(element->action, NAN);
 		} else {
@@ -284,7 +365,13 @@ bool LECalculator::processElement(LEElement *element DECLARE_ENGINE_PARAMETER_SU
 		// todo: implement code for digital input!!!
 	case LE_METHOD_FSIO_ANALOG_INPUT:
 	{
-		int index = clampF(0, pop(LE_METHOD_FSIO_ANALOG_INPUT), FSIO_ANALOG_INPUT_COUNT - 1);
+		auto rawIndex = pop(LE_METHOD_FSIO_ANALOG_INPUT);
+
+		if (!isFloat(rawIndex)) {
+			return true;
+		}
+
+		int index = clampF(0, rawIndex.Value.Value, FSIO_ANALOG_INPUT_COUNT - 1);
 		push(element->action, getVoltage("fsio", engineConfiguration->fsioAdc[index] PASS_ENGINE_PARAMETER_SUFFIX));
 	}
 		break;
@@ -300,7 +387,7 @@ bool LECalculator::processElement(LEElement *element DECLARE_ENGINE_PARAMETER_SU
 	return false;
 }
 
-float LECalculator::getValue2(float selfValue, LEElement *fistElementInList DECLARE_ENGINE_PARAMETER_SUFFIX) {
+expected<float> LECalculator::getValue2(float selfValue, LEElement *fistElementInList DECLARE_ENGINE_PARAMETER_SUFFIX) {
 	reset(fistElementInList);
 	return getValue(selfValue PASS_ENGINE_PARAMETER_SUFFIX);
 }
@@ -309,10 +396,10 @@ bool LECalculator::isEmpty() const {
 	return first == NULL;
 }
 
-float LECalculator::getValue(float selfValue DECLARE_ENGINE_PARAMETER_SUFFIX) {
+expected<float> LECalculator::getValue(float selfValue DECLARE_ENGINE_PARAMETER_SUFFIX) {
 	if (isEmpty()) {
 		warning(CUSTOM_NO_FSIO, "no FSIO code");
-		return NAN;
+		return unexpected;
 	}
 	LEElement *element = first;
 
@@ -328,7 +415,7 @@ float LECalculator::getValue(float selfValue DECLARE_ENGINE_PARAMETER_SUFFIX) {
 			bool isError = processElement(element PASS_ENGINE_PARAMETER_SUFFIX);
 			if (isError) {
 				// error already reported
-				return NAN;
+				return unexpected;
 			}
 		}
 		element = element->next;
@@ -336,9 +423,10 @@ float LECalculator::getValue(float selfValue DECLARE_ENGINE_PARAMETER_SUFFIX) {
 	}
 	if (stack.size() != 1) {
 		warning(CUSTOM_FSIO_STACK_SIZE, "unexpected FSIO stack size: %d", stack.size());
-		return NAN;
+		return unexpected;
 	}
-	return stack.pop();
+
+	return stack.pop().conformToFloat();
 }
 
 LEElementPool::LEElementPool(LEElement *pool, int size) {
@@ -368,6 +456,13 @@ LEElement *LEElementPool::next() {
 
 bool isNumeric(const char* line) {
 	return line[0] >= '0' && line[0] <= '9';
+}
+
+bool isBoolean(const char* line) {
+	bool isTrue = 0 == strcmp(line, "true");
+	bool isFalse = 0 == strcmp(line, "false");
+	
+	return isTrue || isFalse;
 }
 
 /**
@@ -426,7 +521,9 @@ LEElement *LEElementPool::parseExpression(const char * line) {
 		}
 
 		if (isNumeric(parsingBuffer)) {
-			n->init(LE_NUMERIC_VALUE, atoff(parsingBuffer));
+			n->init(atoff(parsingBuffer));
+		} else if (isBoolean(parsingBuffer)) {
+			n->init(parsingBuffer[0] == 't' || parsingBuffer[0] == 'T');
 		} else {
 			le_action_e action = parseAction(parsingBuffer);
 			if (action == LE_UNDEFINED) {

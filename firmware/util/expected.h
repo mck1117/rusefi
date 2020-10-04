@@ -15,6 +15,8 @@
 
 #pragma once
 
+#include <math.h>
+
 struct unexpected_t {};
 
 template <class TValue>
@@ -55,6 +57,14 @@ struct expected {
 
 		// Both are guaranteed valid - simply compare values
 		return Value == other.Value;
+	}
+
+	float asFloatWithNan() const {
+		if (!Valid) {
+			return NAN;
+		} else {
+			return Value;
+		}
 	}
 };
 
