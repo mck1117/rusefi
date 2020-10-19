@@ -26,6 +26,7 @@ TESTS_SRC_CPP = \
 	tests/test_fasterEngineSpinningUp.cpp \
 	tests/test_dwell_corner_case_issue_796.cpp \
 	tests/test_idle_controller.cpp \
+	tests/test_idle_v2.cpp \
 	tests/test_issue_898.cpp \
 	tests/test_etb.cpp \
 	tests/test_fuel_map.cpp \
