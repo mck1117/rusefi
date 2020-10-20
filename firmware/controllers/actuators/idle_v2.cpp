@@ -7,12 +7,6 @@ void IdleControllerV2::init(pid_s* pid) {
 	m_pid.initPidClass(pid);
 }
 
-void IdleControllerBase::update() {
-	float position = getPosition();
-
-	applyIACposition(position PASS_ENGINE_PARAMETER_SUFFIX);
-}
-
 float IdleControllerBase::getPosition() {
 	// On failed sensor, use 0 deg C - should give a safe highish idle
 	float clt = Sensor::get(SensorType::Clt).value_or(0);
@@ -121,3 +115,11 @@ float IdleControllerV2::getClosedLoop(Phase phase, int rpm, int targetRpm) {
 }
 
 IdleControllerV2 idler;
+
+void startNewIdleControl() {
+	idler.init(&CONFIG(idleRpmPid));
+}
+
+float getNewIdleControllerPosition() {
+	return idler.getPosition();
+}

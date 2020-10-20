@@ -8,8 +8,6 @@ class IdleControllerBase {
 public:
 	DECLARE_ENGINE_PTR;
 
-	void update();
-
 	enum class Phase : uint8_t {
 		Cranking,
 		Idling,
@@ -56,3 +54,6 @@ public:
 private:
 	Pid m_pid;
 };
+
+void startNewIdleControl();
+float getNewIdleControllerPosition();
