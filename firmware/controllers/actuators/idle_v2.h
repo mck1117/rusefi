@@ -8,7 +8,6 @@ class IdleControllerBase {
 public:
 	DECLARE_ENGINE_PTR;
 
-	void init(pid_s* pid);
 	void update();
 
 	enum class Phase : uint8_t {
@@ -38,6 +37,8 @@ public:
 
 class IdleControllerV2 : public IdleControllerBase {
 public:
+	void init(pid_s* pid);
+
 	// TARGET DETERMINATION
 	int getTargetRpm(float clt) const override;
 

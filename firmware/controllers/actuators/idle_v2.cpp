@@ -3,6 +3,10 @@
 
 EXTERN_ENGINE;
 
+void IdleControllerV2::init(pid_s* pid) {
+	m_pid.initPidClass(pid);
+}
+
 void IdleControllerBase::update() {
 	float position = getPosition();
 
@@ -113,7 +117,7 @@ float IdleControllerV2::getClosedLoop(Phase phase, int rpm, int targetRpm) {
 	}
 
 	// But always return the position, even not when in idle conditions
-	return m_pid.output;
+	return -m_pid.output;
 }
 
 IdleControllerV2 idler;
