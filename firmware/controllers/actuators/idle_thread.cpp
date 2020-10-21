@@ -41,6 +41,7 @@
 #include "allsensors.h"
 #include "sensor.h"
 #include "electronic_throttle.h"
+#include "idle_v2.h"
 
 
 #include "dc_motors.h"
@@ -574,6 +575,8 @@ static percent_t automaticIdleController(float tpsPos DECLARE_ENGINE_PARAMETER_S
 			return; // value is pretty close, let's leave the poor valve alone
 		}
 
+		iacPosition = getNewIdleControllerPosition();
+
 		engine->engineState.idle.currentIdlePosition = iacPosition;
 		applyIACposition(engine->engineState.idle.currentIdlePosition PASS_ENGINE_PARAMETER_SUFFIX);
 }
@@ -815,6 +818,7 @@ void startIdleThread(Logging*sharedLogger DECLARE_ENGINE_PARAMETER_SUFFIX) {
 
 	//scheduleMsg(logger, "initial idle %d", idlePositionController.value);
 
+	startNewIdleControl();
 	idleControllerInstance.Start();
 
 #if ! EFI_UNIT_TEST
