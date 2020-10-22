@@ -7,6 +7,7 @@
  */
 
 #include "global.h"
+#include "backup_ram.h"
 
 /**
  * Executes the BKPT instruction that causes the debugger to stop.
@@ -53,8 +54,11 @@ void HardFault_Handler(void) {
     (void)isFaultOnUnstacking;
     (void)isFaultOnStacking;
     (void)isFaultAddressValid;
+
+	backupRamSave(BACKUP_HARD_FAULT_PC, (uintptr_t)ctx.pc);
+
     //Cause debugger to stop. Ignored if no debugger is attached
-    bkpt();
+    //bkpt();
     NVIC_SystemReset();
 }
 

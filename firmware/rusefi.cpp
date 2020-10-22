@@ -122,6 +122,7 @@
 #include "custom_engine.h"
 #include "engine_math.h"
 #include "mpu_util.h"
+#include "backup_ram.h"
 
 #if EFI_HD44780_LCD
 #include "lcd_HD44780.h"
@@ -190,6 +191,14 @@ void runRusEfi(void) {
 	 */
 	readConfiguration(&sharedLogger);
 #endif /* EFI_INTERNAL_FLASH */
+
+	{
+		auto faultPc = backupRamLoad(BACKUP_HARD_FAULT_PC);
+		
+		if (faultPc != 0) {
+			firmwareError(OBD_PCM_Processor_Fault, "Hard fault at 0x%08x", faultPc);
+		}
+	}
 
 #if HW_CHECK_MODE
 	// we need a special binary for final assembly check. We cannot afford to require too much software or too many steps

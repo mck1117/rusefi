@@ -8,7 +8,6 @@
 #pragma once
 
 #include "global.h"
-#include "efi_gpio.h"
 
 typedef enum {
 	/**
@@ -35,10 +34,16 @@ typedef enum {
 
 	DFU_JUMP_REQUESTED,
 
+	BACKUP_HARD_FAULT_PC,
+
 	/* The number of stored backup variables */
 	BACKUP_RAM_NUM,
 } backup_ram_e;
 
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 // load data from backup-power RTC registers (non-volatile memory)
 uint32_t backupRamLoad(backup_ram_e idx);
@@ -47,3 +52,6 @@ void backupRamSave(backup_ram_e idx, uint32_t value);
 // make sure that all changes are saved before we shutdown the MCU
 void backupRamFlush(void);
 
+#ifdef __cplusplus
+}
+#endif

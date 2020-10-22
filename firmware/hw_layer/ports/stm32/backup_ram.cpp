@@ -6,6 +6,13 @@
 
 #include "backup_ram.h"
 
+struct backupRamLayout {
+	uint32_t tag;
+	uintptr_t HardFaultPc;
+};
+
+backupRamLayout backupObj __attribute__((section(".ram5")));
+
 uint32_t backupRamLoad(backup_ram_e idx) {
 #if HAL_USE_RTC
 	switch (idx) {
@@ -20,6 +27,8 @@ uint32_t backupRamLoad(backup_ram_e idx) {
 // it is assembly code which reads this value
 //	case DFU_JUMP_REQUESTED:
 //		return RTCD1.rtc->BKP4R;
+	case BACKUP_HARD_FAULT_PC:
+		return backupObj.tag == 0xDEADBEEF ? backupObj.HardFaultPc : 0;
 	default:
 		firmwareError(OBD_PCM_Processor_Fault, "Invalid backup ram idx %d", idx);
 		return 0;
@@ -47,6 +56,10 @@ void backupRamSave(backup_ram_e idx, uint32_t value) {
 // todo: start using this code
 	case DFU_JUMP_REQUESTED:
 		RTCD1.rtc->BKP4R = value;
+		break;
+	case BACKUP_HARD_FAULT_PC:
+		backupObj.HardFaultPc = value;
+		backupObj.tag = 0xDEADBEEF;
 		break;
 	default:
 		firmwareError(OBD_PCM_Processor_Fault, "Invalid backup ram idx %d, value 0x08x", idx, value);

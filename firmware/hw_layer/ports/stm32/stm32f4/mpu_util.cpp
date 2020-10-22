@@ -79,7 +79,12 @@ EXTERNC int getRemainingStack(thread_t *otp) {
 
 void baseMCUInit(void) {
 	// looks like this holds a random value on start? Let's set a nice clean zero
-        DWT->CYCCNT = 0;
+	DWT->CYCCNT = 0;
+
+	// Enable backup SRAM
+	RCC->AHB1ENR |= RCC_AHB1ENR_BKPSRAMEN;
+	PWR->CSR |= PWR_CSR_BRE;
+	while ((PWR->CSR & PWR_CSR_BRR) == 0);	// Waits until the regulator is stable
 
     /**
      * BOR (Brown Out Reset) is a way to reset microcontroller if target voltage is below voltage we set. When this happens, MCU is in reset state until voltage comes above selected voltage.
