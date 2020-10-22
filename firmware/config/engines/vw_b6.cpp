@@ -8,6 +8,7 @@
 #include "engine.h"
 #include "vw_b6.h"
 #include "custom_engine.h"
+#include "table_helper.h"
 
 EXTERN_CONFIG;
 
@@ -17,6 +18,7 @@ EXTERN_CONFIG;
  * has to be microRusEFI 0.5.2
  */
 void setVwPassatB6(DECLARE_CONFIG_PARAMETER_SIGNATURE) {
+#if (BOARD_TLE8888_COUNT > 0)
 	setOperationMode(engineConfiguration, FOUR_STROKE_CRANK_SENSOR);
 	engineConfiguration->trigger.type = TT_TOOTHED_WHEEL_60_2;
 	engineConfiguration->vvtMode = VVT_BOSCH_QUICK_START;
@@ -70,20 +72,39 @@ void setVwPassatB6(DECLARE_CONFIG_PARAMETER_SIGNATURE) {
 	engineConfiguration->injectionPins[3] = GPIOE_0;
 
 
-	engineConfiguration->gppwm[0].pwmFrequency = 25;
-	engineConfiguration->gppwm[0].loadAxis = GPPWM_FuelLoad;
+	gppwm_channel *lowPressureFuelPumpControl = &engineConfiguration->gppwm[1];
+	lowPressureFuelPumpControl->pwmFrequency = 20;
+	lowPressureFuelPumpControl->loadAxis = GPPWM_FuelLoad;
+	lowPressureFuelPumpControl->dutyIfError = 50;
+	setTable(lowPressureFuelPumpControl->table, (uint8_t)50);
+	// TLE8888_PIN_24: "43 - GP Out 4"
+	lowPressureFuelPumpControl->pin = TLE8888_PIN_24;
+
+
+	gppwm_channel *coolantControl = &engineConfiguration->gppwm[0];
+
+	coolantControl->pwmFrequency = 25;
+	coolantControl->loadAxis = GPPWM_FuelLoad;
+	// Volkswage wants 10% for fan to be OFF, between pull-up and low side control we need to invert that value
+	int value = 100 - 10;
+	coolantControl->dutyIfError = value;
+	setTable(coolantControl->table, (uint8_t)value);
 	// for now I just want to stop radiator whine
 	// todo: enable cooling!
-	engineConfiguration->gppwm[0].dutyIfError = 10;
-	for (int load = 0; load < GPPWM_LOAD_COUNT; load++) {
+/*
+    for (int load = 0; load < GPPWM_LOAD_COUNT; load++) {
 		for (int r = 0; r < GPPWM_RPM_COUNT; r++) {
-			engineConfiguration->gppwm[0].table[load][r] = 10;
+			engineConfiguration->gppwm[0].table[load][r] = value;
 		}
 	}
-
-	engineConfiguration->gppwm[0].pin = GPIOE_10; // "3 - Lowside 2"
+*/
+	coolantControl->pin = GPIOE_10; // "3 - Lowside 2"
 
 
 	engineConfiguration->idle.solenoidPin = GPIO_UNASSIGNED;
 	engineConfiguration->fanPin = GPIO_UNASSIGNED;
+
+	CONFIG(useETBforIdleControl) = true;
+	engineConfiguration->crankingInjectionMode = IM_SEQUENTIAL;
+#endif /* BOARD_TLE8888_COUNT */
 }
