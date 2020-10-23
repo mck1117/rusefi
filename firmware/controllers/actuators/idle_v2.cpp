@@ -7,7 +7,7 @@ void IdleControllerV2::init(pid_s* pid) {
 	m_pid.initPidClass(pid);
 }
 
-float IdleControllerBase::getPosition() {
+float IdleControllerV2::getPosition() {
 	// On failed sensor, use 0 deg C - should give a safe highish idle
 	float clt = Sensor::get(SensorType::Clt).value_or(0);
 	auto tps = Sensor::get(SensorType::DriverThrottleIntent);
@@ -26,6 +26,12 @@ float IdleControllerBase::getPosition() {
 	if (tps.Valid && engineConfiguration->idleMode == IM_AUTO) {
 		result += getClosedLoop(phase, rpm, targetRpm);
 	}
+
+#if EFI_TUNER_STUDIO
+	if (CONFIG(debugMode) == DBG_IDLE_CONTROL) {
+		m_pid.postState(&tsOutputChannels);
+	}
+#endif // EFI_TUNER_STUDIO
 
 	return clampF(0, result, 100);
 }
@@ -116,6 +122,8 @@ float IdleControllerV2::getClosedLoop(Phase phase, int rpm, int targetRpm) {
 
 IdleControllerV2 idler;
 
+#if EFI_PROD_CODE
+
 void startNewIdleControl() {
 	idler.init(&CONFIG(idleRpmPid));
 }
@@ -123,3 +131,4 @@ void startNewIdleControl() {
 float getNewIdleControllerPosition() {
 	return idler.getPosition();
 }
+#endif // EFI_PROD_CODE

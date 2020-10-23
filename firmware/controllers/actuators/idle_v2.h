@@ -4,7 +4,7 @@
 #include "expected.h"
 #include "pid.h"
 
-class IdleControllerBase {
+class IdleControllerV2 {
 public:
 	DECLARE_ENGINE_PTR;
 
@@ -16,40 +16,21 @@ public:
 
 	float getPosition();
 
-	// VIRTUAL FUNCTIONS BELOW
-
-	// TARGET DETERMINATION
-	virtual int getTargetRpm(float clt) const = 0;
-
-	// PHASE DETERMINATION: what is the driver trying to do right now?
-	virtual Phase determinePhase(int rpm, int targetRpm, SensorResult tps) const = 0;
-
-	// OPEN LOOP CORRECTIONS
-	virtual float getOpenLoop(Phase phase, float clt, SensorResult tps) const = 0;
-	virtual float getCrankingOpenLoop(float clt) const = 0;
-	virtual float getRunningOpenLoop(float clt, SensorResult tps) const = 0;
-
-	// CLOSED LOOP CORRECTIONS
-	virtual float getClosedLoop(Phase phase, int rpm, int targetRpm) = 0;
-};
-
-class IdleControllerV2 : public IdleControllerBase {
-public:
 	void init(pid_s* pid);
 
 	// TARGET DETERMINATION
-	int getTargetRpm(float clt) const override;
+	int getTargetRpm(float clt) const;
 
 	// PHASE DETERMINATION: what is the driver trying to do right now?
-	Phase determinePhase(int rpm, int targetRpm, SensorResult tps) const override;
+	Phase determinePhase(int rpm, int targetRpm, SensorResult tps) const;
 
 	// OPEN LOOP CORRECTIONS
-	float getOpenLoop(Phase phase, float clt, SensorResult tps) const override;
-	float getCrankingOpenLoop(float clt) const override;
-	float getRunningOpenLoop(float clt, SensorResult tps) const override;
+	float getOpenLoop(Phase phase, float clt, SensorResult tps) const;
+	float getCrankingOpenLoop(float clt) const;
+	float getRunningOpenLoop(float clt, SensorResult tps) const;
 
 	// CLOSED LOOP CORRECTIONS
-	float getClosedLoop(Phase phase, int rpm, int targetRpm) override;
+	float getClosedLoop(Phase phase, int rpm, int targetRpm);
 
 private:
 	Pid m_pid;
