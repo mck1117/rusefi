@@ -1200,7 +1200,10 @@ int16_t tps2Max;Full throttle#2. tpsMax value as 10 bit ADC value. Not Voltage!\
 	custom injector_pressure_type_e 1 bits, U08, @OFFSET@, [0:0], "Low", "High"
 	injector_pressure_type_e injectorPressureType;+Select which fuel pressure sensor measures the pressure of the fuel at your injectors.
 
-	uint8_t[2] unused_former_warmup_target_afr;;"units", 1, 0, -20, 100, 0
+	custom injector_compensation_mode_e 1 bits, U08, @OFFSET@, [0:1], "None", "Fixed rail pressure", "Use fuel pressure sensor"
+	injector_compensation_mode_e injectorCompensationMode;+Automatically compensate for fuel rail pressure.\n\nIn 'None' mode, the entered injector flow is used directly.\nIn 'Fixed rail pressure', the reference pressure is used as a fixed rail pressure above atmospheric pressure (non-MAP referenced regulator).\nIn 'Use fuel pressure sensor', the injector's flow is compensated based on the actual sensed pressure in the rail.
+
+	uint8_t[1] unused_former_warmup_target_afr;;"units", 1, 0, -20, 100, 0
 
 	float boostCutPressure;+MAP value above which fuel is cut in case of overboost.\n0 to disable overboost cut.;"kPa (absolute)",        1,     0,    0, 500,     0
 
@@ -1251,7 +1254,7 @@ tle8888_mode_e tle8888mode;
 	uint8_t[6] unused2508;;"units", 1, 0, -20, 100, 0
 	int16_t etbFreq;;"Hz",      1,     0,    0, 30000,      0
 	pid_s etbWastegatePid;
-	uint8_t[4] unused2536;;"units", 1, 0, -20, 100, 0
+	float injectorReferencePressure;;"kPa",1, 0, 100, 350000, 0
 
 	custom cfg_float_t_1f 4 scalar,  F32,   @OFFSET@, 		"Val",	   1,	   0,       -20000000, 20000000,	  1
 	cfg_float_t_1f[IGNITION_PIN_COUNT iterate] timing_offset_cylinder;per-cylinder timing correction

@@ -1016,3 +1016,9 @@ typedef enum __attribute__ ((__packed__)) {
 	IPT_Low = 0,
 	IPT_High = 1,
 } injector_pressure_type_e;
+
+typedef enum __attribute__ ((__packed__)) {
+	InjectorComp_None = 0,
+	InjectorComp_FixedRail = 1,
+	InjectorComp_UseSensor = 2,
+} injector_compensation_mode_e;
