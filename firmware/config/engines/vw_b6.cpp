@@ -22,6 +22,7 @@ void setVwPassatB6(DECLARE_CONFIG_PARAMETER_SIGNATURE) {
 	setOperationMode(engineConfiguration, FOUR_STROKE_CRANK_SENSOR);
 	engineConfiguration->trigger.type = TT_TOOTHED_WHEEL_60_2;
 	engineConfiguration->vvtMode = VVT_BOSCH_QUICK_START;
+	engineConfiguration->map.sensor.type = MT_BOSCH_2_5;
 
 	strcpy(CONFIG(engineMake), ENGINE_MAKE_VAG);
 	strcpy(CONFIG(engineCode), "BPY");
@@ -35,9 +36,9 @@ void setVwPassatB6(DECLARE_CONFIG_PARAMETER_SIGNATURE) {
 	engineConfiguration->throttlePedalPositionAdcChannel = EFI_ADC_7;
 
 	// "26 - AN volt 2"
-	engineConfiguration->high_fuel_pressure_sensor_1 = EFI_ADC_6;
+	engineConfiguration->highPressureFuel.hwChannel = EFI_ADC_6;
 	// "19 - AN volt 4"
-	engineConfiguration->low_fuel_pressure_sensor = EFI_ADC_12;
+	engineConfiguration->lowPressureFuel.hwChannel = EFI_ADC_12;
 
 	CONFIG(isSdCardEnabled) = false;
 
@@ -98,7 +99,7 @@ void setVwPassatB6(DECLARE_CONFIG_PARAMETER_SIGNATURE) {
 		}
 	}
 */
-	coolantControl->pin = GPIOE_10; // "3 - Lowside 2"
+	coolantControl->pin = TLE8888_PIN_5; // "3 - Lowside 2"
 
 
 	engineConfiguration->idle.solenoidPin = GPIO_UNASSIGNED;
