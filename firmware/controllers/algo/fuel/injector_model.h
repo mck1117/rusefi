@@ -29,4 +29,6 @@ public:
 	void postState(float deadtime) const override;
 	floatms_t getDeadtime() const override;
 	float getInjectorMassFlowRate() const override;
+
+	float getInjectorDifferentialPressure() const;
 };
