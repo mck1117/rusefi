@@ -25,9 +25,9 @@ TEST(InjectorModel, getInjectionDuration) {
 	StrictMock<MockInjectorModel> dut;
 
 	EXPECT_CALL(dut, getDeadtime())
-		.WillRepeatedly(Return(2.0f));
+		.WillOnce(Return(2.0f));
 	EXPECT_CALL(dut, getInjectorMassFlowRate())
-		.WillRepeatedly(Return(4.8f)); // 400cc/min
+		.WillOnce(Return(4.8f)); // 400cc/min
 
 	dut.prepare();
 
@@ -52,4 +52,15 @@ TEST(InjectorModel, Deadtime) {
 
 	engine->sensors.vBatt = 7;
 	EXPECT_EQ(dut.getDeadtime(), 14);
+}
+
+TEST(InjectorModel, sensorBasedPressure) {
+	WITH_ENGINE_TEST_HELPER(TEST_ENGINE);
+
+	InjectorModel dut;
+	INJECT_ENGINE_REFERENCE(&dut);
+
+	// todo
+
+	EXPECT_EQ(100,  dut.getInjectorDifferentialPressure();
 }
