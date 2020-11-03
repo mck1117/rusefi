@@ -330,12 +330,6 @@ static void initStatusLeds(void) {
 
 	enginePins.warningLedPin.initPin("led: warning status", engineConfiguration->warningLedPin);
 	enginePins.runningLedPin.initPin("led: running status", engineConfiguration->runningLedPin);
-
-	enginePins.debugTriggerSync.initPin("debug: sync", CONFIG(debugTriggerSync));
-#if EFI_GPIO_HARDWARE && EFI_SHAFT_POSITION_INPUT
-	enginePins.triggerDecoderErrorPin.initPin("led: trigger debug", CONFIG(triggerErrorPin),
-			&CONFIG(triggerErrorPinMode));
-#endif /* EFI_GPIO_HARDWARE */
 }
 
 #if EFI_PROD_CODE
@@ -526,7 +520,9 @@ void updateTunerStudioState(TunerStudioOutputChannels *tsOutputChannels DECLARE_
 	tsOutputChannels->massAirFlowVoltage = hasMafSensor() ? getMafVoltage(PASS_ENGINE_PARAMETER_SIGNATURE) : 0;
 
 	// offset 20
-	tsOutputChannels->airFuelRatio = Sensor::get(SensorType::Lambda).value_or(0) * 14.7f;
+	float lambdaValue = Sensor::get(SensorType::Lambda).value_or(0);
+	tsOutputChannels->lambda = lambdaValue;
+	tsOutputChannels->airFuelRatio = lambdaValue * ENGINE(engineState.stoichiometricRatio);
 
 	// offset 24
 	tsOutputChannels->engineLoad = getEngineLoadT(PASS_ENGINE_PARAMETER_SIGNATURE);
@@ -617,6 +613,7 @@ void updateTunerStudioState(TunerStudioOutputChannels *tsOutputChannels DECLARE_
 	// offset 112
 	tsOutputChannels->veValue = engine->engineState.currentVe;
 	tsOutputChannels->currentTargetAfr = ENGINE(engineState.targetAFR);
+	tsOutputChannels->targetLambda = ENGINE(engineState.targetLambda);
 
 	if (hasMapSensor(PASS_ENGINE_PARAMETER_SIGNATURE)) {
 		float mapValue = getMap(PASS_ENGINE_PARAMETER_SIGNATURE);
@@ -720,7 +717,7 @@ void updateTunerStudioState(TunerStudioOutputChannels *tsOutputChannels DECLARE_
 	tsOutputChannels->ignitionAdvance = timing > 360 ? timing - 720 : timing;
 	// 60
 	tsOutputChannels->sparkDwell = ENGINE(engineState.sparkDwell);
-	tsOutputChannels->crankingFuelMs = ENGINE(engineState.cranking.fuel);
+	tsOutputChannels->crankingFuelMass = ENGINE(engineState.cranking.fuel);
 	tsOutputChannels->chargeAirMass = engine->engineState.sd.airMassInOneCylinder;
 
 	tsOutputChannels->coilDutyCycle = getCoilDutyCycle(rpm PASS_ENGINE_PARAMETER_SUFFIX);

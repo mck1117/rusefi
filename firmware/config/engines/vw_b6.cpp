@@ -9,6 +9,7 @@
 #include "vw_b6.h"
 #include "custom_engine.h"
 #include "table_helper.h"
+#include "map.h"
 
 EXTERN_CONFIG;
 
@@ -37,8 +38,22 @@ void setVwPassatB6(DECLARE_CONFIG_PARAMETER_SIGNATURE) {
 
 	// "26 - AN volt 2"
 	engineConfiguration->highPressureFuel.hwChannel = EFI_ADC_6;
+	/**
+	 * PSS-140
+	 */
+	// todo: calibration
+	engineConfiguration->highPressureFuel.v1 = 0.5; /* volts */;
+	engineConfiguration->highPressureFuel.value1 = 0;
+	engineConfiguration->highPressureFuel.v2 = 4.5; /* volts */;
+	engineConfiguration->highPressureFuel.value2 = BAR2KPA(140);
+
 	// "19 - AN volt 4"
 	engineConfiguration->lowPressureFuel.hwChannel = EFI_ADC_12;
+	engineConfiguration->lowPressureFuel.v1 = 0.5; /* volts */;
+	engineConfiguration->lowPressureFuel.value1 = PSI2KPA(0);
+	engineConfiguration->lowPressureFuel.v2 = 4.5; /* volts */;
+	// todo: what's the proper calibration of this Bosch sensor? is it really 200psi?
+	engineConfiguration->lowPressureFuel.value2 = PSI2KPA(200);
 
 	CONFIG(isSdCardEnabled) = false;
 
@@ -101,6 +116,17 @@ void setVwPassatB6(DECLARE_CONFIG_PARAMETER_SIGNATURE) {
 */
 	coolantControl->pin = TLE8888_PIN_5; // "3 - Lowside 2"
 
+	// set tps_min 890
+	engineConfiguration->tpsMin = 890; // convert 12to10 bit (ADC/4)
+	// set tps_max 70
+	engineConfiguration->tpsMax = 70; // convert 12to10 bit (ADC/4)
+
+	engineConfiguration->etb.pFactor = 5.12;
+	engineConfiguration->etb.iFactor =	47;
+	engineConfiguration->etb.dFactor = 0.088;
+	engineConfiguration->etb.offset = 0;
+
+	engineConfiguration->injector.flow = 300;
 
 	engineConfiguration->idle.solenoidPin = GPIO_UNASSIGNED;
 	engineConfiguration->fanPin = GPIO_UNASSIGNED;

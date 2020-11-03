@@ -1,6 +1,6 @@
 package com.rusefi.config.generated;
 
-// this file was generated automatically by rusEfi tool ConfigDefinition.jar based on gen_config.sh integration/rusefi_config.txt Fri Oct 23 19:47:25 UTC 2020
+// this file was generated automatically by rusEfi tool ConfigDefinition.jar based on gen_config.sh integration/rusefi_config.txt Tue Nov 03 17:20:09 UTC 2020
 
 // by class com.rusefi.output.FileJavaFieldsConsumer
 import com.rusefi.config.*;
@@ -34,10 +34,7 @@ public class Fields {
 	public static final int afr_v2_offset = 572;
 	public static final int afr_value1_offset = 568;
 	public static final int afr_value2_offset = 576;
-	public static final int afrLoadBins_offset = 18848;
 	public static final int afrOverrideMode_offset = 2111;
-	public static final int afrRpmBins_offset = 18912;
-	public static final int afrTable_offset = 18592;
 	public static final int afterCrankingIACtaperDuration_offset = 2036;
 	public static final int AFTERSTART_DECAY_CURVE_SIZE = 8;
 	public static final int AFTERSTART_ENRICH_CURVE_SIZE = 8;
@@ -279,6 +276,7 @@ public class Fields {
 	public static final int coastingFuelCutTps_offset = 3152;
 	public static final int communicationLedPin_offset = 1812;
 	public static final int COMPOSITE_DATA_LENGTH = 2500;
+	public static final int COMPOSITE_DATA_LENGTH_HALF = 1250;
 	public static final int COMPOSITE_PACKET_COUNT = 500;
 	public static final int COMPOSITE_PACKET_SIZE = 5;
 	public static final int compressionRatio_offset = 732;
@@ -628,7 +626,9 @@ public class Fields {
 	public static final String GAUGE_NAME_FUEL_LOAD = "fuel: load";
 	public static final String GAUGE_NAME_FUEL_PID_CORR = "fuel: Short-term fuel trim";
 	public static final String GAUGE_NAME_FUEL_PRESSURE_HIGH = "Fuel pressure (high)";
+	public static final String GAUGE_NAME_FUEL_PRESSURE_HIGH_UNITS = "bar";
 	public static final String GAUGE_NAME_FUEL_PRESSURE_LOW = "Fuel pressure (low)";
+	public static final String GAUGE_NAME_FUEL_PRESSURE_LOW_UNITS = "kPa";
 	public static final String GAUGE_NAME_FUEL_RUNNING = "fuel: running";
 	public static final String GAUGE_NAME_FUEL_TPS_EXTRA = "fuel: TPS acceleration extra fuel ms";
 	public static final String GAUGE_NAME_FUEL_TPS_ROC = "fuel: TPS change";
@@ -641,10 +641,14 @@ public class Fields {
 	public static final String GAUGE_NAME_INJECTOR_LAG = "fuel: injector lag";
 	public static final String GAUGE_NAME_KNOCK_COUNTER = "knock: counter";
 	public static final String GAUGE_NAME_KNOCK_LEVEL = "knock: current level";
+	public static final String GAUGE_NAME_LAMBDA = "Lambda";
 	public static final String GAUGE_NAME_MAF = "MAF";
 	public static final String GAUGE_NAME_MAP = "MAP";
+	public static final String GAUGE_NAME_OIL_PRESSURE = "Oil Pressure";
+	public static final String GAUGE_NAME_OIL_PRESSURE_UNITS = "kPa";
 	public static final String GAUGE_NAME_RPM = "RPM";
 	public static final String GAUGE_NAME_TARGET_AFR = "fuel: target AFR";
+	public static final String GAUGE_NAME_TARGET_LAMBDA = "fuel: target lambda";
 	public static final String GAUGE_NAME_TCHARGE = "fuel: SD tCharge";
 	public static final String GAUGE_NAME_THROTTLE_PEDAL = "Throttle pedal position";
 	public static final String GAUGE_NAME_TIME = "Time";
@@ -751,6 +755,8 @@ public class Fields {
 	public static final int hip9011PrescalerAndSDO_offset = 324;
 	public static final int hip9011SpiDevice_offset = 540;
 	public static final int hipOutputChannel_offset = 1468;
+	public static final int hpfpValvePin_offset = 2130;
+	public static final int hpfpValvePinMode_offset = 2131;
 	public static final int HW_MAX_ADC_INDEX = 17;
 	public static final int IAC_PID_MULT_SIZE = 8;
 	public static final int iacByTpsTaper_offset = 2038;
@@ -943,6 +949,9 @@ public class Fields {
 	public static final int knockNoise_offset = 1820;
 	public static final int knockNoiseRpmBins_offset = 1852;
 	public static final int knockVThreshold_offset = 1512;
+	public static final int lambdaLoadBins_offset = 18848;
+	public static final int lambdaRpmBins_offset = 18912;
+	public static final int lambdaTable_offset = 18592;
 	public static final int launchActivateDelay_offset = 1060;
 	public static final int launchActivatePin_offset = 991;
 	public static final int launchActivationMode_offset = 1020;
@@ -1089,6 +1098,8 @@ public class Fields {
 	public static final int PACK_MULT_ANGLE = 50;
 	public static final int PACK_MULT_FUEL_MASS = 100;
 	public static final int PACK_MULT_HIGH_PRESSURE = 10;
+	public static final int PACK_MULT_LAMBDA = 10000;
+	public static final int PACK_MULT_LAMBDA_CFG = 147;
 	public static final int PACK_MULT_MASS_FLOW = 10;
 	public static final int PACK_MULT_MS = 300;
 	public static final int PACK_MULT_PERCENT = 100;
@@ -1152,6 +1163,7 @@ public class Fields {
 	public static final int servoOutputPins8_offset = 3147;
 	public static final int showHumanReadableWarning_offset = 976;
 	public static final int showSdCardWarning_offset = 76;
+	public static final int SIGNATURE_HASH = 1004388977;
 	public static final int silentTriggerError_offset = 1464;
 	public static final int slowAdcAlpha_offset = 2088;
 	public static final int sparkDwellRpmBins_offset = 332;
@@ -1226,7 +1238,6 @@ public class Fields {
 	public static final int tachPulseDuractionMs_offset = 1704;
 	public static final int tachPulseDurationAsDutyCycle_offset = 1464;
 	public static final int tachPulsePerRev_offset = 1775;
-	public static final int tachPulseTriggerIndex_offset = 1708;
 	public static final int targetVBatt_offset = 2024;
 	public static final int tChargeAirCoefMax_offset = 3868;
 	public static final int tChargeAirCoefMin_offset = 3864;
@@ -1420,7 +1431,7 @@ public class Fields {
 	public static final char TS_SD_R_COMMAND = 'r';
 	public static final char TS_SD_W_COMMAND = 'w';
 	public static final char TS_SET_LOGGER_SWITCH = 'l';
-	public static final String TS_SIGNATURE = "rusEFI 2020.10.23.all.2595471579";
+	public static final String TS_SIGNATURE = "rusEFI 2020.11.03.all.1004388977";
 	public static final char TS_SINGLE_WRITE_COMMAND = 'W';
 	public static final int TT_TT_60_2_VW = 20;
 	public static final int TT_TT_ONE = 18;
@@ -1443,6 +1454,7 @@ public class Fields {
 	public static final int unused1476b3_offset = 1476;
 	public static final int unused1476b8_offset = 1476;
 	public static final int unused15136_offset = 15196;
+	public static final int unused1708_offset = 1708;
 	public static final int unused2260_offset = 2260;
 	public static final int unused2432_offset = 2432;
 	public static final int unused244_1_offset = 2420;
@@ -1466,7 +1478,6 @@ public class Fields {
 	public static final int unused_1484_bit_30_offset = 1476;
 	public static final int unused_1484_bit_31_offset = 1476;
 	public static final int unused_alFIn_offset = 4024;
-	public static final int unused_former_warmup_target_afr_offset = 2130;
 	public static final int unusedAt724_offset = 724;
 	public static final int unusedAtOldBoardConfigurationEnd_offset = 1204;
 	public static final int unusedAuxVoltage1_TODO_332_offset = 2713;
@@ -2236,7 +2247,7 @@ public class Fields {
 	public static final Field MAPAVERAGINGSCHEDULINGATINDEX = Field.create("MAPAVERAGINGSCHEDULINGATINDEX", 1540, FieldType.INT);
 	public static final Field BAROCORRTABLE = Field.create("BAROCORRTABLE", 1576, FieldType.INT);
 	public static final Field TACHPULSEDURACTIONMS = Field.create("TACHPULSEDURACTIONMS", 1704, FieldType.FLOAT);
-	public static final Field TACHPULSETRIGGERINDEX = Field.create("TACHPULSETRIGGERINDEX", 1708, FieldType.INT);
+	public static final Field UNUSED1708 = Field.create("UNUSED1708", 1708, FieldType.INT);
 	public static final Field WWAETAU = Field.create("WWAETAU", 1712, FieldType.FLOAT);
 	public static final Field ALTERNATORCONTROL_PFACTOR = Field.create("ALTERNATORCONTROL_PFACTOR", 1716, FieldType.FLOAT);
 	public static final Field ALTERNATORCONTROL_IFACTOR = Field.create("ALTERNATORCONTROL_IFACTOR", 1720, FieldType.FLOAT);
@@ -2358,6 +2369,8 @@ public class Fields {
 	public static final Field WASTEGATEPOSITIONSENSOR = Field.create("WASTEGATEPOSITIONSENSOR", 2127, FieldType.INT8, adc_channel_e);
 	public static final Field IGNOVERRIDEMODE = Field.create("IGNOVERRIDEMODE", 2128, FieldType.INT8, afr_override_e);
 	public static final Field INJECTORPRESSURETYPE = Field.create("INJECTORPRESSURETYPE", 2129, FieldType.INT8);
+	public static final Field HPFPVALVEPIN = Field.create("HPFPVALVEPIN", 2130, FieldType.INT8, brain_pin_e);
+	public static final Field HPFPVALVEPINMODE = Field.create("HPFPVALVEPINMODE", 2131, FieldType.INT8, pin_output_mode_e);
 	public static final Field BOOSTCUTPRESSURE = Field.create("BOOSTCUTPRESSURE", 2132, FieldType.FLOAT);
 	public static final Field FSIOADC1 = Field.create("FSIOADC1", 2200, FieldType.INT8, adc_channel_e);
 	public static final Field FSIOADC2 = Field.create("FSIOADC2", 2201, FieldType.INT8, adc_channel_e);
@@ -2643,7 +2656,7 @@ public class Fields {
 	public static final Field TCUSOLENOIDTABLE = Field.create("TCUSOLENOIDTABLE", 15136, FieldType.INT);
 	public static final Field IGNITIONTABLE = Field.create("IGNITIONTABLE", 16288, FieldType.INT);
 	public static final Field VETABLE = Field.create("VETABLE", 17440, FieldType.INT);
-	public static final Field AFRTABLE = Field.create("AFRTABLE", 18592, FieldType.INT);
+	public static final Field LAMBDATABLE = Field.create("LAMBDATABLE", 18592, FieldType.INT);
 	public static final Field TPSTPSACCELTABLE = Field.create("TPSTPSACCELTABLE", 18976, FieldType.INT);
 	public static final Field FSIOTABLE1 = Field.create("FSIOTABLE1", 19296, FieldType.INT);
 	public static final Field FSIOTABLE2 = Field.create("FSIOTABLE2", 19616, FieldType.INT);
@@ -3299,7 +3312,7 @@ public class Fields {
 	MAPAVERAGINGSCHEDULINGATINDEX,
 	BAROCORRTABLE,
 	TACHPULSEDURACTIONMS,
-	TACHPULSETRIGGERINDEX,
+	UNUSED1708,
 	WWAETAU,
 	ALTERNATORCONTROL_PFACTOR,
 	ALTERNATORCONTROL_IFACTOR,
@@ -3417,6 +3430,8 @@ public class Fields {
 	WASTEGATEPOSITIONSENSOR,
 	IGNOVERRIDEMODE,
 	INJECTORPRESSURETYPE,
+	HPFPVALVEPIN,
+	HPFPVALVEPINMODE,
 	BOOSTCUTPRESSURE,
 	FSIOADC1,
 	FSIOADC2,
@@ -3698,7 +3713,7 @@ public class Fields {
 	TCUSOLENOIDTABLE,
 	IGNITIONTABLE,
 	VETABLE,
-	AFRTABLE,
+	LAMBDATABLE,
 	TPSTPSACCELTABLE,
 	FSIOTABLE1,
 	FSIOTABLE2,

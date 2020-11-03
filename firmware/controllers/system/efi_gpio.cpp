@@ -83,7 +83,8 @@ void RegisteredOutputPin::unregister() {
 
 
 EnginePins::EnginePins() :
-		mainRelay("mainRelay", CONFIG_OFFSET(mainRelayPin), CONFIG_OFFSET(mainRelayPinMode)),
+		mainRelay("mainRelay", CONFIG_PIN_OFFSETS(mainRelay)),
+		hpfpValve("hpfpValve", CONFIG_PIN_OFFSETS(hpfpValve)),
 		starterControl("starterControl", CONFIG_PIN_OFFSETS(starterControl)),
 		starterRelayDisable("starterRelayDisable", CONFIG_PIN_OFFSETS(starterRelayDisable)),
 		fanRelay("fanRelay", CONFIG_PIN_OFFSETS(fan)),
@@ -170,6 +171,9 @@ bool EnginePins::stopPins() {
 }
 
 void EnginePins::unregisterPins() {
+	stopInjectionPins();
+    stopIgnitionPins();
+
 #if EFI_ELECTRONIC_THROTTLE_BODY
 	unregisterEtbPins();
 #endif /* EFI_ELECTRONIC_THROTTLE_BODY */
@@ -193,10 +197,36 @@ void EnginePins::unregisterPins() {
 #endif /* EFI_PROD_CODE */
 }
 
-void EnginePins::startPins() {
+#define initIfPinOrModeChanged(output, name, pin, pinMode) \
+	if (isPinOrModeChanged(pin, pinMode)) { \
+		output.initPin(name, CONFIG(pin), &CONFIG(pinMode)); \
+	}
+
+void EnginePins::startPins(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
+#if EFI_ENGINE_CONTROL
 	startInjectionPins();
 	startIgnitionPins();
 	startAuxValves();
+
+	starterRelayDisable.initPin("Starter disable", CONFIG(starterRelayDisablePin), &CONFIG(starterRelayDisablePinMode));
+	starterControl.initPin("Starter control", CONFIG(starterControlPin));
+#endif /* EFI_ENGINE_CONTROL */
+
+	initIfPinOrModeChanged(mainRelay, "Main relay", mainRelayPin, mainRelayPinMode);
+
+	initIfPinOrModeChanged(fanRelay, "Fan", fanPin, fanPinMode);
+	initIfPinOrModeChanged(acRelay, "A/C relay", acRelayPin, acRelayPinMode);
+	// todo: should we move this code closer to the fuel pump logic?
+	initIfPinOrModeChanged(fuelPumpRelay, "Fuel pump", fuelPumpPin, fuelPumpPinMode);
+	initIfPinOrModeChanged(boostPin, "Boost", boostControlPin, boostControlPinMode);
+
+	initIfPinOrModeChanged(idleSolenoidPin, "Idle Valve", idle.solenoidPin, idle.solenoidPinMode);
+	initIfPinOrModeChanged(secondIdleSolenoidPin, "Idle Valve#2", secondSolenoidPin, idle.solenoidPinMode);
+	initIfPinOrModeChanged(alternatorPin, "Alternator control", alternatorControlPin, alternatorControlPinMode);
+
+	initIfPinOrModeChanged(triggerDecoderErrorPin, "led: trigger debug", triggerErrorPin,
+			triggerErrorPinMode);
+
 }
 
 void EnginePins::reset() {
@@ -423,45 +453,13 @@ void initOutputPins(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	enginePins.sdCsPin.initPin("SD CS", CONFIG(sdCardCsPin));
 #endif /* HAL_USE_SPI */
 
-	// todo: should we move this code closer to the fuel pump logic?
-	enginePins.fuelPumpRelay.initPin("Fuel pump", CONFIG(fuelPumpPin), &CONFIG(fuelPumpPinMode));
+#if EFI_SHAFT_POSITION_INPUT
+	// todo: migrate remaining OutputPin to RegisteredOutputPin in order to get consistent dynamic pin init/deinit
+	enginePins.debugTriggerSync.initPin("debug: sync", CONFIG(debugTriggerSync));
+#endif // EFI_SHAFT_POSITION_INPUT
 
-	enginePins.mainRelay.initPin("Main relay", CONFIG(mainRelayPin), &CONFIG(mainRelayPinMode));
-	enginePins.starterRelayDisable.initPin("Starter disable", CONFIG(starterRelayDisablePin), &CONFIG(starterRelayDisablePinMode));
-	enginePins.starterControl.initPin("Starter control", CONFIG(starterControlPin));
-
-	enginePins.fanRelay.initPin("Fan", CONFIG(fanPin), &CONFIG(fanPinMode));
 	enginePins.o2heater.initPin("O2 heater", CONFIG(o2heaterPin));
-	enginePins.acRelay.initPin("A/C relay", CONFIG(acRelayPin), &CONFIG(acRelayPinMode));
 
-	// digit 1
-	/*
-	 ledRegister(LED_HUGE_0, GPIOB, 2);
-	 ledRegister(LED_HUGE_1, GPIOE, 7);
-	 ledRegister(LED_HUGE_2, GPIOE, 8);
-	 ledRegister(LED_HUGE_3, GPIOE, 9);
-	 ledRegister(LED_HUGE_4, GPIOE, 10);
-	 ledRegister(LED_HUGE_5, GPIOE, 11);
-	 ledRegister(LED_HUGE_6, GPIOE, 12);
-
-	 // digit 2
-	 ledRegister(LED_HUGE_7, GPIOE, 13);
-	 ledRegister(LED_HUGE_8, GPIOE, 14);
-	 ledRegister(LED_HUGE_9, GPIOE, 15);
-	 ledRegister(LED_HUGE_10, GPIOB, 10);
-	 ledRegister(LED_HUGE_11, GPIOB, 11);
-	 ledRegister(LED_HUGE_12, GPIOB, 12);
-	 ledRegister(LED_HUGE_13, GPIOB, 13);
-
-	 // digit 3
-	 ledRegister(LED_HUGE_14, GPIOE, 0);
-	 ledRegister(LED_HUGE_15, GPIOE, 2);
-	 ledRegister(LED_HUGE_16, GPIOE, 4);
-	 ledRegister(LED_HUGE_17, GPIOE, 6);
-	 ledRegister(LED_HUGE_18, GPIOE, 5);
-	 ledRegister(LED_HUGE_19, GPIOE, 3);
-	 ledRegister(LED_HUGE_20, GPIOE, 1);
-	 */
 #endif /* EFI_GPIO_HARDWARE */
 }
 

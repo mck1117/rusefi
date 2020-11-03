@@ -1,4 +1,4 @@
-// this section was generated automatically by rusEfi tool ConfigDefinition.jar based on hellen_cypress_gen_config.bat integration/rusefi_config.txt Fri Oct 23 19:47:42 UTC 2020
+// this section was generated automatically by rusEfi tool ConfigDefinition.jar based on hellen_cypress_gen_config.bat integration/rusefi_config.txt Tue Nov 03 17:20:32 UTC 2020
 // by class com.rusefi.output.CHeaderConsumer
 // begin
 #pragma once
@@ -115,7 +115,9 @@ typedef struct pid_s pid_s;
 // start of cranking_parameters_s
 struct cranking_parameters_s {
 	/**
-	 * Base duration of the fuel injection during cranking, this is modified by the multipliers for CLT, IAT, TPS ect, to give the final cranking pulse width.
+	 * Base mass of the per-cylinder fuel injected during cranking. This is then modified by the multipliers for CLT, IAT, TPS ect, to give the final cranking pulse width.
+	 * A reasonable starting point is 60mg per liter per cylinder.
+	 * ex: 2 liter 4 cyl = 500cc/cyl, so 30mg cranking fuel.
 	 * offset 0
 	 */
 	float baseFuel;
@@ -2338,10 +2340,9 @@ struct engine_configuration_s {
 	 */
 	float tachPulseDuractionMs;
 	/**
-	 * Trigger cycle index at which we start tach pulse (performance consideration)
 	 * offset 1708
 	 */
-	int tachPulseTriggerIndex;
+	int unused1708;
 	/**
 	 * Length of time the deposited wall fuel takes to dissipate after the start of acceleration. 
 	 * offset 1712
@@ -2781,7 +2782,11 @@ struct engine_configuration_s {
 	/**
 	 * offset 2130
 	 */
-	uint8_t unused_former_warmup_target_afr[2];
+	brain_pin_e hpfpValvePin;
+	/**
+	 * offset 2131
+	 */
+	pin_output_mode_e hpfpValvePinMode;
 	/**
 	 * MAP value above which fuel is cut in case of overboost.
 	 * 0 to disable overboost cut.
@@ -3670,15 +3675,15 @@ struct persistent_config_s {
 	/**
 	 * offset 18592
 	 */
-	afr_table_t afrTable;
+	lambda_table_t lambdaTable;
 	/**
 	 * offset 18848
 	 */
-	float afrLoadBins[FUEL_LOAD_COUNT];
+	float lambdaLoadBins[FUEL_LOAD_COUNT];
 	/**
 	 * offset 18912
 	 */
-	float afrRpmBins[FUEL_RPM_COUNT];
+	float lambdaRpmBins[FUEL_RPM_COUNT];
 	/**
 	 * offset 18976
 	 */
@@ -3750,4 +3755,4 @@ struct persistent_config_s {
 typedef struct persistent_config_s persistent_config_s;
 
 // end
-// this section was generated automatically by rusEfi tool ConfigDefinition.jar based on hellen_cypress_gen_config.bat integration/rusefi_config.txt Fri Oct 23 19:47:42 UTC 2020
+// this section was generated automatically by rusEfi tool ConfigDefinition.jar based on hellen_cypress_gen_config.bat integration/rusefi_config.txt Tue Nov 03 17:20:32 UTC 2020
