@@ -26,8 +26,8 @@ public:
 
 	// OPEN LOOP CORRECTIONS
 	float getOpenLoop(Phase phase, float clt, SensorResult tps) const;
-	float getCrankingOpenLoop(float clt) const;
-	float getRunningOpenLoop(float clt, SensorResult tps) const;
+	TEST_VIRTUAL float getCrankingOpenLoop(float clt) const;
+	TEST_VIRTUAL float getRunningOpenLoop(float clt, SensorResult tps) const;
 
 	// CLOSED LOOP CORRECTIONS
 	float getClosedLoop(Phase phase, int rpm, int targetRpm);

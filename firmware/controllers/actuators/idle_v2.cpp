@@ -120,9 +120,8 @@ float IdleControllerV2::getClosedLoop(Phase phase, int rpm, int targetRpm) {
 	return m_pid.output;
 }
 
+#if !EFI_UNIT_TEST
 IdleControllerV2 idler;
-
-#if EFI_PROD_CODE
 
 void startNewIdleControl() {
 	idler.init(&CONFIG(idleRpmPid));
@@ -131,4 +130,4 @@ void startNewIdleControl() {
 float getNewIdleControllerPosition() {
 	return idler.getPosition();
 }
-#endif // EFI_PROD_CODE
+#endif // !EFI_UNIT_TEST

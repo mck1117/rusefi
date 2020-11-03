@@ -330,10 +330,12 @@ static void undoIdleBlipIfNeeded() {
 		}
 #endif /* EFI_GPIO_HARDWARE */
 
+		#if !EFI_UNIT_TEST
 		float iacPosition = getNewIdleControllerPosition();
 
 		engine->engineState.idle.currentIdlePosition = iacPosition;
 		applyIACposition(engine->engineState.idle.currentIdlePosition PASS_ENGINE_PARAMETER_SUFFIX);
+		#endif
 }
 
 IdleController idleControllerInstance;
@@ -573,10 +575,11 @@ void startIdleThread(Logging*sharedLogger DECLARE_ENGINE_PARAMETER_SUFFIX) {
 
 	//scheduleMsg(logger, "initial idle %d", idlePositionController.value);
 
-	startNewIdleControl();
 	idleControllerInstance.Start();
 
 #if ! EFI_UNIT_TEST
+	startNewIdleControl();
+
 	// this is neutral/no gear switch input. on Miata it's wired both to clutch pedal and neutral in gearbox
 	// this switch is not used yet
 	if (CONFIG(clutchDownPin) != GPIO_UNASSIGNED) {

@@ -19,7 +19,7 @@ TEST(idle_v2, testTargetRpm) {
 	EXPECT_FLOAT_EQ(500, dut.getTargetRpm(50));
 }
 
-using ICP = IdleControllerBase::Phase;
+using ICP = IdleControllerV2::Phase;
 
 TEST(idle_v2, testDeterminePhase) {
 	WITH_ENGINE_TEST_HELPER(TEST_ENGINE);
@@ -113,8 +113,8 @@ TEST(idle_v2, runningOpenLoopTpsTaper) {
 }
 
 struct MockOpenLoopIdler : public IdleControllerV2 {
-	MOCK_METHOD(float, getRunningOpenLoop, (float clt, SensorResult tps), (const, override));
 	MOCK_METHOD(float, getCrankingOpenLoop, (float clt), (const, override));
+	MOCK_METHOD(float, getRunningOpenLoop, (float clt, SensorResult tps), (const, override));
 };
 
 TEST(idle_v2, testOpenLoopCrankingNoOverride) {

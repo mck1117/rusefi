@@ -105,3 +105,10 @@ void print(const char *fmt, ...);
 #define unlockAnyContext() {}
 
 #define UNIT_TEST_BUSY_WAIT_CALLBACK() { 	timeNowUs++; }
+
+// Used if you want a function to be virtual only for unit testing purposes
+#if EFI_UNIT_TEST
+#define TEST_VIRTUAL virtual
+#else
+#define TEST_VIRTUAL
+#endif
