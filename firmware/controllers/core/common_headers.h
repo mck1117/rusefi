@@ -119,3 +119,10 @@ extern bool isActiveConfigurationVoid;
 #define FIRMWARE_ID "source"
 #endif
 
+
+// Used if you want a function to be virtual only for unit testing purposes
+#if EFI_UNIT_TEST
+#define TEST_VIRTUAL virtual
+#else
+#define TEST_VIRTUAL
+#endif
