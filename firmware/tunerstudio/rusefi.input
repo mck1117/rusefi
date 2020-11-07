@@ -90,7 +90,11 @@ enable2ndByteCanID = false
 
    pageButtons  = "&EGO"
    gauge1       = RPMGauge	
+#if LAMBDA
    gauge2       = lambda1Gauge
+#else
+   gauge2       = afr1Gauge
+#endif
    gauge3		= MAPGauge
    gauge4		= veValueGauge
 
@@ -135,8 +139,13 @@ enable2ndByteCanID = false
 [VeAnalyze]
 
         ;    tableName,  lambdaTargetTableName, lambdaChannel, egoCorrectionChannel, activeCondition
+#if LAMBDA
        veAnalyzeMap = veTableTbl, lambdaTableTbl, lambdaValue, egoCorrection, { 1 }
        lambdaTargetTables = lambdaTableTbl, afrTSCustom
+#else
+       veAnalyzeMap = veTableTbl, afrTableTbl, AFRValue, egoCorrection, { 1 }
+       lambdaTargetTables = afrTableTbl, afrTSCustom
+#endif
 
        ; filter =  Name,        "DisplayName", outputChannel, operator, defaultVal, userAdjustable
         filter = minRPMFilter, "Minimum RPM", RPMValue,           <       , 500,      , true
@@ -531,7 +540,11 @@ enable2ndByteCanID = false
       yAxis       =  0,  28, 10
       xBins       = narrowToWideOxygenBins
       yBins       = narrowToWideOxygen
+#if LAMBDA
       gauge       = lambda1Gauge
+#else
+      gauge       = afr1Gauge
+#endif
 
    curve = fsioCurve1, "FSIO Curve #1"
       columnLabel = "X", "Y"
@@ -709,7 +722,11 @@ enable2ndByteCanID = false
       yAxis       = 0, 250, 10
       xBins       = idleVeBins, RPMValue
       yBins       = idleVe
+#if LAMBDA
       gauge       = lambda1Gauge
+#else
+      gauge       = afr1Gauge
+#endif
     
 	curve = crankingAdvanceCurve, "Cranking Advance Angle"
       columnLabel = "RPM", "degrees"
@@ -838,7 +855,11 @@ enable2ndByteCanID = false
       upDownLabel = "(Later)", "(Sooner)"
 
 
+#if LAMBDA
    table = lambdaTableTbl,  lambdaTableMap,  "Target Lambda Table",   1
+#else
+   table = afrTableTbl,  afrTableMap,  "Target AFR Table",   1
+#endif
       ;       constant, variable
       xBins       = lambdaRpmBins,  RPMValue
       yBins       = lambdaLoadBins, afrTableYAxis
@@ -1032,9 +1053,13 @@ gaugeCategory = Knock
 [WueAnalyze]
     
 ;                    wueCurveName, afrTempCompensationCurve, lambdaTargetTableName, lambdaChannel, coolantTempChannel, egoCorrectionChannel, wueChannel, activeCondition
+#if LAMBDA
      wueAnalyzeMap = wueAnalyzer_warmup_curve, wueAfrTargetOffsetCurve, lambdaTableTbl, lambdaValue, coolant, cltCorrection, egoCorrection
-
      lambdaTargetTables = lambdaTableTbl, afrTSCustom
+#else
+     wueAnalyzeMap = wueAnalyzer_warmup_curve, wueAfrTargetOffsetCurve, afrTableTbl, AFRValue, coolant, cltCorrection, egoCorrection
+     lambdaTargetTables = afrTableTbl, afrTSCustom
+#endif
 
      wuePercentOffset = 0 ; for working with 0 based enrichment set to 100
      option = disableLiveUpdates
@@ -1065,7 +1090,11 @@ gaugeCategory = Knock
    gauge2 = CLTGauge
    gauge3 = TPSGauge
    gauge4 = MAPGauge
+#if LAMBDA
    gauge5 = lambda1Gauge
+#else
+   gauge5 = afr1Gauge
+#endif
    gauge6 = VBattGauge
    gauge7 = dwellGauge
    gauge8 = ignadvGauge
@@ -1292,7 +1321,11 @@ menuDialog = main
 		subMenu = std_separator
 
 		# Fuel model
+#if LAMBDA
 		subMenu = lambdaTableTbl,				"Target lambda", 0, {isInjectionEnabled == 1}
+#else
+		subMenu = afrTableTbl,				"Target AFR", 0, {isInjectionEnabled == 1}
+#endif
 		subMenu = cltFuelCorrCurve,			"CLT multiplier", 0, {isInjectionEnabled == 1}
 		subMenu = iatFuelCorrCurve,			"IAT multiplier", 0, {isInjectionEnabled == 1}
 		subMenu = fuelClosedLoopDialog, 	"Closed loop fuel correction", 0, {isInjectionEnabled == 1}
@@ -1596,6 +1629,7 @@ cmd_set_engine_type_Frankenso_Miata_NA6_VAF			= "@@TS_IO_TEST_COMMAND_char@@\x00
 cmd_set_engine_type_Frankenso_Miata_NB2 			= "@@TS_IO_TEST_COMMAND_char@@\x00\x30@@ET_FRANKENSO_MIATA_NB2_16_hex@@"
 
 cmd_set_engine_type_Proteus_M73   					= "@@TS_IO_TEST_COMMAND_char@@\x00\x30@@ET_BMW_M73_PROTEUS_16_hex@@"
+cmd_set_engine_type_Proteus_Miata_TCU 				= "@@TS_IO_TEST_COMMAND_char@@\x00\x30@@ET_MIATA_TCU_PROTEUS_16_hex@@"
 
 
 ; ETB_BENCH_ENGINE = 58
@@ -3178,12 +3212,12 @@ cmd_set_engine_type_default					= "@@TS_IO_TEST_COMMAND_char@@\x00\x31\x00\x00"
 		commandButton = "microRusEFI BCM",				cmd_set_engine_type_microRusEFI_MRE_BODY_CONTROL@@if_show_microRusEFI_presets
 
 		commandButton = "Proteus M73 v12",     		cmd_set_engine_type_Proteus_M73@@if_show_Proteus_presets
+		commandButton = "Proteus Miata TCU",		cmd_set_engine_type_Proteus_Miata_TCU@@if_show_Proteus_presets
 
 
 		commandButton = "ETB test bench", cmd_set_engine_type_etb_test@@if_show_test_presets
 		commandButton = "TLE8888 test bench", cmd_set_engine_type_8888_test@@if_show_test_presets
 		commandButton = "Reset firmware settings", cmd_set_engine_type_default
-		field = "#Please DO NOT hit 'Burn' - just press a command button above and disconnect TunerStudio!"
 
 
 ;			Board->ECU stimulator
@@ -3360,3 +3394,8 @@ cmd_set_engine_type_default					= "@@TS_IO_TEST_COMMAND_char@@\x00\x31\x00\x00"
 [Tools]
  ;addTool = toolName, PanelName
  addTool = veTableGenerator, "VE Table Generator", veTableTbl
+#if LAMBDA
+#else
+ addTool = afrTableGenerator, "AFR Table Generator", afrTableTbl
+#endif
+

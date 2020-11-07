@@ -62,15 +62,34 @@ RegisteredOutputPin::RegisteredOutputPin(const char *name, short pinOffset,
 	registeredOutputHead = this;
 }
 
-void RegisteredOutputPin::unregister() {
+bool RegisteredOutputPin::isPinConfigurationChanged() {
 #if EFI_PROD_CODE
 	brain_pin_e        curPin = *(brain_pin_e       *) ((void *) (&((char*)&activeConfiguration)[pinOffset]));
 	brain_pin_e        newPin = *(brain_pin_e       *) ((void *) (&((char*) engineConfiguration)[pinOffset]));
 
     pin_output_mode_e curMode = *(pin_output_mode_e *) ((void *) (&((char*)&activeConfiguration)[pinModeOffset]));
     pin_output_mode_e newMode = *(pin_output_mode_e *) ((void *) (&((char*) engineConfiguration)[pinModeOffset]));
+    return curPin != newPin || curMode != newMode;
+#else
+    return false;
+#endif // EFI_PROD_CODE
+}
 
-    if (curPin != newPin || curMode != newMode) {
+void RegisteredOutputPin::init() {
+#if EFI_PROD_CODE
+	brain_pin_e        newPin = *(brain_pin_e       *) ((void *) (&((char*) engineConfiguration)[pinOffset]));
+    pin_output_mode_e *newMode = (pin_output_mode_e *) ((void *) (&((char*) engineConfiguration)[pinModeOffset]));
+
+    if (isPinConfigurationChanged()) {
+		this->initPin(name, newPin, newMode);
+    }
+#endif // EFI_PROD_CODE
+}
+
+void RegisteredOutputPin::unregister() {
+#if EFI_PROD_CODE
+	brain_pin_e        curPin = *(brain_pin_e       *) ((void *) (&((char*)&activeConfiguration)[pinOffset]));
+    if (isPinConfigurationChanged()) {
     	unregisterOutput(curPin);
     }
 #endif // EFI_PROD_CODE
@@ -83,21 +102,21 @@ void RegisteredOutputPin::unregister() {
 
 
 EnginePins::EnginePins() :
-		mainRelay("mainRelay", CONFIG_PIN_OFFSETS(mainRelay)),
+		mainRelay("Main relay", CONFIG_PIN_OFFSETS(mainRelay)),
 		hpfpValve("hpfpValve", CONFIG_PIN_OFFSETS(hpfpValve)),
-		starterControl("starterControl", CONFIG_PIN_OFFSETS(starterControl)),
-		starterRelayDisable("starterRelayDisable", CONFIG_PIN_OFFSETS(starterRelayDisable)),
-		fanRelay("fanRelay", CONFIG_PIN_OFFSETS(fan)),
-		acRelay("acRelay", CONFIG_PIN_OFFSETS(acRelay)),
-		fuelPumpRelay("fuelPump", CONFIG_PIN_OFFSETS(fuelPump)),
-	    boostPin("boostPin", CONFIG_PIN_OFFSETS(boostControl)),
-		idleSolenoidPin("idleSolenoid", idle_solenoidPin_offset, idle_solenoidPinMode_offset),
-		secondIdleSolenoidPin("secondIdleSolenoid", CONFIG_OFFSET(secondSolenoidPin), idle_solenoidPinMode_offset),
-		alternatorPin("alternatorPin", CONFIG_PIN_OFFSETS(alternatorControl)),
+		starterControl("Starter control", CONFIG_PIN_OFFSETS(starterControl)),
+		starterRelayDisable("Starter disable", CONFIG_PIN_OFFSETS(starterRelayDisable)),
+		fanRelay("Fan", CONFIG_PIN_OFFSETS(fan)),
+		acRelay("A/C relay", CONFIG_PIN_OFFSETS(acRelay)),
+		fuelPumpRelay("Fuel pump", CONFIG_PIN_OFFSETS(fuelPump)),
+	    boostPin("Boost", CONFIG_PIN_OFFSETS(boostControl)),
+		idleSolenoidPin("Idle Valve", idle_solenoidPin_offset, idle_solenoidPinMode_offset),
+		secondIdleSolenoidPin("Idle Valve#2", CONFIG_OFFSET(secondSolenoidPin), idle_solenoidPinMode_offset),
+		alternatorPin("Alternator control", CONFIG_PIN_OFFSETS(alternatorControl)),
 		checkEnginePin("checkEnginePin", CONFIG_PIN_OFFSETS(malfunctionIndicator)),
 		// todo: NamedOutputPin vs RegisteredOutputPin
 		//		tachOut("tachOut", CONFIG_PIN_OFFSETS(tachOutput)),
-		triggerDecoderErrorPin("triggerDecoderErrorPin", CONFIG_PIN_OFFSETS(triggerError)),
+		triggerDecoderErrorPin("led: trigger debug", CONFIG_PIN_OFFSETS(triggerError)),
 		hipCs("hipCs", CONFIG_PIN_OFFSETS(hip9011Cs))
 {
 	tachOut.name = PROTOCOL_TACH_NAME;
@@ -197,36 +216,18 @@ void EnginePins::unregisterPins() {
 #endif /* EFI_PROD_CODE */
 }
 
-#define initIfPinOrModeChanged(output, name, pin, pinMode) \
-	if (isPinOrModeChanged(pin, pinMode)) { \
-		output.initPin(name, CONFIG(pin), &CONFIG(pinMode)); \
-	}
-
 void EnginePins::startPins(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 #if EFI_ENGINE_CONTROL
 	startInjectionPins();
 	startIgnitionPins();
 	startAuxValves();
-
-	starterRelayDisable.initPin("Starter disable", CONFIG(starterRelayDisablePin), &CONFIG(starterRelayDisablePinMode));
-	starterControl.initPin("Starter control", CONFIG(starterControlPin));
 #endif /* EFI_ENGINE_CONTROL */
 
-	initIfPinOrModeChanged(mainRelay, "Main relay", mainRelayPin, mainRelayPinMode);
-
-	initIfPinOrModeChanged(fanRelay, "Fan", fanPin, fanPinMode);
-	initIfPinOrModeChanged(acRelay, "A/C relay", acRelayPin, acRelayPinMode);
-	// todo: should we move this code closer to the fuel pump logic?
-	initIfPinOrModeChanged(fuelPumpRelay, "Fuel pump", fuelPumpPin, fuelPumpPinMode);
-	initIfPinOrModeChanged(boostPin, "Boost", boostControlPin, boostControlPinMode);
-
-	initIfPinOrModeChanged(idleSolenoidPin, "Idle Valve", idle.solenoidPin, idle.solenoidPinMode);
-	initIfPinOrModeChanged(secondIdleSolenoidPin, "Idle Valve#2", secondSolenoidPin, idle.solenoidPinMode);
-	initIfPinOrModeChanged(alternatorPin, "Alternator control", alternatorControlPin, alternatorControlPinMode);
-
-	initIfPinOrModeChanged(triggerDecoderErrorPin, "led: trigger debug", triggerErrorPin,
-			triggerErrorPinMode);
-
+	RegisteredOutputPin * pin = registeredOutputHead;
+	while (pin != nullptr) {
+		pin->init();
+		pin = pin->next;
+	}
 }
 
 void EnginePins::reset() {
