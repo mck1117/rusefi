@@ -32,6 +32,22 @@ struct persistent_config_s;
 	#define PASS_ENGINE_PARAMETER_SIGNATURE engine, PASS_CONFIG_PARAMETER_SIGNATURE
 	#define PASS_ENGINE_PARAMETER_SUFFIX , PASS_ENGINE_PARAMETER_SIGNATURE
 
+	class UseEnginePtr
+	{
+	protected:
+		Engine *engine = nullptr;
+		engine_configuration_s *engineConfiguration = nullptr;
+		persistent_config_s *config = nullptr;
+
+	public:
+		void injectEngine(DECLARE_ENGINE_PARAMETER_SIGNATURE)
+		{
+			this->engine = engine;
+			this->engineConfiguration = engineConfiguration;
+			this->config = config;
+		}
+	};
+
 #else // EFI_UNIT_TEST
 
 	// These are the non-unit-test (AKA real firmware) noop versions
@@ -54,6 +70,12 @@ struct persistent_config_s;
 	#define PASS_ENGINE_PARAMETER_SIGNATURE
 	// Pass this after some other parameters are passed
 	#define PASS_ENGINE_PARAMETER_SUFFIX
+
+	struct UseEnginePtr
+	{
+		// noop for real engine, only does something in unit tests
+		void injectEngine(DECLARE_ENGINE_PARAMETER_SUFFIX) { }
+	};
 
 #endif // EFI_UNIT_TEST
 

@@ -24,10 +24,8 @@
 class DcMotor;
 class Logging;
 
-class IEtbController : public ClosedLoopController<percent_t, percent_t> {
+class IEtbController : public ClosedLoopController<percent_t, percent_t>, public UseEnginePtr {
 public:
-	DECLARE_ENGINE_PTR;
-
 	// Initialize the throttle.
 	// returns true if the throttle was initialized, false otherwise.
 	virtual bool init(etb_function_e function, DcMotor *motor, pid_s *pidParameters, const ValueProvider3D* pedalMap) = 0;
