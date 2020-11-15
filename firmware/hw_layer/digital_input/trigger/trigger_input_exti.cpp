@@ -26,9 +26,53 @@ static Logging *logger;
 EXTERN_ENGINE;
 static ioline_t primary_line;
 
+uint64_t extiShaftTime;
+uint32_t pr;
+
+CH_FAST_IRQ_HANDLER(Vector9C) {
+palSetPad(GPIOA, 3);
+	extiShaftTime = getTimeNowNt();
+palClearPad(GPIOA, 3);
+
+	pr = EXTI->PR;
+	pr &= EXTI->IMR & ((1U << 5) | (1U << 6) | (1U << 7) | (1U << 8) |
+						(1U << 9));
+	EXTI->PR = pr;
+
+	// Fire the timer interrupt now that we've grabbed a snapshot of the time
+	TIM14->EGR |= STM32_TIM_EGR_CC1G;
+}
+
+#define exti_serve_irq(pr, channel) {                                       \
+                                                                            \
+  if ((pr) & (1U << (channel))) {                                           \
+    _pal_isr_code(channel);                                                 \
+  }                                                                         \
+}
+
+OSAL_IRQ_HANDLER(STM32_TIM14_HANDLER) {
+	OSAL_IRQ_PROLOGUE();
+
+	// clear interrupt flag
+	TIM14->SR = 0;
+
+	// serve as if it was an EXTI interrupt
+	exti_serve_irq(pr, 5);
+	exti_serve_irq(pr, 6);
+	exti_serve_irq(pr, 7);
+	exti_serve_irq(pr, 8);
+	exti_serve_irq(pr, 9);
+
+	OSAL_IRQ_EPILOGUE();
+}
+
 static void shaft_callback(void *arg) {
+palSetPad(GPIOA, 3);
 	// do the time sensitive things as early as possible!
-	efitick_t stamp = getTimeNowNt();
+	efitick_t stamp = extiShaftTime;
+palClearPad(GPIOA, 3);
+palSetPadMode(GPIOA, 3, PAL_MODE_OUTPUT_PUSHPULL);
+
 	if (!engine->hwTriggerInputEnabled) {
 		return;
 	}
@@ -91,6 +135,12 @@ int extiTriggerTurnOnInputPin(const char *msg, int index, bool isTriggerShaft) {
 	 * * simplify callback in case of one edge */
 	ioline_t pal_line = PAL_LINE(getHwPort("trg", brainPin), getHwPin("trg", brainPin));
 	efiExtiEnablePin(msg, brainPin, PAL_EVENT_MODE_BOTH_EDGES, isTriggerShaft ? shaft_callback : cam_callback, (void *)pal_line);
+
+	// Borrow the i2c driver as an interrupt generation source
+	rccResetTIM14();
+	rccEnableTIM14(true);
+	nvicEnableVector(STM32_TIM14_NUMBER, ICU_PRIORITY);
+	TIM14->DIER |= STM32_TIM_DIER_CC1IE;
 
 	return 0;
 }

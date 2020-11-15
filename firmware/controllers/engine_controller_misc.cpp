@@ -97,7 +97,7 @@ volatile uint32_t lastLowerNt = 0;
 volatile uint32_t upperTimeNt = 0;
 
 efitick_t getTimeNowNt() {
-	chibios_rt::CriticalSectionLocker csl;
+	__disable_irq();
 
 	uint32_t stamp = getTimeNowLowerNt();
 
@@ -108,7 +108,11 @@ efitick_t getTimeNowNt() {
 
 	lastLowerNt = stamp;
 
-	return ((int64_t)upperTimeNt << 32) | stamp;
+	uint64_t result = ((int64_t)upperTimeNt << 32) | stamp;
+
+	__enable_irq();
+
+	return result;
 }
 
 /*	//Alternative lock free implementation (probably actually slower!)

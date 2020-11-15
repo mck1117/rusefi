@@ -383,6 +383,8 @@
 #define STM32_USB_OTG_THREAD_STACK_SIZE     1024
 #define STM32_USB_OTGFIFO_FILL_BASEPRI      0
 
+#define STM32_DISABLE_EXTI5_9_HANDLER
+
 /*
  * WDG driver system settings.
  */
