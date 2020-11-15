@@ -74,7 +74,7 @@ efitimesec_t getTimeNowSeconds(void);
 #endif /* __cplusplus */
 
 #if EFI_PROD_CODE || EFI_SIMULATOR
- #define getTimeNowLowerNt() port_rt_get_counter_value()
+ #define getTimeNowLowerNt() (TIM5->CNT)
 #else
  #define getTimeNowLowerNt() 0
 #endif

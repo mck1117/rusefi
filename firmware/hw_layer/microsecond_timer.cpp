@@ -44,86 +44,38 @@ uint32_t maxPrecisionCallbackDuration = 0;
 #define GPTDEVICE GPTD5
 #endif /* GPTDEVICE */
 
-static volatile efitick_t lastSetTimerTimeNt;
+static efitick_t lastSetTimerTimeNt;
 static int lastSetTimerValue;
-static volatile bool isTimerPending = false;
 
-static volatile int timerCallbackCounter = 0;
-static volatile int timerRestartCounter = 0;
 
 static const char * msg;
 
 static char buff[32];
 
-static int timerFreezeCounter = 0;
-static volatile int setHwTimerCounter = 0;
 static volatile bool hwStarted = false;
 
 /**
  * sets the alarm to the specified number of microseconds from now.
  * This function should be invoked under kernel lock which would disable interrupts.
  */
-void setHardwareUsTimer(int32_t deltaTimeUs) {
+void setHardwareUsTimer(int32_t counterValue) {
 	efiAssertVoid(OBD_PCM_Processor_Fault, hwStarted, "HW.started");
-
-	setHwTimerCounter++;
-
-	/**
-	 * #259 BUG error: not positive deltaTimeUs
-	 * Once in a while we night get an interrupt where we do not expect it
-	 */
-	if (deltaTimeUs <= 0) {
-		timerFreezeCounter++;
-		warning(CUSTOM_OBD_LOCAL_FREEZE, "local freeze cnt=%d", timerFreezeCounter);
-	}
-
-	// We need the timer to fire after we return - 1 doesn't work as it may actually schedule in the past
-	if (deltaTimeUs < 2) {
-		deltaTimeUs = 2;
-	}
-
-	efiAssertVoid(CUSTOM_DELTA_NOT_POSITIVE, deltaTimeUs > 0, "not positive deltaTimeUs");
-	if (deltaTimeUs >= TOO_FAR_INTO_FUTURE_US) {
-		// we are trying to set callback for too far into the future. This does not look right at all
-		firmwareError(CUSTOM_ERR_TIMER_OVERFLOW, "setHardwareUsTimer() too far: %d", deltaTimeUs);
-		return;
-	}
-
-	// If already set, reset the timer
-	if (GPTDEVICE.state == GPT_ONESHOT) {
-		gptStopTimerI(&GPTDEVICE);
-	}
-
-	if (GPTDEVICE.state != GPT_READY) {
-		firmwareError(CUSTOM_HW_TIMER, "HW timer state %d/%d", GPTDEVICE.state, setHwTimerCounter);
-		return;
-	}
 
 	if (hasFirmwareError()) {
 		return;
 	}
 
 	// Start the timer
-	gptStartOneShotI(&GPTDEVICE, deltaTimeUs);
+	pwm_lld_enable_channel(&PWMD5, 0, counterValue);
+	pwmEnableChannelNotificationI(&PWMD5, 0);
 
 	lastSetTimerTimeNt = getTimeNowNt();
-	lastSetTimerValue = deltaTimeUs;
-	isTimerPending = true;
-	timerRestartCounter++;
 }
 
 void globalTimerCallback();
 
-static void hwTimerCallback(GPTDriver*) {
-	timerCallbackCounter++;
-	isTimerPending = false;
-
-	uint32_t before = getTimeNowLowerNt();
+static void hwTimerCallback(PWMDriver*) {
 	globalTimerCallback();
-	uint32_t precisionCallbackDuration = getTimeNowLowerNt() - before;
-	if (precisionCallbackDuration > maxPrecisionCallbackDuration) {
-		maxPrecisionCallbackDuration = precisionCallbackDuration;
-	}
 }
 
 class MicrosecondTimerWatchdogController : public PeriodicTimerController {
@@ -136,7 +88,7 @@ class MicrosecondTimerWatchdogController : public PeriodicTimerController {
 			return;
 		}
 
-		msg = isTimerPending ? "No_cb too long" : "Timer not awhile";
+		msg = false ? "No_cb too long" : "Timer not awhile";
 		// 2 seconds of inactivity would not look right
 		efiAssertVoid(CUSTOM_ERR_6682, nowNt < lastSetTimerTimeNt + 2 * CORE_CLOCK, msg);
 	}
@@ -148,13 +100,19 @@ class MicrosecondTimerWatchdogController : public PeriodicTimerController {
 
 static MicrosecondTimerWatchdogController watchdogControllerInstance;
 
-/*
- * The specific 1MHz frequency is important here since 'setHardwareUsTimer' method takes microsecond parameter
- * For any arbitrary frequency to work we would need an additional layer of conversion.
- */
-static constexpr GPTConfig gpt5cfg = { 1000000, /* 1 MHz timer clock.*/
-		hwTimerCallback, /* Timer callback.*/
-0, 0 };
+static constexpr PWMConfig mstConfig = {
+	12'000'000,
+	(uint32_t)-1,
+	nullptr,
+	{
+		{PWM_OUTPUT_DISABLED, hwTimerCallback},
+		{PWM_OUTPUT_DISABLED, nullptr},
+		{PWM_OUTPUT_DISABLED, nullptr},
+		{PWM_OUTPUT_DISABLED, nullptr}
+	},
+	0,
+	0
+};
 
 static scheduling_s watchDogBuddy;
 
@@ -199,8 +157,11 @@ static void validateHardwareTimer() {
 }
 
 void initMicrosecondTimer(void) {
-	gptStart(&GPTDEVICE, &gpt5cfg);
-	efiAssertVoid(CUSTOM_ERR_TIMER_STATE, GPTDEVICE.state == GPT_READY, "hw state");
+	pwmStart(&PWMD5, &mstConfig);
+
+	// buh chibios can't do normal output compare mode (non PWM)
+	TIM5->CCMR1 = 0x00006810;
+
 	hwStarted = true;
 
 	lastSetTimerTimeNt = getTimeNowNt();

@@ -125,14 +125,10 @@ void SingleTimerExecutor::executeAllPendingActions() {
 
 	bool didExecute;
 	do {
-		efitick_t nowNt = getTimeNowNt();
+		efitick_t nowNt = getTimeNowNt() + US2NT(5);
 		didExecute = queue.executeOne(nowNt);
 	} while (didExecute);
 
-	if (!isLocked()) {
-		firmwareError(CUSTOM_ERR_LOCK_ISSUE, "Someone has stolen my lock");
-		return;
-	}
 	reentrantFlag = false;
 }
 
@@ -154,9 +150,7 @@ void SingleTimerExecutor::scheduleTimerCallback() {
 
 	efiAssertVoid(CUSTOM_ERR_6625, nextEventTimeNt.Value > nowNt, "setTimer constraint");
 
-	int32_t hwAlarmTime = NT2US((int32_t)nextEventTimeNt.Value - (int32_t)nowNt);
-
-	setHardwareUsTimer(hwAlarmTime == 0 ? 1 : hwAlarmTime);
+	setHardwareUsTimer(nextEventTimeNt.Value - US2NT(3));
 }
 
 void initSingleTimerExecutorHardware(void) {

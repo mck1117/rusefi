@@ -97,7 +97,7 @@ typedef unsigned int time_t;
 #endif /* EFI_USE_CCM */
 
 // 168 ticks in microsecond in case of 168MHz 407
-#define US_TO_NT_MULTIPLIER (CORE_CLOCK / 1000000)
+#define US_TO_NT_MULTIPLIER (12)
 
 /**
  * converts efitimeus_t to efitick_t
