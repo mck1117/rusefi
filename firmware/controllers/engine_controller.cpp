@@ -156,7 +156,7 @@ class PeriodicSlowController : public PeriodicTimerController {
 
 	int getPeriodMs() override {
 		// no reason to have this configurable, looks like everyone is happy with 20Hz
-		return 50;
+		return SLOW_CALLBACK_PERIOD_MS;
 	}
 };
 
@@ -337,7 +337,7 @@ static void printAnalogInfo(void) {
 	printAnalogChannelInfo("MAF", engineConfiguration->mafAdcChannel);
 	for (int i = 0; i < FSIO_ANALOG_INPUT_COUNT ; i++) {
 		adc_channel_e ch = engineConfiguration->fsioAdc[i];
-		printAnalogChannelInfo("fsio", ch);
+		printAnalogChannelInfo("FSIO analog", ch);
 	}
 
 	printAnalogChannelInfo("AFR", engineConfiguration->afr.hwChannel);
@@ -351,10 +351,6 @@ static void printAnalogInfo(void) {
 	printAnalogChannelInfo("CJ UA", engineConfiguration->cj125ua);
 
 	printAnalogChannelInfo("HIP9011", engineConfiguration->hipOutputChannel);
-
-	for (int i = 0; i < FSIO_ANALOG_INPUT_COUNT ; i++) {
-		printAnalogChannelInfo("FSIO", engineConfiguration->fsioAdc[i]);
-	}
 
 	printAnalogChannelInfoExt("Vbatt", engineConfiguration->vbattAdcChannel, getVoltage("vbatt", engineConfiguration->vbattAdcChannel PASS_ENGINE_PARAMETER_SUFFIX),
 			engineConfiguration->vbattDividerCoeff);
@@ -625,7 +621,9 @@ void commonInitEngineController(Logging *sharedLogger DECLARE_ENGINE_PARAMETER_S
 		 */
 		initSparkLogic(sharedLogger);
 		initMainEventListener(sharedLogger PASS_ENGINE_PARAMETER_SUFFIX);
+#if EFI_HPFP
 		initHPFP(PASS_ENGINE_PARAMETER_SIGNATURE);
+#endif // EFI_HPFP
 	}
 #endif /* EFI_ENGINE_CONTROL */
 
@@ -707,7 +705,7 @@ void initEngineContoller(Logging *sharedLogger DECLARE_ENGINE_PARAMETER_SUFFIX) 
  * UNUSED_SIZE constants.
  */
 #ifndef RAM_UNUSED_SIZE
-#define RAM_UNUSED_SIZE 4000
+#define RAM_UNUSED_SIZE 3400
 #endif
 #ifndef CCM_UNUSED_SIZE
 #define CCM_UNUSED_SIZE 2900

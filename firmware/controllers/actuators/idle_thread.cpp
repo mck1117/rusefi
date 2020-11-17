@@ -147,12 +147,12 @@ static void showIdleInfo(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	if (CONFIG(useStepperIdle)) {
 		if (CONFIG(useHbridges)) {
 			scheduleMsg(logger, "Coil A:");
-			scheduleMsg(logger, " pin1=%s", hwPortname(CONFIG(etbIo2[0].directionPin1)));
-			scheduleMsg(logger, " pin2=%s", hwPortname(CONFIG(etbIo2[0].directionPin2)));
+			scheduleMsg(logger, " pin1=%s", hwPortname(CONFIG(stepperDcIo[0].directionPin1)));
+			scheduleMsg(logger, " pin2=%s", hwPortname(CONFIG(stepperDcIo[0].directionPin2)));
 			showDcMotorInfo(logger, 2);
 			scheduleMsg(logger, "Coil B:");
-			scheduleMsg(logger, " pin1=%s", hwPortname(CONFIG(etbIo2[1].directionPin1)));
-			scheduleMsg(logger, " pin2=%s", hwPortname(CONFIG(etbIo2[1].directionPin2)));
+			scheduleMsg(logger, " pin1=%s", hwPortname(CONFIG(stepperDcIo[1].directionPin1)));
+			scheduleMsg(logger, " pin2=%s", hwPortname(CONFIG(stepperDcIo[1].directionPin2)));
 			showDcMotorInfo(logger, 3);
 		} else {
 			scheduleMsg(logger, "directionPin=%s reactionTime=%.2f", hwPortname(CONFIG(idle).stepperDirectionPin),
@@ -183,7 +183,7 @@ void setIdleMode(idle_mode_e value DECLARE_ENGINE_PARAMETER_SUFFIX) {
 	showIdleInfo();
 }
 
-percent_t getIdlePosition(void) {
+percent_t getIdlePosition() {
 	return engine->engineState.idle.currentIdlePosition;
 }
 
@@ -236,7 +236,6 @@ static void undoIdleBlipIfNeeded() {
 	}
 }
 
-
 	int IdleController::getPeriodMs() {
 		return GET_PERIOD_LIMITED(&engineConfiguration->idleRpmPid);
 	}
@@ -269,15 +268,22 @@ static void undoIdleBlipIfNeeded() {
 		}
 #endif /* EFI_GPIO_HARDWARE */
 
-		#if !EFI_UNIT_TEST
 		float iacPosition = getNewIdleControllerPosition();
-
 		engine->engineState.idle.currentIdlePosition = iacPosition;
-		applyIACposition(engine->engineState.idle.currentIdlePosition PASS_ENGINE_PARAMETER_SUFFIX);
-		#endif
+		return iacPosition;
+}
+
+void IdleController::update() {
+	float position = getIdlePosition();
+	applyIACposition(position PASS_ENGINE_PARAMETER_SUFFIX);
 }
 
 IdleController idleControllerInstance;
+
+void updateIdleControl()
+{
+	idleControllerInstance.update();
+}
 
 static void applyPidSettings(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	getIdlePid(PASS_ENGINE_PARAMETER_SIGNATURE)->updateFactors(engineConfiguration->idleRpmPid.pFactor, engineConfiguration->idleRpmPid.iFactor, engineConfiguration->idleRpmPid.dFactor);
@@ -288,7 +294,6 @@ void setDefaultIdleParameters(DECLARE_CONFIG_PARAMETER_SIGNATURE) {
 	engineConfiguration->idleRpmPid.pFactor = 0.1f;
 	engineConfiguration->idleRpmPid.iFactor = 0.05f;
 	engineConfiguration->idleRpmPid.dFactor = 0.0f;
-	engineConfiguration->idleRpmPid.periodMs = 10;
 
 	engineConfiguration->idlerpmpid_iTermMin = -200;
 	engineConfiguration->idlerpmpid_iTermMax =  200;
@@ -326,12 +331,6 @@ void setIdleIFactor(float value) {
 
 void setIdleDFactor(float value) {
 	engineConfiguration->idleRpmPid.dFactor = value;
-	applyPidSettings();
-	showIdleInfo();
-}
-
-void setIdleDT(int value) {
-	engineConfiguration->idleRpmPid.periodMs = value;
 	applyPidSettings();
 	showIdleInfo();
 }
@@ -402,8 +401,6 @@ void startIdleThread(Logging*sharedLogger DECLARE_ENGINE_PARAMETER_SUFFIX) {
 
 
 	//scheduleMsg(logger, "initial idle %d", idlePositionController.value);
-
-	idleControllerInstance.Start();
 
 #if ! EFI_UNIT_TEST
 	startNewIdleControl();
