@@ -237,7 +237,7 @@ static void undoIdleBlipIfNeeded() {
 }
 
 	float IdleController::getIdlePosition() {
-		efiAssertVoid(OBD_PCM_Processor_Fault, engineConfiguration != NULL, "engineConfiguration pointer");
+		efiAssert(OBD_PCM_Processor_Fault, engineConfiguration != NULL, "engineConfiguration pointer", 0);
 
 #if EFI_GPIO_HARDWARE
 		// this value is not used yet
