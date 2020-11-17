@@ -236,11 +236,7 @@ static void undoIdleBlipIfNeeded() {
 	}
 }
 
-	int IdleController::getPeriodMs() {
-		return GET_PERIOD_LIMITED(&engineConfiguration->idleRpmPid);
-	}
-
-	void IdleController::PeriodicTask() {
+	float IdleController::getIdlePosition() {
 		efiAssertVoid(OBD_PCM_Processor_Fault, engineConfiguration != NULL, "engineConfiguration pointer");
 
 #if EFI_GPIO_HARDWARE
