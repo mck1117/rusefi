@@ -12,6 +12,21 @@ void setHardwareSchedulerTimer(efitick_t nowNt, efitick_t setTimeNt) {
 		return;
 	}
 
+	auto timeInFuture = setTimeNt - nowNt;
+
+	// Tried to schedule in the past - this can happen after config reset, etc
+	if (timeInFuture < US2NT(3)) {
+		warning(CUSTOM_OBD_LOCAL_FREEZE, "local freeze cnt=%d", timerFreezeCounter);
+		setTimeNt = nowNt + US2NT(3);
+	}
+
+	// Tried to schedule very far out
+	if (timeInFuture >= TOO_FAR_INTO_FUTURE_NT) {
+		// we are trying to set callback for too far into the future. This does not look right at all
+		firmwareError(CUSTOM_ERR_TIMER_OVERFLOW, "setHardwareSchedulerTimer() too far: %d", NT2US(timeInFuture));
+		return;
+	}
+
 	pwm_lld_enable_channel(&PWMD5, 0, setTimeNt);
 	pwmEnableChannelNotificationI(&PWMD5, 0);
 }
