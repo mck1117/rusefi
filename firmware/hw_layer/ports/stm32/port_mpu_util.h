@@ -10,11 +10,12 @@
 
 #include "device_mpu_util.h"
 
-// 168 ticks in microsecond in case of 168MHz 407
-#define US_TO_NT_MULTIPLIER (CORE_CLOCK / 1000000)
+// The scheduler timer runs at 12MHz, so also use it for timing measurement
+#define US_TO_NT_MULTIPLIER (12)
 
-// Scheduler queue GPT device - use TIM5
-#define GPTDEVICE GPTD5
+// Scheduler queue timer - use TIM5
+#define SCHEDULER_PWM_DEVICE PWMD5
+#define SCHEDULER_TIMER_DEVICE TIM5
 
 typedef enum {
 	BOR_Level_None = OB_BOR_OFF, // 0x0C=12  Supply voltage ranges from 1.62 to 2.10 V
