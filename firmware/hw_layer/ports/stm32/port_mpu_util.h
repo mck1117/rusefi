@@ -10,6 +10,13 @@
 
 #include "device_mpu_util.h"
 
+// The scheduler timer runs at 12MHz, so also use it for timing measurement
+#define US_TO_NT_MULTIPLIER (12)
+
+// Scheduler queue timer - use TIM5
+#define SCHEDULER_PWM_DEVICE PWMD5
+#define SCHEDULER_TIMER_DEVICE TIM5
+
 typedef enum {
 	BOR_Level_None = OB_BOR_OFF, // 0x0C=12  Supply voltage ranges from 1.62 to 2.10 V
 	BOR_Level_1 = OB_BOR_LEVEL1, // 0x08     Supply voltage ranges from 2.10 to 2.40 V

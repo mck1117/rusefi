@@ -325,3 +325,7 @@ bool isValidSerialRxPin(brain_pin_e pin) {
 }
 
 #endif /*EFI_AUX_SERIAL*/
+
+uint32_t getTimeNowLowerNt() {
+	return TIM5->CNT;
+}
