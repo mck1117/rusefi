@@ -63,3 +63,9 @@ void initMicrosecondTimer() {
 
 	hwStarted = true;
 }
+
+uint32_t getTimeNowLowerNt() {
+	// Using the same timer for measurement and scheduling improves
+	// precision and reduces jitter.
+	return TIM5->CNT;
+}
