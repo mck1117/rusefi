@@ -265,6 +265,9 @@ void rpmShaftPositionCallback(trigger_event_e ckpSignalType,
 			} else {
 				int mult = (int)getEngineCycle(engine->getOperationMode(PASS_ENGINE_PARAMETER_SIGNATURE)) / 360;
 				float rpm = 60 * mult / periodSeconds;
+
+				printf("rpmShaftPositionCallback rpm: %.3f\n", rpm);
+
 				rpmState->setRpmValue(rpm > UNREALISTIC_RPM ? NOISY_RPM : rpm);
 			}
 		}
