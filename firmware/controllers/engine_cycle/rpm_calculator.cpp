@@ -124,6 +124,8 @@ bool RpmCalculator::checkIfSpinning(efitick_t nowNt) const {
 	 */
 	bool noTriggerEventsForTooLong = engine->triggerCentral.getTimeSinceTriggerEvent(nowNt) >= 1;
 
+	printf("checkIfSpinning noRpmEventsForTooLong: %d\tnoTriggerEventsForTooLong: %d\n", noRpmEventsForTooLong, noTriggerEventsForTooLong);
+
 	if (noRpmEventsForTooLong || noTriggerEventsForTooLong) {
 		return false;
 	}
