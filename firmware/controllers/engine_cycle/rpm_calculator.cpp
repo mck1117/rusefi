@@ -250,6 +250,8 @@ void rpmShaftPositionCallback(trigger_event_e ckpSignalType,
 
 		float periodSeconds = engine->rpmCalculator.lastTdcTimer.getElapsedSecondsAndReset(nowNt);
 
+		printf("rpmShaftPositionCallback periodSeconds: %.6f\n", periodSeconds);
+
 		if (hadRpmRecently) {
 		/**
 		 * Four stroke cycle is two crankshaft revolutions
