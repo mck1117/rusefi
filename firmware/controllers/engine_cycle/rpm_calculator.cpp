@@ -134,6 +134,8 @@ bool RpmCalculator::checkIfSpinning(efitick_t nowNt) const {
 }
 
 void RpmCalculator::assignRpmValue(float floatRpmValue) {
+	printf("assignRpmValue %f\n", floatRpmValue);
+
 	previousRpmValue = rpmValue;
 	// we still persist integer RPM! todo: figure out the next steps
 	rpmValue = floatRpmValue;
