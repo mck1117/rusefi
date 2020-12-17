@@ -152,9 +152,8 @@ void rebootNow(void) {
  */
 static void scheduleReboot(void) {
 	scheduleMsg(&sharedLogger, "Rebooting in 3 seconds...");
-	lockAnyContext();
+	chibios_rt::CriticalSectionLocker csl;
 	chVTSetI(&resetTimer, TIME_MS2I(3000), (vtfunc_t) rebootNow, NULL);
-	unlockAnyContext();
 }
 
 void runRusEfi(void) {
@@ -198,7 +197,7 @@ void runRusEfi(void) {
 #endif // HW_CHECK_MODE
 
 
-#ifndef EFI_ACTIVE_CONFIGURATION_IN_FLASH
+#if ! EFI_ACTIVE_CONFIGURATION_IN_FLASH
 	// TODO: need to fix this place!!! should be a version of PASS_ENGINE_PARAMETER_SIGNATURE somehow
 	prepareVoidConfiguration(&activeConfiguration);
 #endif /* EFI_ACTIVE_CONFIGURATION_IN_FLASH */

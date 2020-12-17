@@ -56,12 +56,17 @@ public:
 #if EFI_GPIO_HARDWARE
 	ioportid_t port = 0;
 	uint8_t pin = 0;
-	#if (BOARD_EXT_GPIOCHIPS > 0)
-		/* used for external pins */
-		brain_pin_e brainPin;
-		bool ext;
-	#endif
 #endif /* EFI_GPIO_HARDWARE */
+
+#if (EFI_GPIO_HARDWARE && (BOARD_EXT_GPIOCHIPS > 0))
+	/* used for external pins */
+	brain_pin_e brainPin;
+	bool ext;
+#elif EFI_SIMULATOR || EFI_UNIT_TEST
+	// used for setMockState
+	brain_pin_e brainPin;
+#endif /* EFI_GPIO_HARDWARE */
+
 	int8_t currentLogicValue = INITIAL_PIN_STATE;
 	/**
 	 * we track current pin status so that we do not touch the actual hardware if we want to write new pin bit
@@ -70,7 +75,7 @@ public:
 private:
 	// todo: inline this method?
 	void setDefaultPinState(const pin_output_mode_e *defaultState);
-	void setOnchipValue(int electricalValue, int logicValue);
+	void setOnchipValue(int electricalValue);
 
 	// 4 byte pointer is a bit of a memory waste here
 	const pin_output_mode_e *modePtr;
@@ -130,11 +135,11 @@ public:
 class RegisteredOutputPin : public virtual OutputPin {
 public:
 	RegisteredOutputPin(const char *registrationName, short pinOffset, short pinModeOffset);
-	void init();
+	void init(DECLARE_ENGINE_PARAMETER_SIGNATURE);
 	void unregister();
 	RegisteredOutputPin *next;
-private:
 	const char *registrationName;
+private:
 	short pinOffset;
 	short pinModeOffset;
 	bool isPinConfigurationChanged();
@@ -150,6 +155,7 @@ public:
 	EnginePins();
 	void startPins(DECLARE_ENGINE_PARAMETER_SIGNATURE);
 	void reset();
+	static void debug();
 	bool stopPins();
 	void unregisterPins();
 	RegisteredOutputPin mainRelay;

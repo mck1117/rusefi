@@ -52,8 +52,8 @@ class AirmassModelBase;
 #define CYCLE_ALTERNATION 2
 
 class IEtbController;
-class IFuelComputer;
-class IInjectorModel;
+struct IFuelComputer;
+struct IInjectorModel;
 
 class PrimaryTriggerConfiguration final : public TriggerConfiguration {
 public:
@@ -79,6 +79,8 @@ class Engine final : public TriggerStateListener {
 public:
 	explicit Engine(persistent_config_s *config);
 	Engine();
+	bool isPwmEnabled = true;
+	int triggerActivitySecond = 0;
 
 	IEtbController *etbControllers[ETB_COUNT] = {nullptr};
 	IFuelComputer *fuelComputer = nullptr;
@@ -90,6 +92,7 @@ public:
 
 	PrimaryTriggerConfiguration primaryTriggerConfiguration;
 	VvtTriggerConfiguration vvtTriggerConfiguration;
+	efitick_t startStopStateLastPushTime = 0;
 
 #if EFI_SHAFT_POSITION_INPUT
 	void OnTriggerStateDecodingError();

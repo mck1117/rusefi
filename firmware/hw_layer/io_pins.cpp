@@ -58,7 +58,7 @@ void efiSetPadMode(const char *msg, brain_pin_e brainPin, iomode_t mode)
 	if (!wasUsed) {
 		/*check if on-chip pin or external */
 		if (brain_pin_is_onchip(brainPin)) {
-			/* on-cip */
+			/* on-chip */
 			ioportid_t port = getHwPort(msg, brainPin);
 			ioportmask_t pin = getHwPin(msg, brainPin);
 			/* paranoid */
@@ -84,8 +84,11 @@ void efiSetPadUnused(brain_pin_e brainPin)
 		ioportid_t port = getHwPort("unused", brainPin);
 		ioportmask_t pin = getHwPin("unused", brainPin);
 
-		/* input with pull up, is it safe? */
+		/* input with pull up, is it safe?
+		 * todo: shall we reuse 'default state' constants with board.h?
+		 * */
 		palSetPadMode(port, pin, mode);
+		palWritePad(port, pin, 0);
 	}
 	#if (BOARD_EXT_GPIOCHIPS > 0)
 		else {
@@ -122,7 +125,10 @@ void efiIcuStart(const char *msg, ICUDriver *icup, const ICUConfig *config) {
 #endif /* HAL_USE_ICU */
 
 #else
-extern bool mockPinStates[(1 << sizeof(brain_pin_e))];
+
+// This has been made global so we don't need to worry about efiReadPin having access the object
+//  we store it in, every time we need to use efiReadPin.
+bool mockPinStates[BRAIN_PIN_COUNT];
 
 bool efiReadPin(brain_pin_e pin) {
 	return mockPinStates[static_cast<int>(pin)];

@@ -58,6 +58,7 @@
 #include "mazda_miata_nb.h"
 #include "mazda_miata_vvt.h"
 #include "mazda_626.h"
+#include "m111.h"
 
 #include "citroenBerlingoTU3JP.h"
 #include "rover_v8.h"
@@ -69,11 +70,9 @@
 #include "me7pnp.h"
 #include "vw_b6.h"
 #include "chevrolet_camaro_4.h"
-#include "chevrolet_c20_1973.h"
 #include "toyota_jzs147.h"
 #include "ford_festiva.h"
 #include "lada_kalina.h"
-#include "zil130.h"
 #include "honda_600.h"
 #include "boost_control.h"
 #if EFI_IDLE_CONTROL
@@ -141,7 +140,7 @@ static fuel_table_t alphaNfuel = {
  *
  * todo: place this field next to 'engineConfiguration'?
  */
-#ifdef EFI_ACTIVE_CONFIGURATION_IN_FLASH
+#if EFI_ACTIVE_CONFIGURATION_IN_FLASH
 #include "flash_int.h"
 engine_configuration_s & activeConfiguration = reinterpret_cast<persistent_config_container_s*>(getFlashAddrFirstCopy())->persistentConfiguration.engineConfiguration;
 // we cannot use this activeConfiguration until we call rememberCurrentConfiguration()
@@ -154,7 +153,7 @@ engine_configuration_s & activeConfiguration = activeConfigurationLocalStorage;
 extern engine_configuration_s *engineConfiguration;
 
 void rememberCurrentConfiguration(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
-#ifndef EFI_ACTIVE_CONFIGURATION_IN_FLASH
+#if ! EFI_ACTIVE_CONFIGURATION_IN_FLASH
 	memcpy(&activeConfiguration, engineConfiguration, sizeof(engine_configuration_s));
 #else
 	isActiveConfigurationVoid = false;
@@ -740,7 +739,7 @@ static void setDefaultEngineConfiguration(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 
 	CONFIG(mapMinBufferLength) = 1;
 
-	CONFIG(startCrankingDuration) = 7;
+	CONFIG(startCrankingDuration) = 3;
 
 	CONFIG(compressionRatio) = 9;
 
@@ -886,7 +885,7 @@ static void setDefaultEngineConfiguration(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	engineConfiguration->idleRpmPid.pFactor = 0.05;
 	engineConfiguration->idleRpmPid.iFactor = 0.002;
 
-	engineConfiguration->idleRpmPid.minValue = 0.1;
+	engineConfiguration->idleRpmPid.minValue = 0;
 	engineConfiguration->idleRpmPid.maxValue = 99;
 	engineConfiguration->idlePidDeactivationTpsThreshold = 2;
 
@@ -1168,12 +1167,19 @@ void resetConfigurationExt(Logging * logger, configuration_callback_t boardCallb
 // todo: is it time to replace MICRO_RUS_EFI, PROTEUS, PROMETHEUS_DEFAULTS with MINIMAL_PINS? maybe rename MINIMAL_PINS to DEFAULT?
 	case PROTEUS:
 	case PROMETHEUS_DEFAULTS:
+	case ZIL_130:
 	case MINIMAL_PINS:
 		// all basic settings are already set in prepareVoidConfiguration(), no need to set anything here
 		// nothing to do - we do it all in setBoardConfigurationOverrides
 		break;
 	case MIATA_PROTEUS_TCU:
 		setMiataNB2_Proteus_TCU(PASS_CONFIG_PARAMETER_SIGNATURE);
+		break;
+	case PROTEUS_MIATA_NB2:
+		setMiataNB2_ProteusEngineConfiguration(PASS_CONFIG_PARAMETER_SIGNATURE);
+		break;
+	case MRE_M111:
+		setM111EngineConfiguration(PASS_CONFIG_PARAMETER_SIGNATURE);
 		break;
 	case MRE_BOARD_OLD_TEST:
 		mreBoardOldTest(PASS_CONFIG_PARAMETER_SIGNATURE);
@@ -1183,6 +1189,10 @@ void resetConfigurationExt(Logging * logger, configuration_callback_t boardCallb
 		break;
 	case TEST_ENGINE:
 		setTestEngineConfiguration(PASS_CONFIG_PARAMETER_SIGNATURE);
+		break;
+	case SUBARUEJ20G_DEFAULTS:
+	case MRE_SUBARU_EJ18:
+		setSubaruEJ18_MRE(PASS_CONFIG_PARAMETER_SIGNATURE);
 		break;
 #if EFI_UNIT_TEST
 	case TEST_ISSUE_366_BOTH:
@@ -1217,6 +1227,9 @@ void resetConfigurationExt(Logging * logger, configuration_callback_t boardCallb
 		break;
 	case MRE_MIATA_NA6_VAF:
 		setMiataNA6_VAF_MRE(PASS_CONFIG_PARAMETER_SIGNATURE);
+		break;
+	case MRE_MIATA_94_MAP:
+		setMiata94_MAP_MRE(PASS_CONFIG_PARAMETER_SIGNATURE);
 		break;
 	case MRE_MIATA_NA6_MAP:
 		setMiataNA6_MAP_MRE(PASS_CONFIG_PARAMETER_SIGNATURE);
@@ -1253,9 +1266,6 @@ void resetConfigurationExt(Logging * logger, configuration_callback_t boardCallb
 		break;
 	case HONDA_ACCORD_CD:
 		setHondaAccordConfigurationThreeWires(PASS_CONFIG_PARAMETER_SIGNATURE);
-		break;
-	case ZIL_130:
-		setZil130(PASS_CONFIG_PARAMETER_SIGNATURE);
 		break;
 	case MIATA_NA6_MAP:
 		setMiataNA6_MAP_Frankenso(PASS_CONFIG_PARAMETER_SIGNATURE);
@@ -1311,9 +1321,6 @@ void resetConfigurationExt(Logging * logger, configuration_callback_t boardCallb
 	case MIATA_1990:
 		setMiata1990(PASS_CONFIG_PARAMETER_SIGNATURE);
 		break;
-	case MIATA_1994_DEVIATOR:
-		setMiata1994_d(PASS_CONFIG_PARAMETER_SIGNATURE);
-		break;
 	case MIATA_1996:
 		setMiata1996(PASS_CONFIG_PARAMETER_SIGNATURE);
 		break;
@@ -1347,9 +1354,6 @@ void resetConfigurationExt(Logging * logger, configuration_callback_t boardCallb
 	case MAZDA_MIATA_2003_BOARD_TEST:
 		setMazdaMiata2003EngineConfigurationBoardTest(PASS_CONFIG_PARAMETER_SIGNATURE);
 		break;
-	case SUBARUEJ20G_DEFAULTS:
-		setSubaruEJ20GDefaults(PASS_CONFIG_PARAMETER_SIGNATURE);
-		break;
 	case TEST_ENGINE_VVT:
 		setTestVVTEngineConfiguration(PASS_CONFIG_PARAMETER_SIGNATURE);
 		break;
@@ -1358,9 +1362,6 @@ void resetConfigurationExt(Logging * logger, configuration_callback_t boardCallb
 		break;
 	case CAMARO_4:
 		setCamaro4(PASS_CONFIG_PARAMETER_SIGNATURE);
-		break;
-	case CHEVY_C20_1973:
-		set1973c20(PASS_CONFIG_PARAMETER_SIGNATURE);
 		break;
 	case TOYOTA_2JZ_GTE_VVTi:
 		setToyota_2jz_vics(PASS_CONFIG_PARAMETER_SIGNATURE);

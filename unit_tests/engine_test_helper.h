@@ -7,8 +7,6 @@
 
 #pragma once
 
-#define BRAIN_PIN_COUNT (1 << sizeof(brain_pin_e))
-
 #include "engine.h"
 #include "trigger_central.h"
 #include "rpm_calculator.h"
@@ -16,6 +14,8 @@
 #include "unit_test_framework.h"
 #include "sensor.h"
 #include "mocks.h"
+
+#include <unordered_map>
 
 extern EnginePins enginePins;
 
@@ -54,6 +54,7 @@ public:
 	void smartFireRise(float delayMs);
 	void smartFireFall(float delayMs);
 	void smartMoveTimeForwardUs(int deltaTimeUs);
+	void smartMoveTimeForwardSeconds(int deltaTimeSeconds);
 	void smartFireTriggerEvents2(int count, float delayMs);
 
 	/**

@@ -43,6 +43,10 @@
 #include "malfunction_central.h"
 #include "tunerstudio_outputs.h"
 
+#if EFI_WIDEBAND_FIRMWARE_UPDATE
+#include "can.h"
+#endif
+
 #if EFI_PROD_CODE
 #include "rusefi.h"
 #include "mpu_util.h"
@@ -65,40 +69,28 @@ bool isRunningBenchTest(void) {
 
 static void runBench(brain_pin_e brainPin, OutputPin *output, float delayMs, float onTimeMs, float offTimeMs,
 		int count) {
-    int delaySt = delayMs < 1 ? 1 : TIME_MS2I(delayMs);
-	int onTimeSt = onTimeMs < 1 ? 1 : TIME_MS2I(onTimeMs);
-	int offTimeSt = offTimeMs < 1 ? 1 : TIME_MS2I(offTimeMs);
-	if (delaySt < 0) {
-		scheduleMsg(logger, "Invalid delay %.2f", delayMs);
-		return;
-	}
-	if (onTimeSt <= 0) {
-		scheduleMsg(logger, "Invalid onTime %.2f", onTimeMs);
-		return;
-	}
-	if (offTimeSt <= 0) {
-		scheduleMsg(logger, "Invalid offTime %.2f", offTimeMs);
-		return;
-	}
-	scheduleMsg(logger, "Running bench: ON_TIME=%.2f ms OFF_TIME=%.2fms Counter=%d", onTimeMs, offTimeMs, count);
+	int delayUs = MS2US(maxF(1, delayMs));
+	int onTimeUs = MS2US(maxF(1, onTimeMs));
+	int offTimeUs = MS2US(maxF(1, offTimeMs));
+
+	scheduleMsg(logger, "Running bench: ON_TIME=%.2f us OFF_TIME=%.2f us Counter=%d", onTimeUs, offTimeUs, count);
 	scheduleMsg(logger, "output on %s", hwPortname(brainPin));
 
-	if (delaySt != 0) {
-		chThdSleep(delaySt);
-	}
+	chThdSleepMicroseconds(delayUs);
 
 	isRunningBench = true;
 	for (int i = 0; i < count; i++) {
 		output->setValue(true);
-		chThdSleep(onTimeSt);
+		chThdSleepMicroseconds(onTimeUs);
 		output->setValue(false);
-		chThdSleep(offTimeSt);
+		chThdSleepMicroseconds(offTimeUs);
 	}
 	scheduleMsg(logger, "Done!");
 	isRunningBench = false;
 }
 
 static volatile bool isBenchTestPending = false;
+static bool widebandUpdatePending = false;
 static float onTime;
 static float offTime;
 static float delayMs;
@@ -189,6 +181,10 @@ void mainRelayBench(void) {
 	pinbench("0", "1000", "100", "1", &enginePins.mainRelay, CONFIG(mainRelayPin));
 }
 
+void hpfpValveBench(void) {
+	pinbench(/*delay*/"1000", /* onTime */"20", /*oftime*/"500", "3", &enginePins.hpfpValve, CONFIG(hpfpValvePin));
+}
+
 void fuelPumpBench(void) {
 	fuelPumpBenchExt("3000");
 }
@@ -240,6 +236,13 @@ private:
 			isBenchTestPending = false;
 			runBench(brainPin, pinX, delayMs, onTime, offTime, count);
 		}
+
+		if (widebandUpdatePending) {
+#if EFI_WIDEBAND_FIRMWARE_UPDATE
+			updateWidebandFirmware(logger);
+#endif
+			widebandUpdatePending = false;
+		}
 	}
 };
 
@@ -249,6 +252,9 @@ static void handleBenchCategory(uint16_t index) {
 	switch(index) {
 	case CMD_TS_BENCH_MAIN_RELAY:
 		mainRelayBench();
+		return;
+	case CMD_TS_BENCH_HPFP_VALVE:
+		hpfpValveBench();
 		return;
 	case CMD_TS_BENCH_FUEL_PUMP:
 		// cmd_test_fuel_pump
@@ -317,6 +323,9 @@ static void handleCommandX14(uint16_t index) {
 #endif
 	case 0xF:
 		engine->directSelfStimulation = false;
+		return;
+	case 0x12:
+		widebandUpdatePending = true;
 		return;
 	}
 }
@@ -391,11 +400,13 @@ void initBenchTest(Logging *sharedLogger) {
 	addConsoleActionS("fuelpumpbench2", fuelPumpBenchExt);
 	addConsoleAction("fanbench", fanBench);
 	addConsoleActionS("fanbench2", fanBenchExt);
+	addConsoleAction("update_wideband", []() { widebandUpdatePending = true; });
 
 	addConsoleAction(CMD_STARTER_BENCH, starterRelayBench);
 	addConsoleAction(CMD_MIL_BENCH, milBench);
 	addConsoleActionSSS(CMD_FUEL_BENCH, fuelbench);
 	addConsoleActionSSS("sparkbench", sparkbench);
+	addConsoleAction(CMD_HPFP_BENCH, hpfpValveBench);
 
 	addConsoleActionSSSSS("fuelbench2", fuelbench2);
 	addConsoleActionSSSSS("fsiobench2", fsioBench2);

@@ -19,8 +19,23 @@
 
 #define MS2US(MS_TIME) ((MS_TIME) * 1000)
 
+// microseconds to ticks
+// since only about 20 seconds of ticks fit in 32 bits this macro is casting parameter into 64 bits 'efitime_t' type
+// please note that int64 <-> float is a heavy operation thus we have 'USF2NT' below
+#define US2NT(us) (((efitime_t)(us)) * US_TO_NT_MULTIPLIER)
+
+// microseconds to ticks, but floating point
+// If converting a floating point time period, use this macro to avoid
+// the expensive conversions from int64 <-> float
+#define USF2NT(us_float) ((us_float) * US_TO_NT_MULTIPLIER)
+
+// And back
+#define NT2US(x) ((x) / US_TO_NT_MULTIPLIER)
+
 // milliseconds to ticks
 #define MS2NT(msTime) US2NT(MS2US(msTime))
+// See USF2NT above for when to use MSF2NT
+#define MSF2NT(msTimeFloat) USF2NT(MS2US(msTimeFloat))
 
 /**
  * We use this 'deep in past, before ECU has ever started' value as a way to unify
@@ -69,12 +84,10 @@ efitimems_t currentTimeMillis(void);
  */
 efitimesec_t getTimeNowSeconds(void);
 
+// Get a monotonically increasing (but wrapping) 32-bit timer value
+uint32_t getTimeNowLowerNt(void);
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
 
-#if EFI_PROD_CODE || EFI_SIMULATOR
- #define getTimeNowLowerNt() port_rt_get_counter_value()
-#else
- #define getTimeNowLowerNt() 0
-#endif

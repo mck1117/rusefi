@@ -24,10 +24,6 @@ extern engine_configuration_s & activeConfiguration;
 extern bool printTriggerDebug;
 extern bool printFuelDebug;
 
-// This has been made global so we don't need to worry about efiReadPin having access the object
-//  we store it in, every time we need to use efiReadPin.
-bool mockPinStates[BRAIN_PIN_COUNT];
-
 EngineTestHelperBase::EngineTestHelperBase() { 
 	// todo: make this not a global variable, we need currentTimeProvider interface on engine
 	timeNowUs = 0; 
@@ -46,12 +42,11 @@ EngineTestHelper::EngineTestHelper(engine_type_e engineType, configuration_callb
 	Sensor::setMockValue(SensorType::Clt, 70);
 	Sensor::setMockValue(SensorType::Iat, 30);
 
-	for (const auto [s, v] : sensorValues) {
+	for (const auto& [s, v] : sensorValues) {
 		Sensor::setMockValue(s, v);
 	}
 
 	unitTestWarningCodeState.clear();
-
 
 	memset(&activeConfiguration, 0, sizeof(activeConfiguration));
 
@@ -78,6 +73,8 @@ EngineTestHelper::EngineTestHelper(engine_type_e engineType, configuration_callb
 	initDataStructures(PASS_ENGINE_PARAMETER_SIGNATURE);
 
 	resetConfigurationExt(NULL, configurationCallback, engineType PASS_ENGINE_PARAMETER_SUFFIX);
+
+	enginePins.startPins(PASS_ENGINE_PARAMETER_SIGNATURE);
 
 	commonInitEngineController(NULL PASS_ENGINE_PARAMETER_SUFFIX);
 
@@ -202,6 +199,10 @@ void EngineTestHelper::moveTimeForwardUs(int deltaTimeUs) {
 		printf("moveTimeForwardUs %.1fms\r\n", deltaTimeUs / 1000.0);
 	}
 	timeNowUs += deltaTimeUs;
+}
+
+void EngineTestHelper::smartMoveTimeForwardSeconds(int deltaTimeSeconds) {
+	smartMoveTimeForwardUs(MS2US(1000 * deltaTimeSeconds));
 }
 
 /**

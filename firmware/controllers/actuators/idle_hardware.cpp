@@ -55,11 +55,6 @@ void applyIACposition(percent_t position DECLARE_ENGINE_PARAMETER_SUFFIX) {
 	float duty = PERCENT_TO_DUTY(position);
 
 	if (CONFIG(useETBforIdleControl)) {
-		if (!Sensor::hasSensor(SensorType::AcceleratorPedal)) {
-			firmwareError(CUSTOM_NO_ETB_FOR_IDLE, "No ETB to use for idle");
-			return;
-		}
-
 #if EFI_ELECTRONIC_THROTTLE_BODY
 		setEtbIdlePosition(position PASS_ENGINE_PARAMETER_SUFFIX);
 #endif // EFI_ELECTRONIC_THROTTLE_BODY
@@ -121,14 +116,10 @@ bool isIdleMotorBusy(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 
 void stopIdleHardware(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 #if EFI_PROD_CODE
-	brain_pin_markUnused(activeConfiguration.stepperEnablePin);
-	brain_pin_markUnused(activeConfiguration.idle.stepperStepPin);
-	brain_pin_markUnused(activeConfiguration.idle.solenoidPin);
-	brain_pin_markUnused(activeConfiguration.secondSolenoidPin);
-//	brain_pin_markUnused(activeConfiguration.idle.);
-//	brain_pin_markUnused(activeConfiguration.idle.);
-//	brain_pin_markUnused(activeConfiguration.idle.);
-//	brain_pin_markUnused(activeConfiguration.idle.);
+	efiSetPadUnused(activeConfiguration.stepperEnablePin);
+	efiSetPadUnused(activeConfiguration.idle.stepperStepPin);
+	efiSetPadUnused(activeConfiguration.idle.solenoidPin);
+	efiSetPadUnused(activeConfiguration.secondSolenoidPin);
 #endif /* EFI_PROD_CODE */
 }
 
@@ -168,21 +159,28 @@ void initIdleHardware(Logging* sharedLogger DECLARE_ENGINE_PARAMETER_SUFFIX) {
 
 		// This greatly improves PID accuracy for steppers with a small number of steps
 		idlePositionSensitivityThreshold = 1.0f / engineConfiguration->idleStepperTotalSteps;
-	} else if (!engineConfiguration->useETBforIdleControl) {
+	} else if (engineConfiguration->useETBforIdleControl || CONFIG(idle).solenoidPin == GPIO_UNASSIGNED) {
+		// here we do nothing for ETB idle and for no idle
+	} else {
+		// we are here for single or double solenoid idle
+
 		/**
 		 * Start PWM for idleValvePin
 		 */
 		// todo: even for double-solenoid mode we can probably use same single SimplePWM
 		// todo: open question why do we pass 'OutputPin' into 'startSimplePwmExt' if we have custom applyIdleSolenoidPinState listener anyway?
-		if (CONFIG(idle).solenoidPin != GPIO_UNASSIGNED) {
-			startSimplePwm(&idleSolenoidOpen, "Idle Valve Open",
-				&engine->executor,
-				&enginePins.idleSolenoidPin,
-				CONFIG(idle).solenoidFrequency, PERCENT_TO_DUTY(CONFIG(manIdlePosition)),
-				(pwm_gen_callback*)applyIdleSolenoidPinState);
-		}
+		startSimplePwm(&idleSolenoidOpen, "Idle Valve Open",
+			&engine->executor,
+			&enginePins.idleSolenoidPin,
+			CONFIG(idle).solenoidFrequency, PERCENT_TO_DUTY(CONFIG(manIdlePosition)),
+			(pwm_gen_callback*)applyIdleSolenoidPinState);
 
-		if (CONFIG(isDoubleSolenoidIdle) && CONFIG(secondSolenoidPin) != GPIO_UNASSIGNED) {
+		if (CONFIG(isDoubleSolenoidIdle)) {
+			if (CONFIG(secondSolenoidPin) == GPIO_UNASSIGNED) {
+				firmwareError(OBD_PCM_Processor_Fault, "Second idle pin should be configured for double solenoid mode.");
+				return;
+			}
+
 			startSimplePwm(&idleSolenoidClose, "Idle Valve Close",
 				&engine->executor,
 				&enginePins.secondIdleSolenoidPin,

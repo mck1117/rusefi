@@ -1,7 +1,7 @@
 #include "global.h"
 #include "rusefi_enums.h"
 #include "rusefi_hw_enums.h"
-// was generated automatically by rusEfi tool  from rusefi_hw_enums.h // was generated automatically by rusEfi tool  from rusefi_enums.h // by enum2string.jar tool on Wed Nov 11 04:12:23 UTC 2020
+// was generated automatically by rusEfi tool  from rusefi_hw_enums.h // was generated automatically by rusEfi tool  from rusefi_enums.h // by enum2string.jar tool on Mon Dec 14 23:31:45 EST 2020
 // see also gen_config_and_enums.bat
 
 
@@ -104,6 +104,8 @@ case EFI_ADC_9:
   return "EFI_ADC_9";
 case EFI_ADC_ERROR:
   return "EFI_ADC_ERROR";
+case EFI_ADC_LAST_CHANNEL:
+  return "EFI_ADC_LAST_CHANNEL";
 case EFI_ADC_NONE:
   return "EFI_ADC_NONE";
   }
@@ -677,8 +679,10 @@ case DBG_16:
   return "DBG_16";
 case DBG_34:
   return "DBG_34";
-case DBG_44:
-  return "DBG_44";
+case DBG_47:
+  return "DBG_47";
+case DBG_48:
+  return "DBG_48";
 case DBG_ALTERNATOR_PID:
   return "DBG_ALTERNATOR_PID";
 case DBG_ANALOG_INPUTS:
@@ -703,6 +707,8 @@ case DBG_CRANKING_DETAILS:
   return "DBG_CRANKING_DETAILS";
 case DBG_DWELL_METRIC:
   return "DBG_DWELL_METRIC";
+case DBG_DYNO_VIEW:
+  return "DBG_DYNO_VIEW";
 case DBG_ELECTRONIC_THROTTLE_EXTRA:
   return "DBG_ELECTRONIC_THROTTLE_EXTRA";
 case DBG_ELECTRONIC_THROTTLE_PID:
@@ -741,10 +747,14 @@ case DBG_KNOCK:
   return "DBG_KNOCK";
 case DBG_LAUNCH:
   return "DBG_LAUNCH";
+case DBG_LOGIC_ANALYZER:
+  return "DBG_LOGIC_ANALYZER";
 case DBG_MAP:
   return "DBG_MAP";
 case DBG_METRICS:
   return "DBG_METRICS";
+case DBG_RUSEFI_WIDEBAND:
+  return "DBG_RUSEFI_WIDEBAND";
 case DBG_SD_CARD:
   return "DBG_SD_CARD";
 case DBG_SR5_PROTOCOL:
@@ -806,8 +816,8 @@ const char *getEngine_load_mode_e(engine_load_mode_e value){
 switch(value) {
 case Force_4_bytes_size_engine_load_mode:
   return "Force_4_bytes_size_engine_load_mode";
-case LM_ALPHA_N_2:
-  return "LM_ALPHA_N_2";
+case LM_ALPHA_N:
+  return "LM_ALPHA_N";
 case LM_MOCK:
   return "LM_MOCK";
 case LM_REAL_MAF:
@@ -833,8 +843,6 @@ case BMW_M73_PROTEUS:
   return "BMW_M73_PROTEUS";
 case CAMARO_4:
   return "CAMARO_4";
-case CHEVY_C20_1973:
-  return "CHEVY_C20_1973";
 case CITROEN_TU3JP:
   return "CITROEN_TU3JP";
 case DEFAULT_FRANKENSO:
@@ -889,8 +897,6 @@ case MAZDA_MIATA_NB1:
   return "MAZDA_MIATA_NB1";
 case MIATA_1990:
   return "MIATA_1990";
-case MIATA_1994_DEVIATOR:
-  return "MIATA_1994_DEVIATOR";
 case MIATA_1996:
   return "MIATA_1996";
 case MIATA_NA6_MAP:
@@ -911,6 +917,10 @@ case MRE_BOARD_OLD_TEST:
   return "MRE_BOARD_OLD_TEST";
 case MRE_BODY_CONTROL:
   return "MRE_BODY_CONTROL";
+case MRE_M111:
+  return "MRE_M111";
+case MRE_MIATA_94_MAP:
+  return "MRE_MIATA_94_MAP";
 case MRE_MIATA_NA6_MAP:
   return "MRE_MIATA_NA6_MAP";
 case MRE_MIATA_NA6_VAF:
@@ -921,12 +931,16 @@ case MRE_MIATA_NB2_MAF:
   return "MRE_MIATA_NB2_MAF";
 case MRE_MIATA_NB2_MAP:
   return "MRE_MIATA_NB2_MAP";
+case MRE_SUBARU_EJ18:
+  return "MRE_SUBARU_EJ18";
 case NISSAN_PRIMERA:
   return "NISSAN_PRIMERA";
 case PROMETHEUS_DEFAULTS:
   return "PROMETHEUS_DEFAULTS";
 case PROTEUS:
   return "PROTEUS";
+case PROTEUS_MIATA_NB2:
+  return "PROTEUS_MIATA_NB2";
 case ROVER_V8:
   return "ROVER_V8";
 case SACHS:
@@ -1335,8 +1349,14 @@ case TT_36_2_2_2:
   return "TT_36_2_2_2";
 case TT_3_1_CAM:
   return "TT_3_1_CAM";
+case TT_52:
+  return "TT_52";
 case TT_60_2_VW:
   return "TT_60_2_VW";
+case TT_CHRYSLER_NGC_36_2_2:
+  return "TT_CHRYSLER_NGC_36_2_2";
+case TT_DAIHATSU:
+  return "TT_DAIHATSU";
 case TT_DODGE_NEON_1995:
   return "TT_DODGE_NEON_1995";
 case TT_DODGE_NEON_1995_ONLY_CRANK:
@@ -1353,6 +1373,8 @@ case TT_FIAT_IAW_P8:
   return "TT_FIAT_IAW_P8";
 case TT_FORD_ASPIRE:
   return "TT_FORD_ASPIRE";
+case TT_FORD_ST170:
+  return "TT_FORD_ST170";
 case TT_GM_7X:
   return "TT_GM_7X";
 case TT_GM_LS_24:
@@ -1369,8 +1391,6 @@ case TT_HONDA_ACCORD_1_24_SHIFTED:
   return "TT_HONDA_ACCORD_1_24_SHIFTED";
 case TT_HONDA_CBR_600:
   return "TT_HONDA_CBR_600";
-case TT_HONDA_CBR_600_CUSTOM:
-  return "TT_HONDA_CBR_600_CUSTOM";
 case TT_HONDA_K_12_1:
   return "TT_HONDA_K_12_1";
 case TT_JEEP_18_2_2_2:
@@ -1387,12 +1407,8 @@ case TT_MAZDA_MIATA_VVT_TEST:
   return "TT_MAZDA_MIATA_VVT_TEST";
 case TT_MAZDA_SOHC_4:
   return "TT_MAZDA_SOHC_4";
-case TT_MAZDA_Z5:
-  return "TT_MAZDA_Z5";
 case TT_MIATA_VVT:
   return "TT_MIATA_VVT";
-case TT_MINI_COOPER_R50:
-  return "TT_MINI_COOPER_R50";
 case TT_MITSUBISHI:
   return "TT_MITSUBISHI";
 case TT_NISSAN_SR20VE:
@@ -1411,6 +1427,8 @@ case TT_ROVER_K:
   return "TT_ROVER_K";
 case TT_SUBARU_7_6:
   return "TT_SUBARU_7_6";
+case TT_SUBARU_7_WITHOUT_6:
+  return "TT_SUBARU_7_WITHOUT_6";
 case TT_SUBARU_SVX:
   return "TT_SUBARU_SVX";
 case TT_TOOTHED_WHEEL:
@@ -1494,6 +1512,8 @@ case VVT_BOSCH_QUICK_START:
   return "VVT_BOSCH_QUICK_START";
 case VVT_FIRST_HALF:
   return "VVT_FIRST_HALF";
+case VVT_FORD_ST170:
+  return "VVT_FORD_ST170";
 case VVT_INACTIVE:
   return "VVT_INACTIVE";
 case VVT_SECOND_HALF:

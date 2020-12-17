@@ -23,6 +23,7 @@
 #include "yaw_rate_sensor.h"
 #include "pin_repository.h"
 #include "max31855.h"
+#include "logic_analyzer.h"
 #include "smart_gpio.h"
 #include "accelerometer.h"
 #include "eficonsole.h"
@@ -49,6 +50,7 @@
 #include "engine_configuration.h"
 #include "aux_pid.h"
 #include "perf_trace.h"
+#include "trigger_emulator_algo.h"
 #include "boost_control.h"
 #include "software_knock.h"
 #if EFI_MC33816
@@ -148,7 +150,10 @@ static Logging *sharedLogger;
 static int fastMapSampleIndex;
 static int hipSampleIndex;
 static int tpsSampleIndex;
+
+#if HAL_TRIGGER_USE_ADC
 static int triggerSampleIndex;
+#endif
 
 #if HAL_USE_ADC
 extern AdcDevice fastAdc;
@@ -288,9 +293,9 @@ void stopSpi(spi_device_e device) {
 		return; // not turned on
 	}
 	isSpiInitialized[device] = false;
-	brain_pin_markUnused(getSckPin(device));
-	brain_pin_markUnused(getMisoPin(device));
-	brain_pin_markUnused(getMosiPin(device));
+	efiSetPadUnused(getSckPin(device));
+	efiSetPadUnused(getMisoPin(device));
+	efiSetPadUnused(getMosiPin(device));
 #endif /* HAL_USE_SPI */
 }
 
@@ -300,8 +305,14 @@ void stopSpi(spi_device_e device) {
  */
 
 void applyNewHardwareSettings(void) {
-    // all 'stop' methods need to go before we begin starting pins
-
+    /**
+     * All 'stop' methods need to go before we begin starting pins.
+     *
+     * We take settings from 'activeConfiguration' not 'engineConfiguration' while stopping hardware.
+     * Some hardware is restart unconditionally on change of parameters while for some systems we make extra effort and restart only
+     * relevant settings were changes.
+     *
+     */
 	ButtonDebounce::stopConfigurationList();
 
 #if EFI_SHAFT_POSITION_INPUT
@@ -340,6 +351,14 @@ void applyNewHardwareSettings(void) {
 	stopVSSPins();
 #endif /* EFI_VEHICLE_SPEED */
 
+#if EFI_LOGIC_ANALYZER
+	stopLogicAnalyzerPins();
+#endif /* EFI_LOGIC_ANALYZER */
+
+#if EFI_EMULATE_POSITION_SENSORS
+	stopTriggerEmulatorPins();
+#endif /* EFI_EMULATE_POSITION_SENSORS */
+
 #if EFI_AUX_PID
 	stopAuxPins();
 #endif /* EFI_AUX_PID */
@@ -368,7 +387,7 @@ void applyNewHardwareSettings(void) {
 	stopBoostPin();
 #endif
 	if (isPinOrModeChanged(clutchUpPin, clutchUpPinMode)) {
-		brain_pin_markUnused(activeConfiguration.clutchUpPin);
+		efiSetPadUnused(activeConfiguration.clutchUpPin);
 	}
 
 	enginePins.unregisterPins();
@@ -417,6 +436,12 @@ void applyNewHardwareSettings(void) {
 #if EFI_BOOST_CONTROL
 	startBoostPin();
 #endif
+#if EFI_EMULATE_POSITION_SENSORS
+	startTriggerEmulatorPins();
+#endif /* EFI_EMULATE_POSITION_SENSORS */
+#if EFI_LOGIC_ANALYZER
+	startLogicAnalyzerPins();
+#endif /* EFI_LOGIC_ANALYZER */
 #if EFI_AUX_PID
 	startAuxPins();
 #endif /* EFI_AUX_PID */
@@ -466,9 +491,9 @@ void initHardware(Logging *l) {
 
 #ifdef CONFIG_RESET_SWITCH_PORT
 // this pin is not configurable at runtime so that we have a reliable way to reset configuration
-#define SHOULD_INGORE_FLASH() (palReadPad(CONFIG_RESET_SWITCH_PORT, CONFIG_RESET_SWITCH_PIN) == 0)
+#define SHOULD_IGNORE_FLASH() (palReadPad(CONFIG_RESET_SWITCH_PORT, CONFIG_RESET_SWITCH_PIN) == 0)
 #else
-#define SHOULD_INGORE_FLASH() (false)
+#define SHOULD_IGNORE_FLASH() (false)
 #endif // CONFIG_RESET_SWITCH_PORT
 
 #ifdef CONFIG_RESET_SWITCH_PORT
@@ -482,7 +507,7 @@ void initHardware(Logging *l) {
 	 *
 	 * interesting fact that we have another read from flash before we get here
 	 */
-	if (SHOULD_INGORE_FLASH()) {
+	if (SHOULD_IGNORE_FLASH()) {
 		engineConfiguration->engineType = DEFAULT_ENGINE_TYPE;
 		resetConfigurationExt(sharedLogger, engineConfiguration->engineType PASS_ENGINE_PARAMETER_SUFFIX);
 		writeToFlashNow();
@@ -534,11 +559,10 @@ void initHardware(Logging *l) {
 
 	// output pins potentially depend on 'initSmartGpio'
 	initOutputPins(PASS_ENGINE_PARAMETER_SIGNATURE);
-#if EFI_PROD_CODE && EFI_ENGINE_CONTROL
-	enginePins.startPins();
 
-#endif /* EFI_PROD_CODE && EFI_ENGINE_CONTROL */
-
+#if EFI_ENGINE_CONTROL
+	enginePins.startPins(PASS_ENGINE_PARAMETER_SIGNATURE);
+#endif /* EFI_ENGINE_CONTROL */
 
 #if EFI_MC33816
 	initMc33816(sharedLogger);
