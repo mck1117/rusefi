@@ -16,6 +16,7 @@ Custom: 'custom';
 Datatype: (('S'|'U')('08'|'16'|'32')) | 'F32';
 Iterate: 'iterate';
 Bits: 'bits';
+Bit: 'bit';
 Array: 'array';
 Scalar: 'scalar';
 
@@ -28,7 +29,6 @@ String: [a-zA-Z_0-9@*]+;
 // match a quote, then anything not a quote, then another quote
 QuotedString: '"' ~'"'* '"';
 
-
 integer: IntegerChars;
 
 identifier: IdentifierChars;
@@ -39,14 +39,22 @@ struct: (Struct | StructNoPrefix) identifier ENDL statements EndStruct;
 
 fieldOption
     : ('min' | 'max' | 'scale' | 'offset' | 'digits') ':' integer
-    | ('unit' | 'comment') ':' definitionRhs
+    | ('unit' | 'comment') ':' QuotedString
     ;
 
 fieldOptionsList
     : '(' fieldOption (',' fieldOption)* ')'
     ;
 
-field: identifier identifier (fieldOptionsList)?;
+scalarField: identifier identifier (fieldOptionsList)?;
+arrayField: identifier '[' definitionRhs Iterate? ']' identifier (fieldOptionsList)?;
+bitField: Bit identifier
+
+field
+    : scalarField
+    | arrayField
+    | bitField
+    ;
 
 // Indicates X bytes of free space
 unusedField: Unused integer;
@@ -78,6 +86,5 @@ statement
 statements
     : (statement ENDL+)+
     ;
-
 
 content: rootStatements EOF;
