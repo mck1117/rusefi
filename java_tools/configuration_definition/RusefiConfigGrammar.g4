@@ -1,4 +1,4 @@
-grammar rusefigrammar;
+grammar RusefiConfigGrammar;
 
 @header {
 	package com.rusefi.generated;
