@@ -1,9 +1,5 @@
 grammar rusefigrammar;
 
-@header {
-	package com.rusefi.generated;
-}
-
 // ...be generous in line endings...
 ENDL: ('\n' | '\r\n' | '\r');
 
