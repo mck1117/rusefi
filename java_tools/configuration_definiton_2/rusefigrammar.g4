@@ -1,70 +1,83 @@
-
-
 grammar rusefigrammar;
 
-rusefiConfig : statement* EOF
-	;
+// ...be generous in line endings...
+ENDL: ('\n' | '\r\n' | '\r');
 
-struct
-	: structStart '{' statement* '}'
-	;
+LINE_COMMENT: '!' ~[\r\n]* -> skip;
+WS: [ \t]+ -> skip ;
 
-structStart
-	: 'struct'
-	| 'struct_no_prefix'
-	;
+// Special tokens need highest priority
+Struct: 'struct';
+StructNoPrefix: 'struct_no_prefix';
+EndStruct: 'end_struct';
+Definition: '#define';
+Unused: 'unused';
+Custom: 'custom';
+Datatype: (('S'|'U')('08'|'16'|'32')) | 'F32';
+Iterate: 'iterate';
+Bits: 'bits';
+Array: 'array';
+Scalar: 'scalar';
 
-identifier
-	: '[A-Za-z0-9]+'
-	;
+IntegerChars: [-]?[0-9]+;
 
-integer
-	: '[-]?[0-9]+'
-	;
+IdentifierChars : [a-zA-Z_]([a-zA-Z0-9_]*);
 
-float
-	: '[-]?([0-9]*[.])?[0-9]+'
-	;
+String: [a-zA-Z_0-9@*]+;
 
-string
-	: '[A-Za-z0-9\'_@\.\" ]+'
-	;
+// match a quote, then anything not a quote, then another quote
+QuotedString: '"' ~'"'* '"';
 
-newline
-	: '\r'? '\n'
-	;
 
-comment
-	: '!.*'
-	;
+integer: IntegerChars;
 
-definition
-	: '#define' identifier string
-	;
+identifier: IdentifierChars;
 
-// todo fixme
-declaration
-	: 'custom' identifier string 
-	;
+definitionRhs: IntegerChars | IdentifierChars | String | QuotedString;
+definition: Definition identifier definitionRhs (',' definitionRhs)*;
+struct: (Struct | StructNoPrefix) identifier ENDL statements EndStruct;
 
-statementLine
-	: statement newline
-	| statement comment newline
-	| comment newline
-	;
+fieldOption
+    : ('min' | 'max' | 'scale' | 'offset' | 'digits') ':' integer
+    | ('unit' | 'comment') ':' definitionRhs
+    ;
 
-scalarField
-	: identifier identifier ';' string ';' '"' string '"' float ',' float ',' float ',' float ',' float
-	;
+fieldOptionsList
+    : '(' fieldOption (',' fieldOption)* ')'
+    ;
 
-arrayField
-	: identifier '[' string string? ']' identifier
-	;
+field: identifier identifier (fieldOptionsList)?;
 
+// Indicates X bytes of free space
+unusedField: Unused integer;
+
+bitsTypedefSuffix: definitionRhs Bits ',' Datatype ',' '@OFFSET@' ',' '[' integer ':' integer ']' ',' definitionRhs  ;
+scalarTypedefSuffix: definitionRhs Scalar ',' Datatype ',' '@OFFSET@' fieldOptionsList ;
+arrayTypedefSuffix: definitionRhs Array ',' Datatype ',' '@OFFSET@' ',' '[' definitionRhs ']' fieldOptionsList;
+
+typedef: Custom identifier (bitsTypedefSuffix | scalarTypedefSuffix | arrayTypedefSuffix);
+
+// Root statement is allowed to appear in the root of the file
+rootStatement
+    : definition
+    | struct
+    | typedef
+    ;
+
+rootStatements
+    : (rootStatement ENDL+)*
+    ;
+
+// Statements are allowed to appear inside a struct
 statement
-	: definition
-	| declaration
-	| scalarField
-	| arrayField
-	| struct
-	;
+    : rootStatement
+    | field
+    | unusedField
+    ;
+
+statements
+    : (statement ENDL+)+
+    ;
+
+
+content: rootStatements EOF;
