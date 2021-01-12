@@ -52,7 +52,7 @@ fieldOptionsList
 
 scalarField: identifier identifier (fieldOptionsList)?;
 arrayField: identifier '[' definitionRhs Iterate? ']' identifier (fieldOptionsList)?;
-bitField: Bit identifier;
+bitField: Bit identifier ('(' 'comment' ':' QuotedString ')')?;
 
 field
     : scalarField
