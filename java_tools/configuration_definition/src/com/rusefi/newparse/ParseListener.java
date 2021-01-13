@@ -23,10 +23,6 @@ public class ParseListener extends RusefiConfigGrammarBaseListener {
         return ctx.definitionRhs().stream().map(d -> d.getText()).collect(Collectors.joining(", "));
     }
 
-    void decodeFieldOptions(FieldOptions options, List<RusefiConfigGrammarParser.FieldOptionContext> ctx) {
-
-    }
-
     @Override
     public void enterDefinition(RusefiConfigGrammarParser.DefinitionContext ctx) {
         String name = ctx.identifier().getText();
