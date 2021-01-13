@@ -71,7 +71,7 @@ public class ParseListener extends RusefiConfigGrammarBaseListener {
 
     @Override
     public void enterArrayTypedefSuffix(RusefiConfigGrammarParser.ArrayTypedefSuffixContext ctx) {
-        String arrayLength = ctx.arrayLengthSpec().getText();
+        String arrayLength = ctx.arrayLengthSpec(1).getText();
 
         Type datatype = Type.findByTsType(ctx.Datatype().getText());
 
@@ -99,12 +99,12 @@ public class ParseListener extends RusefiConfigGrammarBaseListener {
         }
 
         // this is a legacy field option list, parse it as such
-        if (!ctx.floatNum().isEmpty()) {
+        if (!ctx.numexpr().isEmpty()) {
             options.units = ctx.QuotedString().getText();
-            options.scale = Float.parseFloat(ctx.floatNum(0).getText());
-            options.offset = Float.parseFloat(ctx.floatNum(1).getText());
-            options.min = Float.parseFloat(ctx.floatNum(2).getText());
-            options.max = Float.parseFloat(ctx.floatNum(3).getText());
+            options.scale = Float.parseFloat(ctx.numexpr(0).getText());
+            options.offset = Float.parseFloat(ctx.numexpr(1).getText());
+            options.min = Float.parseFloat(ctx.numexpr(2).getText());
+            options.max = Float.parseFloat(ctx.numexpr(3).getText());
             options.digits = Integer.parseInt(ctx.integer().getText());
             return;
         }
