@@ -1,9 +1,22 @@
 package com.rusefi;
 
+import com.rusefi.generated.RusefiConfigGrammarLexer;
+import com.rusefi.generated.RusefiConfigGrammarParser;
+import com.rusefi.newparse.ParseListener;
+import com.rusefi.newparse.layout.StructLayout;
+import com.rusefi.newparse.layout.StructNamePrefixer;
+import com.rusefi.newparse.parsing.Struct;
 import com.rusefi.output.*;
 import com.rusefi.util.IoUtils;
 import com.rusefi.util.LazyFile;
 import com.rusefi.util.SystemOut;
+import org.antlr.v4.runtime.ANTLRInputStream;
+import org.antlr.v4.runtime.CharStream;
+import org.antlr.v4.runtime.CommonTokenStream;
+import org.antlr.v4.runtime.TokenStream;
+import org.antlr.v4.runtime.tree.ParseTree;
+import org.antlr.v4.runtime.tree.ParseTreeWalker;
+//import com.rusefi.generated.*;
 
 import java.io.*;
 import java.math.BigInteger;
@@ -55,7 +68,22 @@ public class ConfigDefinition {
         return LazyFile.LAZY_FILE_TAG + "ConfigDefinition.jar based on " + TOOL + " ";
     }
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws FileNotFoundException, IOException {
+        CharStream in = new ANTLRInputStream(new FileReader("/home/matthew/source/rusefi/grammar_test.txt"));
+        RusefiConfigGrammarLexer lexer = new RusefiConfigGrammarLexer(in);
+        TokenStream tokens = new CommonTokenStream(lexer);
+        RusefiConfigGrammarParser parser = new RusefiConfigGrammarParser(tokens);
+        ParseTree tree = parser.content();
+        ParseTreeWalker walker = new ParseTreeWalker();
+        ParseListener listener = new ParseListener();
+        walker.walk(listener, tree);
+
+
+        Struct lastStruct = listener.getLastStruct();
+        StructLayout layout = new StructLayout(0, "root", lastStruct);
+
+        layout.writeTunerstudioLayout(System.out, new StructNamePrefixer());
+
         try {
             doJob(args);
         } catch (Throwable e) {
