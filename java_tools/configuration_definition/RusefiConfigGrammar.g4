@@ -23,26 +23,29 @@ Bits: 'bits';
 Bit: 'bit';
 Array: 'array';
 Scalar: 'scalar';
+FsioVisible: 'fsio_visible';
 
 IntegerChars: [-]?[0-9]+;
 
 IdentifierChars : [a-zA-Z_]([a-zA-Z0-9_]*);
 
-String: [a-zA-Z_0-9@*]+;
+String: [a-zA-Z_0-9@*\.]+;
 
 // match a quote, then anything not a quote, then another quote
 QuotedString: '"' ~'"'* '"';
 
 integer: IntegerChars;
 
-identifier: IdentifierChars;
+identifier: IdentifierChars | 'offset';
 
 definitionRhs: IntegerChars | IdentifierChars | String | QuotedString;
-definition: Definition identifier definitionRhs (',' definitionRhs)*;
-struct: (Struct | StructNoPrefix) identifier ENDL statements EndStruct;
+definitionRhsMult: definitionRhs (',' definitionRhs)*;
+definition: Definition identifier definitionRhsMult;
+struct: (Struct | StructNoPrefix) identifier ENDL+ statements EndStruct;
 
 fieldOption
-    : ('min' | 'max' | 'scale' | 'offset' | 'digits') ':' integer
+    : ('min' | 'max' | 'scale' | 'offset' | ) ':' integer
+    | 'digits' ':' integer
     | ('unit' | 'comment') ':' QuotedString
     ;
 
@@ -50,8 +53,10 @@ fieldOptionsList
     : '(' fieldOption (',' fieldOption)* ')'
     ;
 
-scalarField: identifier identifier (fieldOptionsList)?;
-arrayField: identifier '[' definitionRhs Iterate? ']' identifier (fieldOptionsList)?;
+arrayLengthSpec: definitionRhs;
+
+scalarField: identifier FsioVisible? identifier (fieldOptionsList)?;
+arrayField: identifier '[' arrayLengthSpec Iterate? ']' identifier (fieldOptionsList)?;
 bitField: Bit identifier ('(' 'comment' ':' QuotedString ')')?;
 
 field
@@ -63,15 +68,16 @@ field
 // Indicates X bytes of free space
 unusedField: Unused integer;
 
-bitsTypedefSuffix: definitionRhs Bits ',' Datatype ',' '@OFFSET@' ',' '[' integer ':' integer ']' ',' definitionRhs  ;
-scalarTypedefSuffix: definitionRhs Scalar ',' Datatype ',' '@OFFSET@' fieldOptionsList ;
-arrayTypedefSuffix: definitionRhs Array ',' Datatype ',' '@OFFSET@' ',' '[' definitionRhs ']' fieldOptionsList;
+enumTypedefSuffix: /*ignored*/integer Bits ',' Datatype ',' '@OFFSET@' ',' '[' integer ':' integer ']' ',' definitionRhsMult ;
+scalarTypedefSuffix: /*ignored*/integer Scalar ',' Datatype ',' '@OFFSET@' fieldOptionsList ;
+arrayTypedefSuffix: /*ignored*/definitionRhs Array ',' Datatype ',' '@OFFSET@' ',' '[' arrayLengthSpec ']' fieldOptionsList;
 
-typedef: Custom identifier (bitsTypedefSuffix | scalarTypedefSuffix | arrayTypedefSuffix);
+typedef: Custom identifier (enumTypedefSuffix | scalarTypedefSuffix | arrayTypedefSuffix);
 
 // Root statement is allowed to appear in the root of the file
 rootStatement
-    : definition
+    : ENDL
+    | definition
     | struct
     | typedef
     ;
