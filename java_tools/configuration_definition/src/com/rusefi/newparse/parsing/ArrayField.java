@@ -1,6 +1,6 @@
 package com.rusefi.newparse.parsing;
 
-public class ArrayField<PrototypeType> implements Field {
+public class ArrayField<PrototypeType extends PrototypeField> implements Field {
     public final int length;
     public final Boolean iterate;
     public final PrototypeType prototype;

@@ -49,45 +49,26 @@ public class StructLayout extends Layout {
         int initialOffest = offset;
 
         for (Field f : parsedStruct.fields) {
-            Layout l = null;
+            if (f instanceof ArrayField) {
+                ArrayField asf = (ArrayField)f;
 
-            if (f instanceof StructField) {
-                // Special case for structs - we have to compute base offset first
-                StructField sf = (StructField) f;
+                if (asf.iterate) {
 
-                offset = addStruct(offset, sf.struct, sf.name);
-            } /*else if (f instanceof ArrayStructField) {
-                ArrayStructField asf = (ArrayStructField)f;
+                    // TODO: this only works for TS, not c where we need it to stay an array
+                    for (int i = 0; i < asf.length; i++) {
+                        offset = addItem(offset, asf.prototype);
+                        //offset = addStruct(offset, asf.struct, asf.name + (i + 1));
+                    }
+                } else /* !iterate */ {
+                    // If not a scalar, you must iterate
+                    assert(asf.prototype instanceof ScalarField);
 
-                // TODO: is it valid to have an array of structs without 'iterate' specified?
-                assert(asf.iterate);
+                    ScalarField prototype = (ScalarField)asf.prototype;
 
-                // TODO: this only works for TS, not c where we need it to stay an array
-                for (int i = 0; i < asf.length; i++) {
-                    offset = addStruct(offset, asf.struct, asf.name + (i + 1));
+                    offset = addItem(offset, new ArrayLayout(prototype, asf.length));
                 }
-            }*/ else {
-                if (f instanceof ScalarField) {
-                    l = new ScalarLayout((ScalarField)f);
-                } else if (f instanceof ArrayField) {
-                    l = new ArrayLayout((ArrayField)f);
-                } else if (f instanceof EnumField) {
-                    l = new EnumLayout((EnumField)f);
-                } else if (f instanceof UnusedField) {
-                    l = new UnusedLayout((UnusedField) f);
-                } else {
-                    // TODO: throw
-                }
-
-                // Slide the offset up by the size of this element
-                int elementSize = l.getSize();
-                offset = padOffsetWithUnused(offset, elementSize);
-
-                // place the element
-                l.setOffset(offset);
-                children.add(l);
-
-                offset += elementSize;
+            } else {
+                offset = addItem(offset, f);
             }
         }
 
@@ -95,6 +76,44 @@ public class StructLayout extends Layout {
         offset = padOffsetWithUnused(offset, 4);
 
         size = offset - initialOffest;
+    }
+
+    private int addItem(int offset, Field f) {
+        if (f instanceof StructField) {
+            // Special case for structs - we have to compute base offset first
+            StructField sf = (StructField) f;
+
+            return addStruct(offset, sf.struct, sf.name);
+        }
+
+        Layout l = null;
+        if (f instanceof ScalarField) {
+            l = new ScalarLayout((ScalarField)f);
+        } else if (f instanceof EnumField) {
+            l = new EnumLayout((EnumField)f);
+        } else if (f instanceof UnusedField) {
+            l = new UnusedLayout((UnusedField) f);
+        } else if (f instanceof BitGroup) {
+            l = new BitGroupLayout((BitGroup) f);
+        } else if (f instanceof StringField) {
+            l = new StringLayout((StringField) f);
+        } else {
+            throw new RuntimeException("unexpected field type during layout");
+            // TODO: throw
+        }
+
+        return addItem(offset, l);
+    }
+
+    private int addItem(int offset, Layout l) {
+        // Slide the offset up by the required alignment of this element
+        offset = padOffsetWithUnused(offset, l.getAlignment());
+
+        // place the element
+        l.setOffset(offset);
+        children.add(l);
+
+        return offset + l.getSize();
     }
 
     private int addStruct(int offset, Struct struct, String name) {

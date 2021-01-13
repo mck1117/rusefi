@@ -1,27 +1,38 @@
 package com.rusefi.newparse.layout;
 
-import com.rusefi.newparse.parsing.ArrayField;
 import com.rusefi.newparse.parsing.FieldOptions;
+import com.rusefi.newparse.parsing.ScalarField;
 import com.rusefi.newparse.parsing.Type;
 
 import java.io.PrintStream;
 
 public class ArrayLayout extends Layout {
-    public final Type type;
-    public final String name;
-    public final int length;
-    public final FieldOptions options;
+    private String name;
+    private Type type;
+    private FieldOptions options;
+    private int length;
 
-    public ArrayLayout(ArrayField<?> field) {
-        this.type = Type.U08; //field.type;
-        this.name = "";// field.name;
-        this.options = new FieldOptions(); //field.options;
-        this.length = field.length;
+    public ArrayLayout(ScalarField prototype, int length) {
+        this.name = prototype.name;
+        this.options = prototype.options;
+        this.type = prototype.type;
+        this.length = length;
     }
 
     @Override
     public int getSize() {
-        return type.size;
+        return this.type.size * this.length;
+    }
+
+    @Override
+    public int getAlignment() {
+        // Arrays only need to be aligned on the size of the element, not the size of the array
+        return this.type.size;
+    }
+
+    @Override
+    public String toString() {
+        return "Scalar " + type.cType + " " + super.toString();
     }
 
     @Override
@@ -32,7 +43,7 @@ public class ArrayLayout extends Layout {
         ps.print(", ");
         ps.print(this.offset);
         ps.print(", ");
-        ps.print("[" + this.length + "]");
+        ps.print(this.length);
         ps.print(", ");
 
         options.printTsFormat(ps);

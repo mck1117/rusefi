@@ -6,6 +6,10 @@ public abstract class Layout {
     public int offset = -1;
 
     public abstract int getSize();
+    public int getAlignment() {
+        // Default to size
+        return this.getSize();
+    }
 
     public void setOffset(int offset) {
         this.offset = offset;

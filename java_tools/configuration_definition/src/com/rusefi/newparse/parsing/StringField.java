@@ -1,11 +1,11 @@
 package com.rusefi.newparse.parsing;
 
-public class StringField implements Field{
-    public final String name;
+public class StringField extends PrototypeField{
     public final int size;
 
     public StringField(String name, int size) {
-        this.name = name;
+        super(name);
+
         this.size = size;
     }
 }
