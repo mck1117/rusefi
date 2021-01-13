@@ -8,7 +8,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 public class ParseListener extends RusefiConfigGrammarBaseListener {
-    List<Definition> definitions = new ArrayList<>();
+    Map<String, Definition> definitions = new HashMap<>();
     Map<String, Struct> structs = new HashMap<>();
     Map<String, Typedef> typedefs = new HashMap<>();
 
@@ -29,7 +29,7 @@ public class ParseListener extends RusefiConfigGrammarBaseListener {
         // glue the list of definitions back together
         String value = mergeDefinitionRhsMult(ctx.definitionRhsMult());
 
-        definitions.add(new Definition(name, value));
+        definitions.put(name, new Definition(name, value));
     }
 
     String typedefName = null;
@@ -88,6 +88,12 @@ public class ParseListener extends RusefiConfigGrammarBaseListener {
         scope = new Scope();
     }
 
+    String decodeIdentifierReplacement(RusefiConfigGrammarParser.ReplacementIdentContext ctx) {
+        String defineName = ctx.IdentifierChars() != null ? ctx.IdentifierChars().getText() : ctx.identifier().IdentifierChars().getText();
+
+        return definitions.get(defineName).value;
+    }
+
     void handleFieldOptionsList(FieldOptions options, RusefiConfigGrammarParser.FieldOptionsListContext ctx) {
         // Null means no options were configured, use defaults
         if (ctx == null) {
@@ -97,32 +103,43 @@ public class ParseListener extends RusefiConfigGrammarBaseListener {
         // this is a legacy field option list, parse it as such
         if (!ctx.numexpr().isEmpty()) {
             options.units = ctx.QuotedString().getText();
-            options.scale = Float.parseFloat(ctx.numexpr(0).getText());
-            options.offset = Float.parseFloat(ctx.numexpr(1).getText());
-            options.min = Float.parseFloat(ctx.numexpr(2).getText());
-            options.max = Float.parseFloat(ctx.numexpr(3).getText());
+            options.scale = evalResults.pop();
+            options.offset = evalResults.pop();
+            options.min = evalResults.pop();
+            options.max = evalResults.pop();
             options.digits = Integer.parseInt(ctx.integer().getText());
             return;
         }
 
         for (RusefiConfigGrammarParser.FieldOptionContext fo : ctx.fieldOption()) {
             String key = fo.getChild(0).getText();
-            String value = fo.getChild(2).getText();
 
-            switch (key) {
-                case "min": options.min = Integer.parseInt(value); break;
-                case "max": options.max = Integer.parseInt(value); break;
-                case "scale": options.scale = Float.parseFloat(value); break;
-                case "offset": options.offset = Float.parseFloat(value); break;
-                case "digits": options.digits = Integer.parseInt(value); break;
-                case "unit": options.units = value; break;
-                case "comment": options.comment = value; break;
+            String sValue = fo.getChild(2).getText();
+
+            if (key.equals("unit")) {
+                options.units = sValue;
+            } else if (key.equals("comment")) {
+                options.comment = sValue;
+            } else if (key.equals("digits")) {
+                options.digits = Integer.parseInt(sValue);
+            } else {
+                Float value = evalResults.pop();
+
+                switch (key) {
+                    case "min": options.min = value; break;
+                    case "max": options.max = value; break;
+                    case "scale": options.scale = value; break;
+                    case "offset": options.offset = value; break;
+                }
             }
         }
+
+        // we should have consumed everything on the results list
+        assert(evalResults.size() == 0);
     }
 
     @Override
-    public void enterScalarField(RusefiConfigGrammarParser.ScalarFieldContext ctx) {
+    public void exitScalarField(RusefiConfigGrammarParser.ScalarFieldContext ctx) {
         String type = ctx.identifier(0).getText();
         String name = ctx.identifier(1).getText();
 
@@ -259,5 +276,62 @@ public class ParseListener extends RusefiConfigGrammarBaseListener {
         } else {
             scope = scopes.pop();
         }
+    }
+
+    private Stack<Float> evalStack = new Stack<>();
+
+
+    @Override
+    public void exitEvalNumber(RusefiConfigGrammarParser.EvalNumberContext ctx) {
+        evalStack.push(Float.parseFloat(ctx.floatNum().getText()));
+    }
+
+    @Override
+    public void exitEvalMul(RusefiConfigGrammarParser.EvalMulContext ctx) {
+        Float right = evalStack.pop();
+        Float left = evalStack.pop();
+
+        System.out.println(left + " * " + right);
+
+        evalStack.push(left * right);
+    }
+
+    @Override
+    public void exitEvalDiv(RusefiConfigGrammarParser.EvalDivContext ctx) {
+        Float right = evalStack.pop();
+        Float left = evalStack.pop();
+
+        System.out.println(left + " * " + right);
+
+        evalStack.push(left / right);
+    }
+
+    @Override
+    public void exitEvalAdd(RusefiConfigGrammarParser.EvalAddContext ctx) {
+        Float right = evalStack.pop();
+        Float left = evalStack.pop();
+
+        System.out.println(left + " + " + right);
+
+        evalStack.push(left + right);
+    }
+
+    @Override
+    public void exitEvalSub(RusefiConfigGrammarParser.EvalSubContext ctx) {
+        Float right = evalStack.pop();
+        Float left = evalStack.pop();
+
+        System.out.println(left + " - " + right);
+
+        evalStack.push(left - right);
+    }
+
+    private Deque<Float> evalResults = new LinkedList<>();
+
+    @Override
+    public void exitNumexpr(RusefiConfigGrammarParser.NumexprContext ctx) {
+        assert(evalStack.size() == 1);
+
+        evalResults.push(evalStack.pop());
     }
 }

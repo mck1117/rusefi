@@ -52,11 +52,13 @@ integer: IntegerChars;
 floatNum: FloatChars | IntegerChars;
 
 expr
-    : expr op=(MUL | DIV) expr
-    | expr op=(ADD | SUB) expr
-    | floatNum
-    | replacementIdent
-    | '{' expr '}'
+    : floatNum			# EvalNumber
+    | '{' expr '}'		# EvalParens
+    | expr MUL expr		# EvalMul
+	| expr DIV expr		# EvalDiv
+	| expr ADD expr		# EvalAdd
+	| expr SUB expr		# EvalSub
+    | replacementIdent	# EvalReplacement
     ;
 
 numexpr: expr;
