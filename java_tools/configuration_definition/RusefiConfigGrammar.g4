@@ -26,15 +26,17 @@ Scalar: 'scalar';
 FsioVisible: 'fsio_visible';
 
 IntegerChars: [-]?[0-9]+;
+FloatChars: IntegerChars [.] ([0-9]+)?;
 
 IdentifierChars : [a-zA-Z_]([a-zA-Z0-9_]*);
 
-String: [a-zA-Z_0-9@*\.]+;
+String: [a-zA-Z_0-9@*.]+;
 
 // match a quote, then anything not a quote, then another quote
 QuotedString: '"' ~'"'* '"';
 
 integer: IntegerChars;
+float: FloatChars | IntegerChars;
 
 identifier: IdentifierChars | 'offset';
 
@@ -44,7 +46,7 @@ definition: Definition identifier definitionRhsMult;
 struct: (Struct | StructNoPrefix) identifier ENDL+ statements EndStruct;
 
 fieldOption
-    : ('min' | 'max' | 'scale' | 'offset' | ) ':' integer
+    : ('min' | 'max' | 'scale' | 'offset' | ) ':' float
     | 'digits' ':' integer
     | ('unit' | 'comment') ':' QuotedString
     ;
