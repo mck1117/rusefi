@@ -125,7 +125,7 @@ rootStatements
 // Statements are allowed to appear inside a struct
 statement
     : rootStatement
-    | field /* tolerate trailing semicolon */ (';')
+    | field /* tolerate trailing semicolon */ (';')?
     | unusedField
     ;
 
