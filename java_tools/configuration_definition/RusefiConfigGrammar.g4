@@ -65,7 +65,7 @@ numexpr: expr;
 
 identifier: IdentifierChars | 'offset' | 'ArrayDimension';
 
-definitionRhs: identifier | floatNum | String | QuotedString;
+definitionRhs: identifier | numexpr | String | QuotedString;
 definitionRhsMult: definitionRhs (',' definitionRhs)*;
 definition: Definition identifier definitionRhsMult;
 struct: (Struct | StructNoPrefix) identifier ENDL+ statements EndStruct;
