@@ -25,38 +25,69 @@ Array: 'array';
 Scalar: 'scalar';
 FsioVisible: 'fsio_visible';
 
+ArrayDimensionSeparator: 'x';
+
+MUL: '*';
+DIV: '/';
+ADD: '+';
+SUB: '-';
+
 IntegerChars: [-]?[0-9]+;
 FloatChars: IntegerChars [.] ([0-9]+)?;
 
 IdentifierChars : [a-zA-Z_]([a-zA-Z0-9_]*);
 
-String: [a-zA-Z_0-9@*.]+;
+// @a = escaped '@'
+replacementIdent: '@@' IdentifierChars '@@';
+
+String: [a-zA-Z_0-9.]+;
 
 // match a quote, then anything not a quote, then another quote
 QuotedString: '"' ~'"'* '"';
 
+// legacy, remove me!
+SemicolonedString: ';' ~';'* ';';
+
 integer: IntegerChars;
 floatNum: FloatChars | IntegerChars;
 
-identifier: IdentifierChars | 'offset';
+numexpr
+    : exprMult ADD numexpr
+    | exprMult SUB numexpr
+    | exprMult
+    ;
 
-definitionRhs: IntegerChars | FloatChars | IdentifierChars | String | QuotedString;
+exprMult
+    : exprAtom MUL exprMult
+    | exprAtom DIV exprMult
+    | exprAtom
+    ;
+
+exprAtom
+    : '{' numexpr '}'
+    | replacementIdent
+    | floatNum
+    ;
+
+identifier: IdentifierChars | 'offset' | 'ArrayDimension';
+
+definitionRhs: identifier | numexpr | String | QuotedString;
 definitionRhsMult: definitionRhs (',' definitionRhs)*;
 definition: Definition identifier definitionRhsMult;
 struct: (Struct | StructNoPrefix) identifier ENDL+ statements EndStruct;
 
 fieldOption
-    : ('min' | 'max' | 'scale' | 'offset' | ) ':' floatNum
+    : ('min' | 'max' | 'scale' | 'offset' | ) ':' numexpr
     | 'digits' ':' integer
     | ('unit' | 'comment') ':' QuotedString
     ;
 
 fieldOptionsList
     : '(' fieldOption (',' fieldOption)* ')'
-    | /* legacy! */ ',' QuotedString ',' floatNum ',' floatNum ',' floatNum ',' floatNum ',' /*digits =*/integer
+    | /* legacy! */ (',' | SemicolonedString)  QuotedString ',' numexpr ',' numexpr ',' numexpr ',' numexpr ',' /*digits =*/integer
     ;
 
-arrayLengthSpec: definitionRhs;
+arrayLengthSpec: numexpr (ArrayDimensionSeparator numexpr);
 
 scalarField: identifier FsioVisible? identifier (fieldOptionsList)?;
 arrayField: identifier '[' arrayLengthSpec Iterate? ']' identifier (fieldOptionsList)?;
@@ -73,7 +104,7 @@ unusedField: Unused integer;
 
 enumTypedefSuffix: /*ignored*/integer Bits ',' Datatype ',' '@OFFSET@' ',' '[' integer ':' integer ']' ',' definitionRhsMult ;
 scalarTypedefSuffix: /*ignored*/integer Scalar ',' Datatype ',' '@OFFSET@' fieldOptionsList ;
-arrayTypedefSuffix: /*ignored*/definitionRhs Array ',' Datatype ',' '@OFFSET@' ',' '[' arrayLengthSpec ']' fieldOptionsList;
+arrayTypedefSuffix: /*ignored*/arrayLengthSpec Array ',' Datatype ',' '@OFFSET@' ',' '[' arrayLengthSpec ']' fieldOptionsList;
 
 typedef: Custom identifier (enumTypedefSuffix | scalarTypedefSuffix | arrayTypedefSuffix);
 
