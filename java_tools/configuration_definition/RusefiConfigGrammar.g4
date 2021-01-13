@@ -46,7 +46,7 @@ String: [a-zA-Z_0-9.]+;
 QuotedString: '"' ~'"'* '"';
 
 // legacy, remove me!
-SemicolonedString: ';' ~';'* ';';
+SemicolonedString: ';' ~([;] | '\n')* ';';
 
 integer: IntegerChars;
 floatNum: FloatChars | IntegerChars;
@@ -91,8 +91,8 @@ fieldOptionsList
 
 arrayLengthSpec: numexpr (ArrayDimensionSeparator numexpr)?;
 
-scalarField: identifier FsioVisible? identifier (fieldOptionsList)?;
-arrayField: identifier '[' arrayLengthSpec Iterate? ']' identifier (fieldOptionsList)?;
+scalarField: identifier FsioVisible? identifier SemicolonedString? (fieldOptionsList)?;
+arrayField: identifier '[' arrayLengthSpec Iterate? ']' identifier SemicolonedString? (fieldOptionsList)?;
 bitField: Bit identifier ('(' 'comment' ':' QuotedString ')')?;
 
 field
@@ -104,7 +104,12 @@ field
 // Indicates X bytes of free space
 unusedField: Unused integer;
 
-enumTypedefSuffix: /*ignored*/integer Bits ',' Datatype ',' '@OFFSET@' ',' '[' integer ':' integer ']' ',' definitionRhsMult ;
+enumRhs
+    : replacementIdent
+    | QuotedString (',' QuotedString)*
+    ;
+
+enumTypedefSuffix: /*ignored*/integer Bits ',' Datatype ',' '@OFFSET@' ',' '[' integer ':' integer ']' ',' enumRhs ;
 scalarTypedefSuffix: /*ignored*/integer Scalar ',' Datatype ',' '@OFFSET@' fieldOptionsList ;
 arrayTypedefSuffix: /*ignored*/arrayLengthSpec Array ',' Datatype ',' '@OFFSET@' ',' '[' arrayLengthSpec ']' fieldOptionsList;
 
