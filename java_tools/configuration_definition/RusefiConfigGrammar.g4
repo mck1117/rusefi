@@ -37,8 +37,8 @@ FloatChars: IntegerChars [.] ([0-9]+)?;
 
 IdentifierChars : [a-zA-Z_]([a-zA-Z0-9_]*);
 
-// @a = escaped '@'
-replacementIdent: '@@' IdentifierChars '@@';
+// TODO: do we need replacementIdent AND identifier to be here?
+replacementIdent: '@@' IdentifierChars '@@' | identifier;
 
 String: [a-zA-Z_0-9.]+;
 
@@ -51,25 +51,15 @@ SemicolonedString: ';' ~([;] | '\n')* ';';
 integer: IntegerChars;
 floatNum: FloatChars | IntegerChars;
 
-numexpr
-    : exprMult ADD numexpr
-    | exprMult SUB numexpr
-    | exprMult
-    ;
-
-exprMult
-    : exprAtom MUL exprMult
-    | exprAtom DIV exprMult
-    | exprAtom
-    ;
-
-exprAtom
-    : '{' numexpr '}'
-    // TODO: do we need replacementIdent AND identifier to be here?
-    | replacementIdent
-    | identifier
+expr
+    : expr op=(MUL | DIV) expr
+    | expr op=(ADD | SUB) expr
     | floatNum
+    | replacementIdent
+    | '{' expr '}'
     ;
+
+numexpr: expr;
 
 identifier: IdentifierChars | 'offset' | 'ArrayDimension';
 
