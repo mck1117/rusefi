@@ -98,6 +98,17 @@ public class ParseListener extends RusefiConfigGrammarBaseListener {
             return;
         }
 
+        // this is a legacy field option list, parse it as such
+        if (!ctx.floatNum().isEmpty()) {
+            options.units = ctx.QuotedString().getText();
+            options.scale = Float.parseFloat(ctx.floatNum(0).getText());
+            options.offset = Float.parseFloat(ctx.floatNum(1).getText());
+            options.min = Float.parseFloat(ctx.floatNum(2).getText());
+            options.max = Float.parseFloat(ctx.floatNum(3).getText());
+            options.digits = Integer.parseInt(ctx.integer().getText());
+            return;
+        }
+
         for (RusefiConfigGrammarParser.FieldOptionContext fo : ctx.fieldOption()) {
             String key = fo.getChild(0).getText();
             String value = fo.getChild(2).getText();

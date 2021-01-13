@@ -53,6 +53,7 @@ fieldOption
 
 fieldOptionsList
     : '(' fieldOption (',' fieldOption)* ')'
+    | /* legacy! */ ',' QuotedString ',' floatNum ',' floatNum ',' floatNum ',' floatNum ',' /*digits =*/integer
     ;
 
 arrayLengthSpec: definitionRhs;
