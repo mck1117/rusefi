@@ -40,7 +40,7 @@ IdentifierChars : [a-zA-Z_]([a-zA-Z0-9_]*);
 // TODO: do we need replacementIdent AND identifier to be here?
 replacementIdent: '@@' IdentifierChars '@@' | identifier;
 
-String: [a-zA-Z_0-9.]+;
+String: [a-zA-Z_0-9.']+;
 
 // match a quote, then anything not a quote, then another quote
 QuotedString: '"' ~'"'* '"';
@@ -65,7 +65,7 @@ numexpr: expr;
 
 identifier: IdentifierChars | 'offset' | 'ArrayDimension';
 
-definitionRhs: identifier | numexpr | String | QuotedString;
+definitionRhs: identifier | floatNum | String | QuotedString;
 definitionRhsMult: definitionRhs (',' definitionRhs)*;
 definition: Definition identifier definitionRhsMult;
 struct: (Struct | StructNoPrefix) identifier ENDL+ statements EndStruct;
@@ -85,7 +85,7 @@ arrayLengthSpec: numexpr (ArrayDimensionSeparator numexpr)?;
 
 scalarField: identifier FsioVisible? identifier SemicolonedString? (fieldOptionsList)?;
 arrayField: identifier '[' arrayLengthSpec Iterate? ']' identifier SemicolonedString? (fieldOptionsList)?;
-bitField: Bit identifier ('(' 'comment' ':' QuotedString ')')?;
+bitField: Bit identifier (',' QuotedString ',' QuotedString)? ('(' 'comment' ':' QuotedString ')')?;
 
 field
     : scalarField
@@ -96,16 +96,19 @@ field
 // Indicates X bytes of free space
 unusedField: Unused integer;
 
+enumVal: QuotedString | integer;
+
 enumRhs
     : replacementIdent
-    | QuotedString (',' QuotedString)*
+    | enumVal (',' enumVal)*
     ;
 
 enumTypedefSuffix: /*ignored*/integer Bits ',' Datatype ',' '@OFFSET@' ',' '[' integer ':' integer ']' ',' enumRhs ;
 scalarTypedefSuffix: /*ignored*/integer Scalar ',' Datatype ',' '@OFFSET@' fieldOptionsList ;
 arrayTypedefSuffix: /*ignored*/arrayLengthSpec Array ',' Datatype ',' '@OFFSET@' ',' '[' arrayLengthSpec ']' fieldOptionsList;
+stringTypedefSuffix: /*ignored*/replacementIdent 'string' ',' 'ASCII' ',' '@OFFSET@' ',' numexpr;
 
-typedef: Custom identifier (enumTypedefSuffix | scalarTypedefSuffix | arrayTypedefSuffix);
+typedef: Custom identifier (enumTypedefSuffix | scalarTypedefSuffix | arrayTypedefSuffix | stringTypedefSuffix);
 
 // Root statement is allowed to appear in the root of the file
 rootStatement
