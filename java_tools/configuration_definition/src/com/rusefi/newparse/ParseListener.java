@@ -20,27 +20,13 @@ public class ParseListener extends RusefiConfigGrammarBaseListener {
     Scope scope = null;
     Stack<Scope> scopes = new Stack<>();
 
-    boolean ignoreEvals = false;
-
-    String mergeDefinitionRhsMult(RusefiConfigGrammarParser.DefinitionRhsMultContext ctx) {
-        return ctx.definitionRhs().stream().map(d -> d.getText()).collect(Collectors.joining(", "));
-    }
-
     @Override
     public void enterDefinition(RusefiConfigGrammarParser.DefinitionContext ctx) {
         String name = ctx.identifier().getText();
         // glue the list of definitions back together
-        String value = mergeDefinitionRhsMult(ctx.definitionRhsMult());
+        String value = ctx.restOfLine().getText();
 
         definitions.put(name, new Definition(name, value));
-
-        // Turn off eval parsing while inside a definition
-        this.ignoreEvals = true;
-    }
-
-    @Override
-    public void exitDefinition(RusefiConfigGrammarParser.DefinitionContext ctx) {
-        this.ignoreEvals = false;
     }
 
     String typedefName = null;
@@ -424,11 +410,6 @@ public class ParseListener extends RusefiConfigGrammarBaseListener {
     @Override
     public void exitNumexpr(RusefiConfigGrammarParser.NumexprContext ctx) {
         assert(evalStack.size() == 1);
-
-        Float val = evalStack.pop();
-
-        if (!ignoreEvals) {
-            evalResults.add(val);
-        }
+        evalResults.add(evalStack.pop());
     }
 }

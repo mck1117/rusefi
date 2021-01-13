@@ -65,9 +65,8 @@ numexpr: expr;
 
 identifier: IdentifierChars | 'offset' | 'ArrayDimension';
 
-definitionRhs: identifier | numexpr | String | QuotedString;
-definitionRhsMult: definitionRhs (',' definitionRhs)*;
-definition: Definition identifier definitionRhsMult;
+restOfLine: ~ENDL*;
+definition: Definition identifier restOfLine;
 struct: (Struct | StructNoPrefix) identifier ENDL+ statements EndStruct;
 
 fieldOption
