@@ -287,6 +287,15 @@ public class ParseListener extends RusefiConfigGrammarBaseListener {
     }
 
     @Override
+    public void exitEvalReplacement(RusefiConfigGrammarParser.EvalReplacementContext ctx) {
+        // Strip any @@ symbols
+        String defName = ctx.getText().replaceAll("@", "");
+
+        // Find the matching definition, parse it, and push on to the eval stack
+        evalStack.push(Float.parseFloat(this.definitions.get(defName).value));
+    }
+
+    @Override
     public void exitEvalMul(RusefiConfigGrammarParser.EvalMulContext ctx) {
         Float right = evalStack.pop();
         Float left = evalStack.pop();
