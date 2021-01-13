@@ -66,6 +66,7 @@ exprMult
 exprAtom
     : '{' numexpr '}'
     | replacementIdent
+    | identifier
     | floatNum
     ;
 
@@ -87,7 +88,7 @@ fieldOptionsList
     | /* legacy! */ (',' | SemicolonedString)  QuotedString ',' numexpr ',' numexpr ',' numexpr ',' numexpr ',' /*digits =*/integer
     ;
 
-arrayLengthSpec: numexpr (ArrayDimensionSeparator numexpr);
+arrayLengthSpec: numexpr (ArrayDimensionSeparator numexpr)?;
 
 scalarField: identifier FsioVisible? identifier (fieldOptionsList)?;
 arrayField: identifier '[' arrayLengthSpec Iterate? ']' identifier (fieldOptionsList)?;
@@ -123,7 +124,7 @@ rootStatements
 // Statements are allowed to appear inside a struct
 statement
     : rootStatement
-    | field
+    | field /* tolerate trailing semicolon */ (';')
     | unusedField
     ;
 
