@@ -64,7 +64,7 @@ public class ParseListener extends RusefiConfigGrammarBaseListener {
         int endBit = Integer.parseInt(ctx.integer(2).getText());
         Type datatype = Type.findByTsType(ctx.Datatype().getText());
 
-        String values = mergeDefinitionRhsMult(ctx.definitionRhsMult());
+        String values = ctx.enumRhs().getText();
 
         this.typedefs.put(this.typedefName, new EnumTypedef(this.typedefName, datatype, startBit, endBit, values));
     }
