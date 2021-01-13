@@ -36,17 +36,17 @@ String: [a-zA-Z_0-9@*.]+;
 QuotedString: '"' ~'"'* '"';
 
 integer: IntegerChars;
-float: FloatChars | IntegerChars;
+floatNum: FloatChars | IntegerChars;
 
 identifier: IdentifierChars | 'offset';
 
-definitionRhs: IntegerChars | IdentifierChars | String | QuotedString;
+definitionRhs: IntegerChars | FloatChars | IdentifierChars | String | QuotedString;
 definitionRhsMult: definitionRhs (',' definitionRhs)*;
 definition: Definition identifier definitionRhsMult;
 struct: (Struct | StructNoPrefix) identifier ENDL+ statements EndStruct;
 
 fieldOption
-    : ('min' | 'max' | 'scale' | 'offset' | ) ':' float
+    : ('min' | 'max' | 'scale' | 'offset' | ) ':' floatNum
     | 'digits' ':' integer
     | ('unit' | 'comment') ':' QuotedString
     ;
