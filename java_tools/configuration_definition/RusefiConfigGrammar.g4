@@ -65,6 +65,7 @@ exprMult
 
 exprAtom
     : '{' numexpr '}'
+    // TODO: do we need replacementIdent AND identifier to be here?
     | replacementIdent
     | identifier
     | floatNum
