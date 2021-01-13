@@ -8,9 +8,4 @@ public class StructField implements Field {
         this.struct = struct;
         this.name = name;
     }
-
-    @Override
-    public int getSize() {
-        return 0;
-    }
 }

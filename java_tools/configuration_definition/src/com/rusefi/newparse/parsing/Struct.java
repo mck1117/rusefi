@@ -13,9 +13,4 @@ public class Struct implements Field {
         this.noPrefix = noPrefix;
         this.fields = fields;
     }
-
-    @Override
-    public int getSize() {
-        return 0;
-    }
 }

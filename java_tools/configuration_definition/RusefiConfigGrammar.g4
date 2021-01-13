@@ -77,7 +77,7 @@ fieldOption
     ;
 
 fieldOptionsList
-    : '(' fieldOption (',' fieldOption)* ')'
+    : '(' fieldOption? (',' fieldOption)* ')'
     | /* legacy! */ (',' | SemicolonedString)  QuotedString ',' numexpr ',' numexpr ',' numexpr ',' numexpr ',' /*digits =*/integer
     ;
 

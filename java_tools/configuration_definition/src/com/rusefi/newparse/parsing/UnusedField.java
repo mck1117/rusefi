@@ -6,9 +6,4 @@ public class UnusedField implements Field {
     public UnusedField(int size) {
         this.size = size;
     }
-
-    @Override
-    public int getSize() {
-        return this.size;
-    }
 }

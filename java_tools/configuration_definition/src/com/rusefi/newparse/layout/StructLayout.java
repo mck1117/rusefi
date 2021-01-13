@@ -55,18 +55,18 @@ public class StructLayout extends Layout {
                 // Special case for structs - we have to compute base offset first
                 StructField sf = (StructField) f;
 
-                offset = padOffsetWithUnused(offset, 4);
+                offset = addStruct(offset, sf.struct, sf.name);
+            } /*else if (f instanceof ArrayStructField) {
+                ArrayStructField asf = (ArrayStructField)f;
 
-                // Recurse and build this new struct
-                StructLayout sl = new StructLayout(offset, sf.name, sf.struct);
+                // TODO: is it valid to have an array of structs without 'iterate' specified?
+                assert(asf.iterate);
 
-                this.children.add(sl);
-
-                // Update offset with the struct size - it's guaranteed to be a multiple of 4 bytes
-                int structSize = sl.getSize();
-                offset += structSize;
-            } else {
-
+                // TODO: this only works for TS, not c where we need it to stay an array
+                for (int i = 0; i < asf.length; i++) {
+                    offset = addStruct(offset, asf.struct, asf.name + (i + 1));
+                }
+            }*/ else {
                 if (f instanceof ScalarField) {
                     l = new ScalarLayout((ScalarField)f);
                 } else if (f instanceof ArrayField) {
@@ -74,7 +74,7 @@ public class StructLayout extends Layout {
                 } else if (f instanceof EnumField) {
                     l = new EnumLayout((EnumField)f);
                 } else if (f instanceof UnusedField) {
-                    l = new UnusedLayout((UnusedField)f);
+                    l = new UnusedLayout((UnusedField) f);
                 } else {
                     // TODO: throw
                 }
@@ -95,6 +95,19 @@ public class StructLayout extends Layout {
         offset = padOffsetWithUnused(offset, 4);
 
         size = offset - initialOffest;
+    }
+
+    private int addStruct(int offset, Struct struct, String name) {
+        offset = padOffsetWithUnused(offset, 4);
+
+        // Recurse and build this new struct
+        StructLayout sl = new StructLayout(offset, name, struct);
+
+        this.children.add(sl);
+
+        // Update offset with the struct size - it's guaranteed to be a multiple of 4 bytes
+        int structSize = sl.getSize();
+        return offset + structSize;
     }
 
     @Override

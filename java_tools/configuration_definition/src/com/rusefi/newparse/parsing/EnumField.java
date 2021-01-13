@@ -12,7 +12,7 @@ public class EnumField implements Field {
     }
 
     @Override
-    public int getSize() {
-        return type.size;
+    public String toString() {
+        return "enum " + type.cType + " " + name;
     }
 }

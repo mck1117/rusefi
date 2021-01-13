@@ -9,14 +9,14 @@ import java.io.PrintStream;
 public class ArrayLayout extends Layout {
     public final Type type;
     public final String name;
-    public final String arrayDimension;
+    public final int length;
     public final FieldOptions options;
 
-    public ArrayLayout(ArrayField field) {
-        this.type = field.type;
-        this.name = field.name;
-        this.options = field.options;
-        this.arrayDimension = field.size;
+    public ArrayLayout(ArrayField<?> field) {
+        this.type = Type.U08; //field.type;
+        this.name = "";// field.name;
+        this.options = new FieldOptions(); //field.options;
+        this.length = field.length;
     }
 
     @Override
@@ -32,7 +32,7 @@ public class ArrayLayout extends Layout {
         ps.print(", ");
         ps.print(this.offset);
         ps.print(", ");
-        ps.print("[" + this.arrayDimension + "]");
+        ps.print("[" + this.length + "]");
         ps.print(", ");
 
         options.printTsFormat(ps);

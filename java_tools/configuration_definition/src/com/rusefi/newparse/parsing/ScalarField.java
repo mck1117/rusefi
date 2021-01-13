@@ -12,11 +12,6 @@ public class ScalarField implements Field {
     }
 
     @Override
-    public int getSize() {
-        return type.size;
-    }
-
-    @Override
     public String toString() {
         return type.cType + " " + name;
     }
