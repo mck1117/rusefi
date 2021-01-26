@@ -72,7 +72,7 @@ public class ConfigDefinition {
     }
 
     public static void main(String[] args) throws FileNotFoundException, IOException {
-        CharStream in = new ANTLRInputStream(new FileReader("/home/matthew/source/rusefi/grammar_test.txt"));
+        CharStream in = new ANTLRInputStream(new FileReader("/home/matthew/source/rusefi/firmware/integration/rusefi_config.txt"));
         RusefiConfigGrammarLexer lexer = new RusefiConfigGrammarLexer(in);
         TokenStream tokens = new CommonTokenStream(lexer);
         RusefiConfigGrammarParser parser = new RusefiConfigGrammarParser(tokens);
