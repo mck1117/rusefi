@@ -33,6 +33,7 @@
 #include "gppwm.h"
 #include "tachometer.h"
 #include "dynoview.h"
+#include "boost_control.h"
 #if EFI_MC33816
  #include "mc33816.h"
 #endif // EFI_MC33816
@@ -192,6 +193,10 @@ void Engine::periodicSlowCallback(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	updateGppwm();
 
 	updateIdleControl();
+
+#if EFI_BOOST_CONTROL
+	updateBoostControl();
+#endif // EFI_BOOST_CONTROL
 
 	cylinderCleanupControl(PASS_ENGINE_PARAMETER_SIGNATURE);
 
@@ -396,10 +401,6 @@ void Engine::OnTriggerStateDecodingError() {
 void Engine::OnTriggerStateProperState(efitick_t nowNt) {
 	Engine *engine = this;
 	EXPAND_Engine;
-
-#if EFI_SHAFT_POSITION_INPUT
-	triggerCentral.triggerState.runtimeStatistics(&triggerCentral.triggerFormDetails, nowNt PASS_ENGINE_PARAMETER_SUFFIX);
-#endif /* EFI_SHAFT_POSITION_INPUT */
 
 	rpmCalculator.setSpinningUp(nowNt);
 }
