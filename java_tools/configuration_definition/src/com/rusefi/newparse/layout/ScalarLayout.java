@@ -40,4 +40,10 @@ public class ScalarLayout extends Layout {
 
         ps.println();
     }
+
+    @Override
+    public void writeCLayout(PrintStream ps) {
+        this.writeCOffsetHeader(ps, this.options.comment);
+        ps.println("\t" + this.type.cType + " " + this.name + ";");
+    }
 }

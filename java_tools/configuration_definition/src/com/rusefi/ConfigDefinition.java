@@ -85,7 +85,9 @@ public class ConfigDefinition {
         Struct lastStruct = listener.getLastStruct();
         StructLayout layout = new StructLayout(0, "root", lastStruct);
 
-        layout.writeTunerstudioLayout(System.out, new StructNamePrefixer());
+        //layout.writeTunerstudioLayout(System.out, new StructNamePrefixer());
+
+        ((StructLayout)layout.children.get(0)).writeCLayoutRoot(System.out);
 
         try {
             doJob(args);

@@ -6,13 +6,15 @@ import com.rusefi.newparse.parsing.Type;
 import java.io.PrintStream;
 
 public class EnumLayout extends Layout {
-    private String name;
-    private Type type;
-    private String values;
+    private final String name;
+    private final Type type;
+    private final String enumType;
+    private final String values;
 
     public EnumLayout(EnumField field) {
         this.name = field.name;
         this.type = field.type;
+        this.enumType = field.enumType;
         this.values = field.values;
     }
 
@@ -37,5 +39,11 @@ public class EnumLayout extends Layout {
         ps.print(this.values);
 
         ps.println();
+    }
+
+    @Override
+    public void writeCLayout(PrintStream ps) {
+        this.writeCOffsetHeader(ps, null);
+        ps.println("\t" + this.enumType + " " + this.name + ";");
     }
 }

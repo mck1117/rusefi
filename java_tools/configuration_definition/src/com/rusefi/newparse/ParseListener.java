@@ -196,7 +196,7 @@ public class ParseListener extends RusefiConfigGrammarBaseListener {
             } else if (typedef instanceof EnumTypedef) {
                 EnumTypedef bTypedef = (EnumTypedef) typedef;
 
-                scope.structFields.add(new EnumField(bTypedef.type, name, bTypedef.values));
+                scope.structFields.add(new EnumField(bTypedef.type, type, name, bTypedef.values));
                 return;
             } else if (typedef instanceof StringTypedef) {
                 StringTypedef sTypedef = (StringTypedef) typedef;
@@ -276,7 +276,7 @@ public class ParseListener extends RusefiConfigGrammarBaseListener {
             } else if (typedef instanceof EnumTypedef) {
                 EnumTypedef bTypedef = (EnumTypedef) typedef;
 
-                EnumField prototype = new EnumField(bTypedef.type, name, bTypedef.values);
+                EnumField prototype = new EnumField(bTypedef.type, type, name, bTypedef.values);
 
                 scope.structFields.add(new ArrayField<EnumField>(prototype, length, iterate));
                 return;

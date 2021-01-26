@@ -50,4 +50,10 @@ public class ArrayLayout extends Layout {
 
         ps.println();
     }
+
+    @Override
+    public void writeCLayout(PrintStream ps) {
+        this.writeCOffsetHeader(ps, options.comment);
+        ps.println("\t" + this.type.cType + " " + this.name + "[" + this.length + "];");
+    }
 }

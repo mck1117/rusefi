@@ -5,6 +5,7 @@ import com.rusefi.newparse.parsing.Type;
 import com.rusefi.newparse.parsing.UnusedField;
 
 import java.io.PrintStream;
+import java.util.Random;
 
 public class UnusedLayout extends Layout {
     private final int size;
@@ -23,6 +24,11 @@ public class UnusedLayout extends Layout {
     }
 
     @Override
+    public int getAlignment() {
+        return 1;
+    }
+
+    @Override
     public String toString() {
         return "Unused " + super.toString();
     }
@@ -30,5 +36,11 @@ public class UnusedLayout extends Layout {
     @Override
     public void writeTunerstudioLayout(PrintStream ps, StructNamePrefixer prefixer) {
         ps.println("; unused " + this.size + " bytes at offset " + this.offset);
+    }
+
+    @Override
+    public void writeCLayout(PrintStream ps) {
+        this.writeCOffsetHeader(ps, null);
+        ps.println("\tchar unused" + this.offsetWithinStruct + "[" + this.size + "];");
     }
 }

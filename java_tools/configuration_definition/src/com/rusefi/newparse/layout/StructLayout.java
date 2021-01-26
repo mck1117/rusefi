@@ -8,7 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class StructLayout extends Layout {
-    private List<Layout> children = new ArrayList<>();
+    /*private*/public List<Layout> children = new ArrayList<>();
 
     private final String typeName;
     private final String name;
@@ -32,6 +32,7 @@ public class StructLayout extends Layout {
         if (needsUnused > 0) {
             UnusedLayout ul = new UnusedLayout(needsUnused);
             ul.setOffset(offset);
+            ul.setOffsetWithinStruct(offset - this.offset);
             children.add(ul);
             return alignedOffset;
         }
@@ -111,6 +112,7 @@ public class StructLayout extends Layout {
 
         // place the element
         l.setOffset(offset);
+        l.setOffsetWithinStruct(offset - this.offset);
         children.add(l);
 
         return offset + l.getSize();
@@ -122,6 +124,7 @@ public class StructLayout extends Layout {
         // Recurse and build this new struct
         StructLayout sl = new StructLayout(offset, name, struct);
 
+        sl.setOffsetWithinStruct(offset - this.offset);
         this.children.add(sl);
 
         // Update offset with the struct size - it's guaranteed to be a multiple of 4 bytes
@@ -156,5 +159,22 @@ public class StructLayout extends Layout {
         }
 
         ps.println("; end struct " + this.typeName);
+    }
+
+    @Override
+    public void writeCLayout(PrintStream ps) {
+        this.writeCOffsetHeader(ps, null);
+        ps.println("\t" + this.typeName + " " + this.name + ";");
+    }
+
+    public void writeCLayoutRoot(PrintStream ps) {
+        ps.println("struct " + this.typeName + " {");
+
+        this.children.forEach(c -> c.writeCLayout(ps));
+
+        ps.println("\t/** total size " + getSize() + " */");
+        ps.println("};");
+        ps.println();
+        ps.println("typedef struct " + this.typeName + " " + this.typeName + ";");
     }
 }
