@@ -46,7 +46,8 @@ String: [a-zA-Z_0-9.']+;
 QuotedString: '"' ~'"'* '"';
 
 // legacy, remove me!
-SemicolonedString: ';' ~([;] | '\n')* ';';
+SemicolonedSuffix: ';' ~([;] | '\n')*;
+SemicolonedString: SemicolonedSuffix ';';
 
 integer: IntegerChars;
 floatNum: FloatChars | IntegerChars;
@@ -67,7 +68,7 @@ identifier: IdentifierChars | 'offset' | 'ArrayDimension';
 
 restOfLine: ~ENDL*;
 definition: Definition identifier restOfLine;
-struct: (Struct | StructNoPrefix) identifier ENDL+ statements EndStruct;
+struct: (Struct | StructNoPrefix) identifier ('@brief' restOfLine)? ENDL+ statements EndStruct;
 
 fieldOption
     : ('min' | 'max' | 'scale' | 'offset' | ) ':' numexpr
@@ -77,14 +78,16 @@ fieldOption
 
 fieldOptionsList
     : '(' fieldOption? (',' fieldOption)* ')'
-    | /* legacy! */ (',' | SemicolonedString)  QuotedString ',' numexpr ',' numexpr ',' numexpr ',' numexpr ',' /*digits =*/integer
+    // TODO: why does the next line have a comma?
+    | /* legacy! */ (',' | SemicolonedString) (QuotedString ',' numexpr ',' numexpr ',' numexpr ',' numexpr ',' /*digits =*/integer)?
+    | /* legacy! */ SemicolonedSuffix
     ;
 
 arrayLengthSpec: numexpr (ArrayDimensionSeparator numexpr)?;
 
-scalarField: identifier FsioVisible? identifier SemicolonedString? (fieldOptionsList)?;
+scalarField: identifier FsioVisible? identifier (fieldOptionsList)?;
 arrayField: identifier '[' arrayLengthSpec Iterate? ']' identifier SemicolonedString? (fieldOptionsList)?;
-bitField: Bit identifier (',' QuotedString ',' QuotedString)? ('(' 'comment' ':' QuotedString ')')?;
+bitField: Bit identifier (',' QuotedString ',' QuotedString)? ('(' 'comment' ':' QuotedString ')')? SemicolonedSuffix?;
 
 field
     : scalarField
