@@ -208,7 +208,7 @@ public class ParseListener extends RusefiConfigGrammarBaseListener {
         } else {
             // If no typedef found, it MUST be a native type
             if (!Type.findByCtype(type).isPresent()) {
-                throw new RuntimeException("didn't understand type " + type);
+                throw new RuntimeException("didn't understand type " + type + " for element " + name);
             }
 
             // no typedef found, create new options list
@@ -291,12 +291,12 @@ public class ParseListener extends RusefiConfigGrammarBaseListener {
                 return;
             } else {
                 // TODO: throw
-                throw new RuntimeException("didn't understand type " + type);
+                throw new RuntimeException("didn't understand type " + type + " for element " + name);
             }
         } else {
             // If no typedef found, it MUST be a native type
             if (!Type.findByCtype(type).isPresent()) {
-                throw new RuntimeException("didn't understand type " + type);
+                throw new RuntimeException("didn't understand type " + type + " for element " + name);
             }
 
             // no typedef found, create new options list
