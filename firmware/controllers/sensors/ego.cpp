@@ -140,8 +140,9 @@ float getAfr(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 #endif
 	}
 
-	return interpolateMsg("AFR", sensor->v1, sensor->value1, sensor->v2, sensor->value2, volts)
-			+ engineConfiguration->egoValueShift;
+	firmwareError(OBD_PCM_Processor_Fault, "unexpected EGO configuration");
+
+	return 0;
 }
 
 static void initEgoSensor(afr_sensor_s *sensor, ego_sensor_e type) {
