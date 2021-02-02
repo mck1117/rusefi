@@ -940,6 +940,24 @@ void scheduleStopEngine(void) {
 	doScheduleStopEngine(PASS_ENGINE_PARAMETER_SIGNATURE);
 }
 
+void setAnalogInputTestPwm() {
+	// See AnalogInputHardwareTest.java
+	
+	// Disable trigger stim
+	engineConfiguration->triggerSimulatorPins[0] = GPIO_UNASSIGNED;
+	engineConfiguration->triggerSimulatorPins[1] = GPIO_UNASSIGNED;
+	engineConfiguration->triggerSimulatorPins[2] = GPIO_UNASSIGNED;
+
+	engineConfiguration->idle.solenoidPin = GPIOG_4;
+	engineConfiguration->idle.solenoidFrequency = 2000;
+
+	// Test range is 25% to 75%, 
+	engineConfiguration->tpsMin = 250;
+	engineConfiguration->tpsMax = 750;
+
+	incrementGlobalConfigurationVersion(PASS_ENGINE_PARAMETER_SIGNATURE);
+}
+
 static void printAllInfo(void) {
 	printTemperatureInfo();
 	printTPSInfo();
@@ -1356,6 +1374,8 @@ void initSettings(void) {
 
 	addConsoleActionSS("set", setValue);
 	addConsoleActionS("get", getValue);
+
+	addConsoleAction("set_analog_input_test_pwm", setAnalogInputTestPwm);
 
 #if EFI_PROD_CODE
 	addConsoleActionS("showpin", showPinFunction);
