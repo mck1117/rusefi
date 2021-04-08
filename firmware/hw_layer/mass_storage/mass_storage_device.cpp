@@ -67,7 +67,7 @@ void MassStorageController<TLunCount>::ThreadTask() {
 		}
 
 		if (cbwValid(m_cbw, status) && cbwMeaningful(m_cbw)) {
-			chibios_rt::MutexLocker lock(m_lunMutex);
+			//chibios_rt::MutexLocker lock(m_lunMutex);
 
 			auto target = &m_luns[m_cbw.lun].target;
 			if (SCSI_SUCCESS == scsiExecCmd(target, m_cbw.cmd_data)) {
@@ -149,7 +149,20 @@ static const scsi_unit_serial_number_inquiry_response_t default_scsi_unit_serial
     0x80,
     0x00,
     0x08,
-    "0000000"
+    "1234567"
+};
+
+
+/**
+ * @brief   Hardcoded default SCSI unit serial number inquiry response structure.
+ */
+static const scsi_unit_serial_number_inquiry_response_t default_scsi_unit_serial_number_inquiry_response2 =
+{
+    0x00,
+    0x80,
+    0x00,
+    0x08,
+    "8765432"
 };
 
 template <size_t TLunCount>
@@ -157,7 +170,7 @@ void MassStorageController<TLunCount>::attachLun(uint8_t lunIndex,
 						BaseBlockDevice *blkdev, uint8_t *blkbuf,
 						const scsi_inquiry_response_t *inquiry,
 						const scsi_unit_serial_number_inquiry_response_t *serialInquiry) {
-	chibios_rt::MutexLocker lock(m_lunMutex);
+	//chibios_rt::MutexLocker lock(m_lunMutex);
 
 	auto& lun = m_luns[lunIndex];
 
@@ -169,7 +182,7 @@ void MassStorageController<TLunCount>::attachLun(uint8_t lunIndex,
 		lun.config.inquiry_response = inquiry;
 	}
 	if (NULL == serialInquiry) {
-		lun.config.unit_serial_number_inquiry_response = &default_scsi_unit_serial_number_inquiry_response;
+		lun.config.unit_serial_number_inquiry_response = lunIndex == 0 ? &default_scsi_unit_serial_number_inquiry_response : &default_scsi_unit_serial_number_inquiry_response2;
 	}
 	else {
 		lun.config.unit_serial_number_inquiry_response = serialInquiry;
@@ -181,6 +194,7 @@ void MassStorageController<TLunCount>::attachLun(uint8_t lunIndex,
 	scsiStart(&lun.target, &lun.config);
 }
 
+template class MassStorageController<1>;
 template class MassStorageController<2>;
 
 
@@ -206,7 +220,7 @@ extern "C" bool msd_request_hook2(USBDriver *usbp) {
   } else if (usbp->setup[0] == (USB_RTYPE_TYPE_CLASS | USB_RTYPE_RECIPIENT_INTERFACE | USB_RTYPE_DIR_DEV2HOST)
     && usbp->setup[1] == MSD_REQ_GET_MAX_LUN) {
     /* Return the maximum supported LUN. */
-    static uint8_t zero = 1;
+    static uint8_t zero = 0;
     usbSetupTransfer(usbp, &zero, 1, NULL);
     return true;
     /* OR */

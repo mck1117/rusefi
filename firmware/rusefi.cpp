@@ -202,7 +202,7 @@ void runRusEfi(void) {
 	startUsbConsole();
 #endif
 
-	initUsbMsd();
+	//initUsbMsd();
 
 	/**
 	 * Next we should initialize serial port console, it's important to know what's going on
