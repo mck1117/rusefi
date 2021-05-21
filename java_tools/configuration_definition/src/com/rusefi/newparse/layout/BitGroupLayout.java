@@ -38,7 +38,19 @@ public class BitGroupLayout extends Layout {
 
     @Override
     public void writeTunerstudioLayout(PrintStream ps, StructNamePrefixer prefixer) {
-        ps.println("; bit group " + this.getSize() + " bytes at offset " + this.offset);
+        for (int i = 0; i < bits.size(); i++) {
+            BitLayout bit = bits.get(i);
+            ps.print(prefixer.get(bit.name));
+            ps.print(" = bits, U32, ");
+            ps.print(this.offset);
+            ps.print(", [");
+            ps.print(i + ":" + i);
+
+            // TODO: print actual bit options
+            ps.print("], \"false\", \"true\"");
+
+            ps.println();
+        }
     }
 
     @Override
