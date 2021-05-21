@@ -66,8 +66,14 @@ numexpr: expr;
 
 identifier: IdentifierChars | 'offset' | 'ArrayDimension';
 
-restOfLine: ~ENDL*;
-definition: Definition identifier restOfLine;
+restOfLine
+    : ~ENDL*
+    | 'true'
+    | 'false';
+
+definition
+    : Definition identifier numexpr
+    | Definition identifier restOfLine;
 struct: (Struct | StructNoPrefix) identifier ('@brief' restOfLine)? ENDL+ statements EndStruct;
 
 fieldOption

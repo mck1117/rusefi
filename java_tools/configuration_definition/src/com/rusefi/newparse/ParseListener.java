@@ -21,10 +21,17 @@ public class ParseListener extends RusefiConfigGrammarBaseListener {
     Stack<Scope> scopes = new Stack<>();
 
     @Override
-    public void enterDefinition(RusefiConfigGrammarParser.DefinitionContext ctx) {
+    public void exitDefinition(RusefiConfigGrammarParser.DefinitionContext ctx) {
         String name = ctx.identifier().getText();
-        // glue the list of definitions back together
-        String value = ctx.restOfLine().getText();
+
+        String value;
+
+        if (!this.evalResults.isEmpty()) {
+            value = this.evalResults.remove().toString();
+        } else {
+            // glue the list of definitions back together
+            value = ctx.restOfLine().getText();
+        }
 
         definitions.put(name, new Definition(name, value));
     }
