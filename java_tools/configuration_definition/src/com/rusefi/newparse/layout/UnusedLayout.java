@@ -40,7 +40,7 @@ public class UnusedLayout extends Layout {
 
     @Override
     public void writeCLayout(PrintStream ps) {
-        this.writeCOffsetHeader(ps, null);
+        this.writeCOffsetHeader(ps, null, null);
         ps.println("\tchar unused" + this.offsetWithinStruct + "[" + this.size + "];");
     }
 }

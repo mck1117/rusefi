@@ -27,7 +27,7 @@ public abstract class Layout {
 
     public void writeTunerstudioLayout(PrintStream ps, StructNamePrefixer prefixer) {}
 
-    protected void writeCOffsetHeader(PrintStream ps, String comment) {
+    protected void writeCOffsetHeader(PrintStream ps, String comment, String units) {
         ps.println("\t/**");
 
         if (comment != null) {
@@ -43,6 +43,11 @@ public abstract class Layout {
 
             ps.println("\t * " + comment);
         }
+
+        if (units != null && units.length() > 2) {
+            ps.println("\t" + units.replace("\"", ""));
+        }
+
         ps.println("\t * offset " + this.offsetWithinStruct);
         ps.println("\t */");
     }

@@ -163,18 +163,18 @@ public class StructLayout extends Layout {
 
     @Override
     public void writeCLayout(PrintStream ps) {
-        this.writeCOffsetHeader(ps, null);
+        this.writeCOffsetHeader(ps, null, null);
         ps.println("\t" + this.typeName + " " + this.name + ";");
     }
 
     public void writeCLayoutRoot(PrintStream ps) {
+        ps.println("// start of " + this.typeName);
         ps.println("struct " + this.typeName + " {");
 
         this.children.forEach(c -> c.writeCLayout(ps));
 
-        ps.println("\t/** total size " + getSize() + " */");
+        ps.println("\t/** total size " + getSize() + "*/");
         ps.println("};");
         ps.println();
-        ps.println("typedef struct " + this.typeName + " " + this.typeName + ";");
     }
 }
