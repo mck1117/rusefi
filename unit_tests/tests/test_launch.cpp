@@ -128,9 +128,7 @@ TEST(LaunchControl, CompleteRun) {
 	bool spark, fuel;
 	WITH_ENGINE_TEST_HELPER(TEST_ENGINE);
 
-	LoggingWithStorage logger("test");
-
-	initLaunchControl(&logger,PASS_ENGINE_PARAMETER_SIGNATURE);
+	initLaunchControl(PASS_ENGINE_PARAMETER_SIGNATURE);
 
 	//load default config
 	setDefaultLaunchParameters(PASS_CONFIG_PARAMETER_SIGNATURE);
@@ -165,7 +163,7 @@ TEST(LaunchControl, CompleteRun) {
 
 
 	//we have a 3 seconds delay to actually enable it!
-	eth.smartMoveTimeForwardSeconds(1);
+	eth.moveTimeForwardAndInvokeEventsSec(1);
 	updateLaunchConditions(PASS_ENGINE_PARAMETER_SIGNATURE);
 	spark = false;
 	fuel = false;
@@ -174,7 +172,7 @@ TEST(LaunchControl, CompleteRun) {
 	EXPECT_FALSE(spark);
 	EXPECT_FALSE(fuel);
 
-	eth.smartMoveTimeForwardSeconds(3);
+	eth.moveTimeForwardAndInvokeEventsSec(3);
 	updateLaunchConditions(PASS_ENGINE_PARAMETER_SIGNATURE);
 	spark = false;
 	fuel = false;

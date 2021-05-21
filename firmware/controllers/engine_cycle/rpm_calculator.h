@@ -11,6 +11,7 @@
 #include "globalaccess.h"
 #include "scheduler.h"
 #include "stored_value_sensor.h"
+#include "timer.h"
 
 // we use this value in case of noise on trigger input lines
 #define NOISY_RPM -1
@@ -113,14 +114,15 @@ public:
 	 * NaN while engine is not spinning
 	 */
 	volatile floatus_t oneDegreeUs = NAN;
-	volatile efitick_t lastRpmEventTimeNt = 0;
+
+	Timer lastTdcTimer;
 
 	// RPM rate of change, in RPM per second
 	float rpmRate = 0;
 
 protected:
 	// Print sensor info - current RPM state
-	void showInfo(Logging* logger, const char* sensorName) const override;
+	void showInfo(const char* sensorName) const override;
 
 private:
 	/**
@@ -166,7 +168,7 @@ void tdcMarkCallback(
 /**
  * @brief   Initialize RPM calculator
  */
-void initRpmCalculator(Logging *sharedLogger DECLARE_ENGINE_PARAMETER_SUFFIX);
+void initRpmCalculator(DECLARE_ENGINE_PARAMETER_SIGNATURE);
 
 float getCrankshaftAngleNt(efitick_t timeNt DECLARE_ENGINE_PARAMETER_SUFFIX);
 

@@ -11,6 +11,7 @@
 #include "trigger_structure.h"
 #include "engine_configuration.h"
 #include "trigger_state_generated.h"
+#include "timer.h"
 
 class TriggerState;
 
@@ -66,6 +67,10 @@ typedef struct {
 	 * Here we accumulate the amount of time this signal was ON within current trigger cycle
 	 */
 	uint32_t totalTimeNt[PWM_PHASE_MAX_WAVE_PER_PWM];
+
+#if EFI_UNIT_TEST
+	uint32_t totalTimeNtCopy[PWM_PHASE_MAX_WAVE_PER_PWM];
+#endif // EFI_UNIT_TEST
 } current_cycle_state_s;
 
 /**
@@ -109,7 +114,8 @@ public:
 	 */
 	bool shaft_is_synchronized;
 	efitick_t mostRecentSyncTime;
-	volatile efitick_t previousShaftEventTimeNt;
+
+	Timer previousEventTimer;
 
 	void setTriggerErrorState();
 
@@ -125,6 +131,7 @@ public:
 	efitick_t toothed_previous_time;
 
 	current_cycle_state_s currentCycle;
+	const char *name = nullptr;
 
 	int expectedTotalTime[PWM_PHASE_MAX_WAVE_PER_PWM];
 
@@ -212,8 +219,6 @@ private:
 angle_t getEngineCycle(operation_mode_e operationMode);
 
 class Engine;
-
-void initTriggerDecoderLogger(Logging *sharedLogger);
 
 void calculateTriggerSynchPoint(
 	TriggerWaveform& shape,

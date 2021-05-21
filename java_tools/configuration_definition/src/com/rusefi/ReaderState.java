@@ -72,7 +72,7 @@ public class ReaderState {
         int index = line.indexOf(' ');
         String name = line.substring(0, index);
 
-        String autoEnumOptions = VariableRegistry.getEnumOptionsForTunerStudio(state.enumsReader, VariableRegistry.INSTANCE, name);
+        String autoEnumOptions = VariableRegistry.INSTANCE.getEnumOptionsForTunerStudio(state.enumsReader, name);
         if (autoEnumOptions != null) {
             VariableRegistry.INSTANCE.register(name + "_auto_enum", autoEnumOptions);
         }
@@ -113,7 +113,7 @@ public class ReaderState {
 
         int multPosition = customSize.indexOf(MULT_TOKEN);
         if (multPosition != -1) {
-            String firstPart = customSize.substring(0, multPosition);
+            String firstPart = customSize.substring(0, multPosition).trim();
             int first;
             try {
                 first = Integer.parseInt(firstPart);
@@ -164,7 +164,7 @@ public class ReaderState {
                 handleStartStructure(this, line.substring(STRUCT_NO_PREFIX.length()), false);
             } else if (line.startsWith(END_STRUCT)) {
                 addBitPadding();
-                this.handleEndStruct(consumers);
+                handleEndStruct(consumers);
             } else if (line.startsWith(BIT)) {
                 handleBitLine(this, line);
 
@@ -195,8 +195,8 @@ public class ReaderState {
     }
 
     public void ensureEmptyAfterProcessing() {
-        if (!this.stack.isEmpty())
-            throw new IllegalStateException("Unclosed structure: " + this.stack.peek().getName());
+        if (!stack.isEmpty())
+            throw new IllegalStateException("Unclosed structure: " + stack.peek().getName());
     }
 
     private static void handleStartStructure(ReaderState state, String line, boolean withPrefix) {

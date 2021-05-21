@@ -27,6 +27,7 @@
 #include "os_access.h"
 #include "engine.h"
 #include "obd2.h"
+#include "can.h"
 #include "can_msg_tx.h"
 #include "vehicle_speed.h"
 #include "map.h"
@@ -131,11 +132,10 @@ static void handleGetDataRequest(const CANRxFrame& rx) {
 		obdSendValue(_1_MODE, pid, 1, Sensor::get(SensorType::Clt).value_or(0) + ODB_TEMP_EXTRA);
 		break;
 	case PID_STFT_BANK1:
-		obdSendValue(_1_MODE, pid, 1, 128 * ENGINE(engineState.running.pidCorrection));
+		obdSendValue(_1_MODE, pid, 1, 128 * ENGINE(stftCorrection)[0]);
 		break;
 	case PID_STFT_BANK2:
-		// TODO: use second fueling bank
-		obdSendValue(_1_MODE, pid, 1, 128 * ENGINE(engineState.running.pidCorrection));
+		obdSendValue(_1_MODE, pid, 1, 128 * ENGINE(stftCorrection)[1]);
 		break;
 	case PID_INTAKE_MAP:
 		obdSendValue(_1_MODE, pid, 1, Sensor::get(SensorType::Map).value_or(0));
@@ -156,7 +156,7 @@ static void handleGetDataRequest(const CANRxFrame& rx) {
 		obdSendValue(_1_MODE, pid, 1, Sensor::get(SensorType::Iat).value_or(0) + ODB_TEMP_EXTRA);
 		break;
 	case PID_INTAKE_MAF:
-		obdSendValue(_1_MODE, pid, 2, getRealMaf(PASS_ENGINE_PARAMETER_SIGNATURE) * 100.0f);	// grams/sec	(A*256+B)/100
+		obdSendValue(_1_MODE, pid, 2, Sensor::get(SensorType::Maf).value_or(0) * 100.0f);	// grams/sec	(A*256+B)/100
 		break;
 	case PID_THROTTLE:
 		obdSendValue(_1_MODE, pid, 1, Sensor::get(SensorType::Tps1).value_or(0) * ODB_TPS_BYTE_PERCENT);	// (A*100/255)
@@ -170,10 +170,13 @@ static void handleGetDataRequest(const CANRxFrame& rx) {
 
 		obdSendPacket(1, pid, 4, scaled << 16);
 		break;
-	} case PID_FUEL_RATE:
-		obdSendValue(_1_MODE, pid, 2, engine->engineState.fuelConsumption.perSecondConsumption * 20.0f);	//	L/h.	(A*256+B)/20
+	} case PID_FUEL_RATE: {
+		float gPerSecond = engine->engineState.fuelConsumption.getConsumptionGramPerSecond();
+		float gPerHour = gPerSecond * 3600;
+		float literPerHour = gPerHour * 0.00139f;
+		obdSendValue(_1_MODE, pid, 2, literPerHour * 20.0f);	//	L/h.	(A*256+B)/20
 		break;
-	default:
+	} default:
 		// ignore unhandled PIDs
 		break;
 	}
@@ -195,7 +198,7 @@ static void handleDtcRequest(int numCodes, int *dtcCode) {
 
 #if HAL_USE_CAN
 void obdOnCanPacketRx(const CANRxFrame& rx) {
-	if (rx.SID != OBD_TEST_REQUEST) {
+	if (CAN_SID(rx) != OBD_TEST_REQUEST) {
 		return;
 	}
 

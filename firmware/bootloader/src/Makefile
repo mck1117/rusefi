@@ -7,24 +7,21 @@
 # for 'release' options see 'clean_compile_two_versions.bat' file
 
 ifeq ($(DEBUG_LEVEL_OPT),)
-  # this value would be used by default. For 'debug' configuration override with '-O0 -ggdb -g3' or something along these lines
+  # this value would be used by default. For 'debug' configuration override with '-O0 -ggdb -g' or something along these lines
   DEBUG_LEVEL_OPT = -O2
   DDEFS += -DEFI_ENABLE_ASSERTS=FALSE -DCH_DBG_ENABLE_ASSERTS=FALSE -DCH_DBG_ENABLE_STACK_CHECK=FALSE -DCH_DBG_FILL_THREADS=FALSE -DCH_DBG_THREADS_PROFILING=FALSE
 endif
 
-ifeq ($(CONFDIR),)
-  CONFDIR = $(PROJECT_DIR)/config/stm32f4ems
-endif
-
 # disable some modules to shrink bootloader binary
-DDEFS += -DHAL_USE_ADC=FALSE -DHAL_USE_CAN=FALSE -DHAL_USE_EXT=FALSE -DHAL_USE_GPT=FALSE -DHAL_USE_ICU=FALSE -DHAL_USE_PWM=FALSE -DHAL_USE_RTC=FALSE
+DDEFS += -DEFI_BOOTLOADER
+DDEFS += -DHAL_USE_EXT=FALSE -DHAL_USE_ICU=FALSE -DHAL_USE_PWM=FALSE -DHAL_USE_RTC=FALSE -DEF_LUA=FALSE
 #disable ChibiOS flsah driver and prevent header from include
 DDEFS += -DHAL_USE_FLASH=FALSE
 
-DDEFS += -DPRIMARY_UART_DMA_MODE=FALSE
+DDEFS += -DEFI_USE_UART_DMA=FALSE
 
 # disable USB (The bootloader has currently UART support only)
-DDEFS += -DEFI_USB_SERIAL=FALSE -DHAL_USE_SERIAL_USB=FALSE -DHAL_USE_USB=FALSE -DHAL_USE_USB_MSD=FALSE
+DDEFS += -DEFI_USB_SERIAL=FALSE
 # disable CAN
 DDEFS += -DEFI_CAN_SUPPORT=FALSE
 
@@ -65,7 +62,7 @@ endif
 
 # Enable this if you want link time optimizations (LTO)
 ifeq ($(USE_LTO),)
-  USE_LTO = no
+  USE_LTO = yes
 endif
 
 # If enabled, this option allows to compile the application in THUMB mode.
@@ -81,7 +78,7 @@ endif
 # If enabled, this option makes the build process faster by not compiling
 # modules not used in the current configuration.
 ifeq ($(USE_SMART_BUILD),)
-  USE_SMART_BUILD = yes
+  USE_SMART_BUILD = no
 endif
 
 #
@@ -156,11 +153,6 @@ include $(PROJECT_DIR)/controllers/controllers.mk
 include $(PROJECT_DIR)/hw_layer/$(CPU_HWLAYER)/hw_ports.mk
 include $(PROJECT_DIR)/hw_layer/drivers/drivers.mk
 
-# Define linker script file here
-ifeq ($(LDSCRIPT),)
-  LDSCRIPT= $(CONFIG)/stm32f4ems/STM32F407xG.ld
-endif
-
 # C sources that can be compiled in ARM or THUMB mode depending on the global
 # setting.
 CSRC =  $(ALLCSRC) \
@@ -181,6 +173,7 @@ CPPSRC = $(ALLCPPSRC) \
 	$(TUNERSTUDIO_SRC_CPP) \
 	$(CONSOLE_SRC_CPP) \
 	$(PROJECT_DIR)/console/binary/tunerstudio_io.cpp \
+	$(PROJECT_DIR)/console/binary/tunerstudio_io_serial.cpp \
 	$(PROJECT_DIR)/controllers/system/efi_gpio.cpp \
 	$(PROJECT_DIR)/controllers/algo/engine_configuration.cpp \
 	$(PROJECT_DIR)/controllers/persistent_store.cpp \
@@ -215,19 +208,14 @@ TCPPSRC =
 # List ASM source files here
 ASMXSRC = $(STARTUPASM) $(PORTASM) $(OSALASM)
 
-ifeq ($(CONFIGPATH),)
-  CONFIGPATH=$(PROJECT_DIR)/config/stm32f4ems
-endif
-
-
 INCDIR = $(ALLINC) \
 	.. \
 	$(CHIBIOS)/os/various \
 	$(CHIBIOS)/os/ex/ST \
 	$(CHIBIOS)/os/hal/lib/peripherals/sensors \
-	$(CONFIGPATH) \
 	$(CONFIG)/engines \
 	$(CONFIG) \
+	$(CONFDIR) \
 	$(PROJECT_DIR)/ext \
 	$(PROJECT_DIR)/ext_algo \
 	$(UTIL_INC) \
@@ -322,7 +310,7 @@ UINCDIR =
 ULIBDIR =
 
 # List all user libraries here
-ULIBS = -lm
+ULIBS = -lm --specs=nano.specs
 
 #
 # End of user defines

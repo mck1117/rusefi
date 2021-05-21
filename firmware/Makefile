@@ -23,10 +23,10 @@ include rusefi.mk
 
 ifeq ($(DEBUG_LEVEL_OPT),)
   # Default to a release build - but leave in debug info.  It doesn't change the hex/bin output.
-  DEBUG_LEVEL_OPT = -O2 -ggdb -g3
+  DEBUG_LEVEL_OPT = -O2 -ggdb -g
   # Comment the above and uncomment the line below if you want to debug the firmware (it's difficult-to-impossible
   # to debug firmware with optimization enabled).
-  # DEBUG_LEVEL_OPT = -O0 -ggdb -g3
+  # DEBUG_LEVEL_OPT = -O0 -ggdb -g
 endif
 
 
@@ -88,8 +88,9 @@ endif
 
 # If enabled, this option makes the build process faster by not compiling
 # modules not used in the current configuration.
+# without USE_SMART_BUILD all ChibiOS (including all drivers) are builded. And all drivers includes get included.
 ifeq ($(USE_SMART_BUILD),)
-  USE_SMART_BUILD = yes
+  USE_SMART_BUILD = no
 endif
 
 ifeq ($(USE_BOOTLOADER),)
@@ -143,16 +144,6 @@ BOARDS_DIR = $(PROJECT_DIR)/config/boards
 
 include $(PROJECT_DIR)/config/boards/$(PROJECT_BOARD)/board.mk
 
-# If enabled, this option makes the build process faster by not compiling
-# modules not used in the current configuration.
-# without USE_SMART_BUILD all ChibiOS (including all drivers) are builded. And all drivers includes get included.
-ifeq ($(USE_SMART_BUILD),)
-  USE_SMART_BUILD = yes
-endif
-ifeq ($(CONFDIR),)
-  CONFDIR = $(PROJECT_DIR)/config/stm32f4ems
-endif
-
 # Include various ChibiOS mk files
 # Licensing files.
 include $(CHIBIOS)/os/license/license.mk
@@ -166,7 +157,9 @@ include $(CHIBIOS)/os/hal/osal/rt-nil/osal.mk
 include $(CHIBIOS)/os/rt/rt.mk
 include $(CHIBIOS)/os/common/ports/ARMCMx/compilers/GCC/mk/port_v7m.mk
 # EX files (optional).
+ifneq ($(USE_LIS302),no)
 include $(CHIBIOS)/os/ex/devices/ST/lis302dl.mk
+endif
 include $(CHIBIOS)/os/hal/lib/streams/streams.mk
 include $(CHIBIOS)/os/various/cpp_wrappers/chcpp.mk
 
@@ -183,6 +176,7 @@ endif
 include $(PROJECT_DIR)/config/engines/engines.mk
 include $(PROJECT_DIR)/console/console.mk
 include $(PROJECT_DIR)/controllers/controllers.mk
+include $(PROJECT_DIR)/controllers/lua/lua.mk
 include $(PROJECT_DIR)/development/development.mk
 include $(PROJECT_DIR)/hw_layer/hw_layer.mk
 include $(PROJECT_DIR)/hw_layer/drivers/drivers.mk
@@ -200,11 +194,6 @@ ifeq ($(USE_BOOTLOADER),yes)
 include $(PROJECT_DIR)/bootloader/bootloader.mk
 endif
 
-# Define linker script file here
-ifeq ($(LDSCRIPT),)
-  LDSCRIPT= config/stm32f4ems/STM32F407xG.ld
-endif
-
 $(info PROJECT_BOARD: $(PROJECT_BOARD))
 $(info PROJECT_CPU:   $(PROJECT_CPU))
 $(info CONFDIR:       $(CONFDIR))
@@ -214,6 +203,7 @@ $(info LDSCRIPT:      $(LDSCRIPT))
 # setting.
 CSRC =  $(ALLCSRC) \
 	$(CHIBIOS)/os/various/syscalls.c \
+	$(CHIBIOS_CONTRIB)/os/various/ramdisk.c \
 	$(TRIGGER_SRC) \
 	$(TRIGGER_DECODERS_SRC) \
 	$(DEV_SRC) \
@@ -230,7 +220,6 @@ CSRC =  $(ALLCSRC) \
 	$(CONTROLLERS_ALGO_SRC) \
 	$(CONTROLLERS_CORE_SRC) \
 	$(CONTROLLERS_SENSORS_SRC) \
-	$(SYSTEMSRC) \
 	main_hardfault.c
 
 # C++ sources that can be compiled in ARM or THUMB mode depending on the global
@@ -246,7 +235,7 @@ CPPSRC = $(ALLCPPSRC) \
 	$(HW_LAYER_EMS_CPP) \
 	$(HW_LAYER_DRIVERS_CORE_CPP) \
 	$(HW_LAYER_DRIVERS_CPP) \
-	$(HW_SENSORS_SRC) \
+	$(HW_SENSORS_CPP) \
 	$(TUNERSTUDIO_SRC_CPP) \
 	$(CONSOLE_SRC_CPP) \
 	$(CONTROLLERS_SENSORS_SRC_CPP) \
@@ -307,7 +296,9 @@ INCDIR = $(ALLINC) \
 	$(DEVELOPMENT_DIR) \
 	development/hw_layer \
 	development/test \
-	$(CONTROLLERS_INC)
+	$(CONTROLLERS_INC) \
+	$(CHIBIOS_CONTRIB)/os/various
+	# contrib/os/various must go at the end because it also contains pid.h which conflicts with our pid.h
 
 #
 # Project, sources and paths
@@ -317,7 +308,9 @@ INCDIR = $(ALLINC) \
 # Compiler settings
 #
 
-MCU  = cortex-m4
+ifeq ($(MCU),)
+	MCU = cortex-m4
+endif
 
 ifeq ($(CROSS_COMPILE),)
   TRGT = arm-none-eabi-
@@ -372,7 +365,7 @@ UINCDIR =
 ULIBDIR =
 
 # List all user libraries here
-ULIBS = -lm
+ULIBS = -lm --specs=nano.specs
 
 #
 # End of user defines

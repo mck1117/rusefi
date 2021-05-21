@@ -187,7 +187,7 @@ void TriggerWaveform::calculateExpectedEventCounts(bool useOnlyRisingEdgeForTrig
 	UNUSED(useOnlyRisingEdgeForTrigger);
 
 	if (!useOnlyRisingEdgeForTrigger) {
-		for (int i = 0;i<efi::size(expectedEventCount);i++) {
+		for (size_t i = 0; i < efi::size(expectedEventCount); i++) {
 			if (expectedEventCount[i] % 2 != 0) {
 				firmwareError(ERROR_TRIGGER_DRAMA, "Trigger: should be even %d %d", i, expectedEventCount[i]);
 			}
@@ -198,6 +198,9 @@ void TriggerWaveform::calculateExpectedEventCounts(bool useOnlyRisingEdgeForTrig
 	// todo: next step would be to set 'isSynchronizationNeeded' automatically based on the logic we have here
 	if (!shapeWithoutTdc && isSingleToothOnPrimaryChannel != !isSynchronizationNeeded) {
 		firmwareError(ERROR_TRIGGER_DRAMA, "trigger sync constraint violation");
+	}
+	if (isSingleToothOnPrimaryChannel) {
+		useOnlyPrimaryForSync = true;
 	}
 
 // todo: move the following logic from below here
@@ -364,7 +367,7 @@ void TriggerWaveform::setTriggerSynchronizationGap3(int gapIndex, float syncRati
 uint16_t TriggerWaveform::findAngleIndex(TriggerFormDetails *details, float target) const {
 	size_t engineCycleEventCount = getLength();
 
-	efiAssert(CUSTOM_ERR_ASSERT, engineCycleEventCount <= 0xFFFF, "engineCycleEventCount", 0);
+	efiAssert(CUSTOM_ERR_ASSERT, engineCycleEventCount != 0 && engineCycleEventCount <= 0xFFFF, "engineCycleEventCount", 0);
 
 	uint32_t left = 0;
 	uint32_t right = engineCycleEventCount - 1;
@@ -465,11 +468,11 @@ void TriggerWaveform::setSecondTriggerSynchronizationGap(float syncRatio) {
 /**
  * External logger is needed because at this point our logger is not yet initialized
  */
-void TriggerWaveform::initializeTriggerWaveform(Logging *logger, operation_mode_e ambiguousOperationMode, bool useOnlyRisingEdgeForTrigger, const trigger_config_s *triggerConfig) {
+void TriggerWaveform::initializeTriggerWaveform(operation_mode_e ambiguousOperationMode, bool useOnlyRisingEdgeForTrigger, const trigger_config_s *triggerConfig) {
 
 #if EFI_PROD_CODE
 	efiAssertVoid(CUSTOM_ERR_6641, getCurrentRemainingStack() > EXPECTED_REMAINING_STACK, "init t");
-	scheduleMsg(logger, "initializeTriggerWaveform(%s/%d)", getTrigger_type_e(triggerConfig->type), (int) triggerConfig->type);
+	efiPrintf("initializeTriggerWaveform(%s/%d)", getTrigger_type_e(triggerConfig->type), (int) triggerConfig->type);
 #endif
 
 	shapeDefinitionError = false;
@@ -540,6 +543,18 @@ void TriggerWaveform::initializeTriggerWaveform(Logging *logger, operation_mode_
 		configureFordAspireTriggerWaveform(this);
 		break;
 
+	case TT_KAWA_KX450F:
+		configureKawaKX450F(this);
+		break;
+
+	case TT_SKODA_FAVORIT:
+		setSkodaFavorit(this);
+		break;
+
+	case TT_GM_60_2_2_2:
+		configureGm60_2_2_2(this);
+		break;
+
 	case TT_GM_7X:
 		configureGmTriggerWaveform(this);
 		break;
@@ -590,6 +605,10 @@ void TriggerWaveform::initializeTriggerWaveform(Logging *logger, operation_mode_
 
 	case TT_VVT_BOSCH_QUICK_START:
 		configureQuickStartSenderWheel(this);
+		break;
+
+	case TT_VVT_BARRA_3_PLUS_1:
+		configureBarra3plus1cam(this);
 		break;
 
 	case TT_HONDA_K_12_1:

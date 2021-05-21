@@ -152,6 +152,7 @@ TEST(misc, test1995FordInline6TriggerDecoder) {
 	ASSERT_EQ( 0,  getTriggerZeroEventIndex(FORD_INLINE_6_1995)) << "triggerIndex ";
 
 	WITH_ENGINE_TEST_HELPER(FORD_INLINE_6_1995);
+	setWholeTimingTable(-13);
 
 	Sensor::setMockValue(SensorType::Iat, 49.579071f);
 
@@ -314,6 +315,8 @@ TEST(misc, testRpmCalculator) {
 
 	efiAssertVoid(CUSTOM_ERR_6670, engineConfiguration!=NULL, "null config in engine");
 
+	setWholeTimingTable(-13);
+
 	engineConfiguration->trigger.customTotalToothCount = 8;
 	engineConfiguration->globalFuelCorrection = 3;
 	eth.applyTriggerWaveform();
@@ -346,6 +349,8 @@ TEST(misc, testRpmCalculator) {
 	ASSERT_EQ( 485000,  start) << "start value";
 
 	eth.engine.periodicFastCallback(PASS_ENGINE_PARAMETER_SIGNATURE);
+
+	ASSERT_NEAR(engine->engineState.timingAdvance, 707, 0.1f);
 
 	assertEqualsM("fuel #1", 4.5450, engine->injectionDuration);
 	InjectionEvent *ie0 = &engine->injectionEvents.elements[0];
@@ -451,7 +456,7 @@ TEST(misc, testRpmCalculator) {
 }
 
 TEST(misc, testAnotherTriggerDecoder) {
-	testTriggerDecoder2("Miata 2003", MAZDA_MIATA_2003, 3, 0.4444458, 0.0);
+	testTriggerDecoder2("Miata 2003", MAZDA_MIATA_2003, 3, 0.38888889, 0.0);
 }
 
 TEST(misc, testTriggerDecoder) {
@@ -459,14 +464,11 @@ TEST(misc, testTriggerDecoder) {
 
 	{
 	persistent_config_s c;
-	Engine e(&c);
+	Engine e;
+	e.setConfig(&e, &c.engineConfiguration, &c);
+	Engine* engine = &e;
+	EXPAND_Engine;
 	TriggerWaveform * s = &e.triggerCentral.triggerShape;
-
-
-	persistent_config_s *config = &c;
-	Engine *engine = &e;
-
-	engine_configuration_s *engineConfiguration = &c.engineConfiguration;
 
 	initializeSkippedToothTriggerWaveformExt(s, 2, 0, FOUR_STROKE_CAM_SENSOR);
 	assertEqualsM("shape size", s->getSize(), 4);
@@ -516,7 +518,7 @@ TEST(misc, testTriggerDecoder) {
 
 		eth.persistentConfig.engineConfiguration.useOnlyRisingEdgeForTrigger = false;
 		eth.persistentConfig.engineConfiguration.sensorChartMode = SC_DETAILED_RPM;
-		applyNonPersistentConfiguration(NULL PASS_ENGINE_PARAMETER_SUFFIX);
+		applyNonPersistentConfiguration(PASS_ENGINE_PARAMETER_SIGNATURE);
 
 	}
 	testTriggerDecoder2("miata 1990", MIATA_1990, 11, 0.2985, 0.3890);
@@ -532,7 +534,7 @@ TEST(misc, testTriggerDecoder) {
 		printf("!!!!!!!!!!!!!!!!!! Now trying with only rising edges !!!!!!!!!!!!!!!!!\r\n");
 		engineConfiguration->useOnlyRisingEdgeForTrigger = true;
 
-		applyNonPersistentConfiguration(NULL PASS_ENGINE_PARAMETER_SUFFIX);
+		applyNonPersistentConfiguration(PASS_ENGINE_PARAMETER_SIGNATURE);
 		prepareShapes(PASS_ENGINE_PARAMETER_SIGNATURE);
 	}
 
@@ -670,18 +672,10 @@ static void setTestBug299(EngineTestHelper *eth) {
 	ASSERT_EQ( 1,  engine->engineState.running.coolantTemperatureCoefficient) << "cltC";
 	ASSERT_EQ( 0,  engine->engineState.running.injectorLag) << "lag";
 
-	engineConfiguration->mafAdcChannel = EFI_ADC_10;
-	engine->engineState.mockAdcState.setMockVoltage(EFI_ADC_10, 0 PASS_ENGINE_PARAMETER_SUFFIX);
-
-	ASSERT_EQ( 0,  getMafVoltage(PASS_ENGINE_PARAMETER_SIGNATURE)) << "maf";
-
 	ASSERT_EQ( 3000,  GET_RPM()) << "setTestBug299: RPM";
 
 	assertEqualsM("fuel#1", 1.5, engine->injectionDuration);
 	assertEqualsM("duty for maf=0", 7.5, getInjectorDutyCycle(GET_RPM() PASS_ENGINE_PARAMETER_SUFFIX));
-
-	engine->engineState.mockAdcState.setMockVoltage(EFI_ADC_10, 3 PASS_ENGINE_PARAMETER_SUFFIX);
-	ASSERT_EQ( 3,  getMafVoltage(PASS_ENGINE_PARAMETER_SIGNATURE)) << "maf";
 }
 
 static void assertInjectors(const char *msg, int value0, int value1) {
@@ -707,7 +701,13 @@ void doTestFuelSchedulerBug299smallAndMedium(int startUpDelayMs) {
 	assertInjectors("#0_inj", 0, 0);
 
 	engine->periodicFastCallback(PASS_ENGINE_PARAMETER_SIGNATURE);
+
 	engine->injectionDuration = 12.5f;
+	// Injection duration of 12.5ms
+	MockInjectorModel2 im;
+	EXPECT_CALL(im, getInjectionDuration(_)).WillRepeatedly(Return(12.5f));
+	engine->injectorModel = &im;
+
 	assertEqualsM("duty for maf=3", 62.5, getInjectorDutyCycle(GET_RPM() PASS_ENGINE_PARAMETER_SUFFIX));
 
 	ASSERT_EQ( 4,  engine->executor.size()) << "qs#1";
@@ -863,6 +863,11 @@ void doTestFuelSchedulerBug299smallAndMedium(int startUpDelayMs) {
 	assertInjectionEvent("#3#", &t->elements[3], 1, 0, 45 + 90);
 
 	engine->injectionDuration = 17.5;
+	// Injection duration of 17.5ms
+	MockInjectorModel2 im2;
+	EXPECT_CALL(im2, getInjectionDuration(_)).WillRepeatedly(Return(17.5f));
+	engine->injectorModel = &im2;
+
 	// duty cycle above 75% is a special use-case because 'special' fuel event overlappes the next normal event in batch mode
 	assertEqualsM("duty for maf=3", 87.5, getInjectorDutyCycle(GET_RPM() PASS_ENGINE_PARAMETER_SUFFIX));
 
@@ -990,7 +995,13 @@ TEST(big, testFuelSchedulerBug299smallAndLarge) {
 	ASSERT_EQ( 4,  engine->executor.size()) << "Lqs#0";
 
 	engine->periodicFastCallback(PASS_ENGINE_PARAMETER_SIGNATURE);
+
 	engine->injectionDuration = 17.5f;
+	// Injection duration of 17.5ms
+	MockInjectorModel2 im;
+	EXPECT_CALL(im, getInjectionDuration(_)).WillRepeatedly(Return(17.5f));
+	engine->injectorModel = &im;
+
 	assertEqualsM("Lduty for maf=3", 87.5, getInjectorDutyCycle(GET_RPM() PASS_ENGINE_PARAMETER_SUFFIX));
 
 
@@ -1051,7 +1062,13 @@ TEST(big, testFuelSchedulerBug299smallAndLarge) {
 	ASSERT_EQ( 0,  engine->executor.size()) << "Lqs#04";
 
 	engine->periodicFastCallback(PASS_ENGINE_PARAMETER_SIGNATURE);
+
+	// Injection duration of 2ms
 	engine->injectionDuration = 2.0f;
+	MockInjectorModel2 im2;
+	EXPECT_CALL(im2, getInjectionDuration(_)).WillRepeatedly(Return(2.0f));
+	engine->injectorModel = &im2;
+
 	ASSERT_EQ( 10,  getInjectorDutyCycle(GET_RPM() PASS_ENGINE_PARAMETER_SUFFIX)) << "Lduty for maf=3";
 
 

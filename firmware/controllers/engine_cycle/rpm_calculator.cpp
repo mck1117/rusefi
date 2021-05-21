@@ -84,8 +84,6 @@ int RpmCalculator::getRpm() const {
 
 EXTERN_ENGINE;
 
-static Logging * logger;
-
 RpmCalculator::RpmCalculator() :
 		StoredValueSensor(SensorType::Rpm, 0)
 	{
@@ -94,9 +92,6 @@ RpmCalculator::RpmCalculator() :
 #endif /* EFI_PROD_CODE */
 	// todo: reuse assignRpmValue() method which needs PASS_ENGINE_PARAMETER_SUFFIX
 	// which we cannot provide inside this parameter-less constructor. need a solution for this minor mess
-
-	// we need this initial to have not_running at first invocation
-	lastRpmEventTimeNt = (efitick_t) DEEP_IN_THE_PAST_SECONDS * NT_PER_SECOND;
 }
 
 /**
@@ -118,11 +113,15 @@ bool RpmCalculator::checkIfSpinning(efitick_t nowNt) const {
 	 * note that the result of this subtraction could be negative, that would happen if
 	 * we have a trigger event between the time we've invoked 'getTimeNow' and here
 	 */
-	bool noRpmEventsForTooLong = nowNt - lastRpmEventTimeNt >= NT_PER_SECOND * NO_RPM_EVENTS_TIMEOUT_SECS; // Anything below 60 rpm is not running
+
+	// Anything below 60 rpm is not running
+	bool noRpmEventsForTooLong = lastTdcTimer.getElapsedSeconds(nowNt) > NO_RPM_EVENTS_TIMEOUT_SECS;
+
 	/**
 	 * Also check if there were no trigger events
 	 */
-	bool noTriggerEventsForTooLong = nowNt - engine->triggerCentral.triggerState.previousShaftEventTimeNt >= NT_PER_SECOND;
+	bool noTriggerEventsForTooLong = engine->triggerCentral.getTimeSinceTriggerEvent(nowNt) >= 1;
+
 	if (noRpmEventsForTooLong || noTriggerEventsForTooLong) {
 		return false;
 	}
@@ -208,7 +207,7 @@ void RpmCalculator::setStopped() {
 		assignRpmValue(0);
 		// needed by 'useNoiselessTriggerDecoder'
 		engine->triggerCentral.noiseFilter.resetAccumSignalData();
-		scheduleMsg(logger, "engine stopped");
+		efiPrintf("engine stopped");
 	}
 	state = STOPPED;
 }
@@ -252,8 +251,9 @@ void rpmShaftPositionCallback(trigger_event_e ckpSignalType,
 	if (index == 0) {
 		bool hadRpmRecently = rpmState->checkIfSpinning(nowNt);
 
+		float periodSeconds = engine->rpmCalculator.lastTdcTimer.getElapsedSecondsAndReset(nowNt);
+
 		if (hadRpmRecently) {
-			int32_t diffNt = (int32_t)(nowNt - rpmState->lastRpmEventTimeNt);
 		/**
 		 * Four stroke cycle is two crankshaft revolutions
 		 *
@@ -261,22 +261,21 @@ void rpmShaftPositionCallback(trigger_event_e ckpSignalType,
 		 * and each revolution of crankshaft consists of two engine cycles revolutions
 		 *
 		 */
-			if (diffNt == 0) {
+			if (periodSeconds == 0) {
 				rpmState->setRpmValue(NOISY_RPM);
 				rpmState->rpmRate = 0;
 			} else {
 				int mult = (int)getEngineCycle(engine->getOperationMode(PASS_ENGINE_PARAMETER_SIGNATURE)) / 360;
-				float rpm = 60.0 * NT_PER_SECOND * mult / diffNt;
+				float rpm = 60 * mult / periodSeconds;
 
 				auto rpmDelta = rpm - rpmState->previousRpmValue;
-				rpmState->rpmRate = rpmDelta / (mult * 1e-6 * NT2US(diffNt));
+				rpmState->rpmRate = rpmDelta / (mult * periodSeconds);
 
 				rpmState->setRpmValue(rpm > UNREALISTIC_RPM ? NOISY_RPM : rpm);
-				
 			}
 		}
+
 		rpmState->onNewEngineCycle();
-		rpmState->lastRpmEventTimeNt = nowNt;
 	}
 
 
@@ -307,7 +306,7 @@ void rpmShaftPositionCallback(trigger_event_e ckpSignalType,
 		instantRpm = minF(instantRpm, CONFIG(cranking.rpm) - 1);
 		rpmState->assignRpmValue(instantRpm);
 #if 0
-		scheduleMsg(logger, "** RPM: idx=%d sig=%d iRPM=%d", index, ckpSignalType, instantRpm);
+		efiPrintf("** RPM: idx=%d sig=%d iRPM=%d", index, ckpSignalType, instantRpm);
 #endif
 	}
 }
@@ -321,6 +320,7 @@ static char rpmBuffer[_MAX_FILLER];
  * digital sniffer.
  */
 static void onTdcCallback(Engine *engine) {
+	UNUSED(engine);
 #if EFI_UNIT_TEST
 	if (!engine->needTdcCallback) {
 		return;
@@ -363,22 +363,18 @@ void tdcMarkCallback(
  * @return Current crankshaft angle, 0 to 720 for four-stroke
  */
 float getCrankshaftAngleNt(efitick_t timeNt DECLARE_ENGINE_PARAMETER_SUFFIX) {
-	efitick_t timeSinceZeroAngleNt = timeNt
-			- engine->rpmCalculator.lastRpmEventTimeNt;
+	float timeSinceZeroAngle = engine->rpmCalculator.lastTdcTimer.getElapsedSeconds(timeNt);
 
-	/**
-	 * even if we use 'getOneDegreeTimeUs' macros here, it looks like the
-	 * compiler is not smart enough to figure out that "A / ( B / C)" could be optimized into
-	 * "A * C / B" in order to replace a slower division with a faster multiplication.
-	 */
 	int rpm = GET_RPM();
-	return rpm == 0 ? NAN : timeSinceZeroAngleNt / getOneDegreeTimeNt(rpm);
+
+	float oneDegreeSeconds = (60.0f / 360) / rpm;
+
+	return rpm == 0 ? NAN : timeSinceZeroAngle / oneDegreeSeconds;
 }
 
-void initRpmCalculator(Logging *sharedLogger DECLARE_ENGINE_PARAMETER_SUFFIX) {
+void initRpmCalculator(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	INJECT_ENGINE_REFERENCE(&ENGINE(rpmCalculator));
 
-	logger = sharedLogger;
 #if ! HW_CHECK_MODE
 	if (hasFirmwareError()) {
 		return;

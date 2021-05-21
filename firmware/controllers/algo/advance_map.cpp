@@ -43,23 +43,24 @@ static int minCrankingRpm = 0;
 static const float iatTimingRpmBins[IGN_LOAD_COUNT] = {880,	1260,	1640,	2020,	2400,	2780,	3000,	3380,	3760,	4140,	4520,	5000,	5700,	6500,	7200,	8000};
 
 //880	1260	1640	2020	2400	2780	3000	3380	3760	4140	4520	5000	5700	6500	7200	8000
-static const ignition_table_t defaultIatTiming = {
-		{ 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 2, 2, 2, 2, 2},
-		{ 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 2, 2, 2, 2, 2},
-		{ 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 2, 2, 2, 2, 2},
-		{ 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 2, 2, 2, 2, 2},
-		{3.5, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5, 2, 2, 2, 2, 2},
-		{ 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 2, 2, 2, 2, 2},
-		{ 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0},
+static const int8_t defaultIatTiming[16][16] = {
+	// NOTE: this table is stored in tenths of a degree (so we can use int8_t instead of float), converted upon copy (see copyTable call below)
+		{ 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 20, 20, 20, 20, 20 },
+		{ 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 20, 20, 20, 20, 20 },
+		{ 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 20, 20, 20, 20, 20 },
+		{ 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 20, 20, 20, 20, 20 },
+		{ 35, 35, 35, 35, 35, 35, 35, 35, 35, 35, 35, 20, 20, 20, 20, 20 },
+		{ 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 20, 20, 20, 20, 2},
+		{ 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 0, 0, 0, 0, 0},
 		{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 		{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-		{ 0, 0, -0.9, -0.9, -0.9, -0.9, -0.9, -0.9, -0.9, -0.9, -0.9, -0.9, -0.9, -0.9, -0.9, -0.9},
-		{ -3.3, -3.4, -4.9, -4.9, -4.9, -4.9, -4.4, -4.4, -4.4, -4.4, -4.4, -0.9, -0.9, -0.9, -0.9, -0.9},
-		{ -4.4, -4.9, -5.9, -5.9, -5.9, -5.9, -4.9, -4.9, -4.9, -4.9, -4.9, -2.4, -2.4, -2.4, -2.4, -2.4},
-		{ -4.4, -4.9, -5.9, -5.9, -5.9, -5.9, -4.9, -4.9, -4.9, -4.9, -4.9, -2.9, -2.9, -2.9, -2.9, -2.9},
-		{-4.4, -4.9, -5.9, -5.9, -5.9, -5.9, -4.9, -4.9, -4.9, -4.9, -4.9, -3.9, -3.9, -3.9, -3.9, -3.9},
-		{-4.4, -4.9, -5.9, -5.9, -5.9, -5.9, -4.9, -4.9, -4.9, -4.9, -4.9, -3.9, -3.9, -3.9, -3.9, -3.9},
-		{-4.4, -4.9, -5.9, -5.9, -5.9, -5.9, -4.9, -4.9, -4.9, -4.9, -4.9, -3.9, -3.9, -3.9, -3.9, -3.9},
+		{   0,   0,  -9,  -9,  -9,  -9,  -9,  -9,  -9,  -9,  -9,  -9,  -9,  -9,  -9,  -9},
+		{ -33, -34, -49, -49, -49, -49, -44, -44, -44, -44, -44,  -9,  -9,  -9,  -9,  -9},
+		{ -44, -49, -59, -59, -59, -59, -49, -49, -49, -49, -49, -24, -24, -24, -24, -24},
+		{ -44, -49, -59, -59, -59, -59, -49, -49, -49, -49, -49, -29, -29, -29, -29, -29},
+		{ -44, -49, -59, -59, -59, -59, -49, -49, -49, -49, -49, -39, -39, -39, -39, -39},
+		{ -44, -49, -59, -59, -59, -59, -49, -49, -49, -49, -49, -39, -39, -39, -39, -39},
+		{ -44, -49, -59, -59, -59, -59, -49, -49, -49, -49, -49, -39, -39, -39, -39, -39},
 };
 
 #endif /* IGN_LOAD_COUNT == DEFAULT_IGN_LOAD_COUNT */
@@ -83,7 +84,7 @@ static angle_t getRunningAdvance(int rpm, float engineLoad DECLARE_ENGINE_PARAME
 
 	// get advance from the separate table for Idle
 	if (CONFIG(useSeparateAdvanceForIdle) && isIdling()) {
-		float idleAdvance = interpolate2d("idleAdvance", rpm, config->idleAdvanceBins, config->idleAdvance);
+		float idleAdvance = interpolate2d(rpm, config->idleAdvanceBins, config->idleAdvance);
 
 		auto [valid, tps] = Sensor::get(SensorType::DriverThrottleIntent);
 		if (valid) {
@@ -146,7 +147,7 @@ angle_t getAdvanceCorrections(int rpm DECLARE_ENGINE_PARAMETER_SUFFIX) {
 static angle_t getCrankingAdvance(int rpm, float engineLoad DECLARE_ENGINE_PARAMETER_SUFFIX) {
 	// get advance from the separate table for Cranking
 	if (CONFIG(useSeparateAdvanceForCranking)) {
-		return interpolate2d("crankingAdvance", rpm, CONFIG(crankingAdvanceBins), CONFIG(crankingAdvance));
+		return interpolate2d(rpm, CONFIG(crankingAdvanceBins), CONFIG(crankingAdvance));
 	}
 
 	// Interpolate the cranking timing angle to the earlier running angle for faster engine start
@@ -192,7 +193,6 @@ angle_t getAdvance(int rpm, float engineLoad DECLARE_ENGINE_PARAMETER_SUFFIX) {
 		}
 	}
 
-	angle -= engineConfiguration->ignitionOffset;
 	efiAssert(CUSTOM_ERR_ASSERT, !cisnan(angle), "_AngleN5", 0);
 	fixAngle(angle, "getAdvance", CUSTOM_ERR_ADCANCE_CALC_ANGLE);
 	return angle;
@@ -242,8 +242,9 @@ size_t getMultiSparkCount(int rpm DECLARE_ENGINE_PARAMETER_SUFFIX) {
 void setDefaultIatTimingCorrection(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	setLinearCurve(config->ignitionIatCorrLoadBins, /*from*/CLT_CURVE_RANGE_FROM, 110, 1);
 #if IGN_LOAD_COUNT == DEFAULT_IGN_LOAD_COUNT
-	MEMCPY(config->ignitionIatCorrRpmBins, iatTimingRpmBins);
-	MEMCPY(config->ignitionIatCorrTable, defaultIatTiming);
+	copyArray(config->ignitionIatCorrRpmBins, iatTimingRpmBins);
+	// defaultIatTiming stored in tenths of a degree, see table above
+	copyTable(config->ignitionIatCorrTable, defaultIatTiming, 0.1f);
 #else
 	setLinearCurve(config->ignitionIatCorrLoadBins, /*from*/0, 6000, 1);
 #endif /* IGN_LOAD_COUNT == DEFAULT_IGN_LOAD_COUNT */

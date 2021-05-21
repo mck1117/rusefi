@@ -35,7 +35,7 @@
 #define SLOW_CALLBACK_PERIOD_MS 50
 
 class RpmCalculator;
-class AirmassModelBase;
+struct AirmassModelBase;
 
 #define MAF_DECODING_CACHE_SIZE 256
 
@@ -70,6 +70,8 @@ protected:
 class VvtTriggerConfiguration final : public TriggerConfiguration {
 public:
 	VvtTriggerConfiguration() : TriggerConfiguration("TRG ") {}
+	// todo: is it possible to make 'index' constructor argument?
+	int index = 0;
 
 protected:
 	bool isUseOnlyRisingEdgeForTrigger() const override;
@@ -79,7 +81,8 @@ protected:
 
 class Engine final : public TriggerStateListener {
 public:
-	explicit Engine(persistent_config_s *config);
+	DECLARE_ENGINE_PTR;
+
 	Engine();
 	bool isPwmEnabled = true;
 	int triggerActivitySecond = 0;
@@ -94,7 +97,7 @@ public:
 	GearControllerBase *gearController;
 
 	PrimaryTriggerConfiguration primaryTriggerConfiguration;
-	VvtTriggerConfiguration vvtTriggerConfiguration;
+	VvtTriggerConfiguration vvtTriggerConfiguration[CAMS_PER_BANK];
 	efitick_t startStopStateLastPushTime = 0;
 
 #if EFI_SHAFT_POSITION_INPUT
@@ -105,7 +108,7 @@ public:
 	void OnTriggerSynchronizationLost() override;
 #endif
 
-	void setConfig(persistent_config_s *config);
+	void setConfig(DECLARE_ENGINE_PARAMETER_SIGNATURE);
 	injection_mode_e getCurrentInjectionMode(DECLARE_ENGINE_PARAMETER_SIGNATURE);
 
 	LocalVersionHolder versionForConfigurationListeners;
@@ -182,12 +185,7 @@ public:
 	 * this is based on sensorChartMode and sensorSnifferRpmThreshold settings
 	 */
 	sensor_chart_e sensorChartMode = SC_OFF;
-	/**
-	 * based on current RPM and isAlternatorControlEnabled setting
-	 */
-	bool isAlternatorControlEnabled = false;
 
-	bool isCltBroken = false;
 	bool slowCallBackWasInvoked = false;
 
 	/**
@@ -197,12 +195,6 @@ public:
 	efitimems64_t callFromPitStopEndTime = 0;
 
 	RpmCalculator rpmCalculator;
-	persistent_config_s *config = nullptr;
-	/**
-	 * we use funny unique name to make sure that compiler is not confused between global variable and class member
-	 * todo: this variable is probably a sign of some problem, should we even have it?
-	 */
-	engine_configuration_s *engineConfigurationPtr = nullptr;
 
 	/**
 	 * this is about 'stopengine' command
@@ -241,10 +233,15 @@ public:
 	 */
 	floatms_t injectionDuration = 0;
 
+	// Per-injection fuel mass, including TPS accel enrich
+	float injectionMass[STFT_BANK_COUNT] = {0};
+
+	float stftCorrection[STFT_BANK_COUNT] = {0};
+
 	/**
 	 * This one with wall wetting accounted for, used for logging.
 	 */
-	floatms_t actualLastInjection = 0;
+	floatms_t actualLastInjection[STFT_BANK_COUNT] = {0};
 
 	// Standard cylinder air charge - 100% VE at standard temperature, grams per cylinder
 	float standardAirCharge = 0;
@@ -253,7 +250,7 @@ public:
 	void periodicSlowCallback(DECLARE_ENGINE_PARAMETER_SIGNATURE);
 	void updateSlowSensors(DECLARE_ENGINE_PARAMETER_SIGNATURE);
 	void updateSwitchInputs(DECLARE_ENGINE_PARAMETER_SIGNATURE);
-	void initializeTriggerWaveform(Logging *logger DECLARE_ENGINE_PARAMETER_SUFFIX);
+	void initializeTriggerWaveform(DECLARE_ENGINE_PARAMETER_SIGNATURE);
 
 	bool clutchUpState = false;
 	bool clutchDownState = false;
@@ -317,18 +314,10 @@ public:
 	/**
 	 * this is invoked each time we register a trigger tooth signal
 	 */
-	void onTriggerSignalEvent(efitick_t nowNt);
+	void onTriggerSignalEvent();
 	EngineState engineState;
 	SensorsState sensors;
-	efitick_t lastTriggerToothEventTimeNt = 0;
 	efitick_t mainRelayBenchStartNt = 0;
-
-
-	/**
-	 * This coefficient translates ADC value directly into voltage adjusted according to
-	 * voltage divider configuration with just one multiplication. This is a future (?) performance optimization.
-	 */
-	float adcToVoltageInputDividerCoefficient = NAN;
 
 	/**
 	 * This field is true if we are in 'cylinder cleanup' state right now
@@ -395,7 +384,7 @@ private:
 };
 
 void prepareShapes(DECLARE_ENGINE_PARAMETER_SIGNATURE);
-void applyNonPersistentConfiguration(Logging * logger DECLARE_ENGINE_PARAMETER_SUFFIX);
+void applyNonPersistentConfiguration(DECLARE_ENGINE_PARAMETER_SIGNATURE);
 void prepareOutputSignals(DECLARE_ENGINE_PARAMETER_SIGNATURE);
 
 void validateConfiguration(DECLARE_ENGINE_PARAMETER_SIGNATURE);

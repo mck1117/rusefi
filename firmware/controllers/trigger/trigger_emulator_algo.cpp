@@ -63,7 +63,7 @@ void TriggerEmulatorHelper::handleEmulatorCallback(PwmConfig *state, int stateIn
 
 			trigger_event_e event = (currentValue ? riseEvents : fallEvents)[i];
 
-			hwHandleShaftSignal(event, stamp);
+			handleShaftSignal(event, stamp);
 		}
 	}
 }
@@ -83,12 +83,6 @@ static float pwmSwitchTimesBuffer[PWM_PHASE_MAX_COUNT];
 
 PwmConfig triggerSignal(pwmSwitchTimesBuffer, sr);
 
-#define DO_NOT_STOP 999999999
-
-static int stopEmulationAtIndex = DO_NOT_STOP;
-static bool isEmulating = true;
-
-static Logging *logger;
 static int atTriggerVersion = 0;
 
 #if EFI_ENGINE_SNIFFER
@@ -111,13 +105,13 @@ void setTriggerEmulatorRPM(int rpm DECLARE_ENGINE_PARAMETER_SUFFIX) {
 	}
 	engine->resetEngineSnifferIfInTestMode();
 
-	scheduleMsg(logger, "Emulating position sensor(s). RPM=%d", rpm);
+	efiPrintf("Emulating position sensor(s). RPM=%d", rpm);
 }
 
 static void updateTriggerWaveformIfNeeded(PwmConfig *state) {
 	if (atTriggerVersion < engine->triggerCentral.triggerShape.version) {
 		atTriggerVersion = engine->triggerCentral.triggerShape.version;
-		scheduleMsg(logger, "Stimulator: updating trigger shape: %d/%d %d", atTriggerVersion,
+		efiPrintf("Stimulator: updating trigger shape: %d/%d %d", atTriggerVersion,
 				engine->getGlobalConfigurationVersion(), currentTimeMillis());
 
 
@@ -135,13 +129,6 @@ static TriggerEmulatorHelper helper;
 static bool hasStimPins = false;
 
 static void emulatorApplyPinState(int stateIndex, PwmConfig *state) /* pwm_gen_callback */ {
-	if (stopEmulationAtIndex == stateIndex) {
-		isEmulating = false;
-	}
-	if (!isEmulating) {
-		return;
-	}
-
 	if (engine->directSelfStimulation) {
 		/**
 		 * this callback would invoke the input signal handlers directly
@@ -155,20 +142,15 @@ static void emulatorApplyPinState(int stateIndex, PwmConfig *state) /* pwm_gen_c
 		applyPinState(stateIndex, state);
 	}
 #endif /* EFI_PROD_CODE */
-
 }
 
-static void setEmulatorAtIndex(int index) {
-	stopEmulationAtIndex = index;
-}
+static bool hasInitTriggerEmulator = false;
 
-static void resumeStimulator() {
-	isEmulating = true;
-	stopEmulationAtIndex = DO_NOT_STOP;
-}
-
-void initTriggerEmulatorLogic(Logging *sharedLogger DECLARE_ENGINE_PARAMETER_SUFFIX) {
-	logger = sharedLogger;
+static void initTriggerPwm() {
+	// No need to start more than once
+	if (hasInitTriggerEmulator) {
+		return;
+	}
 
 	TriggerWaveform *s = &engine->triggerCentral.triggerShape;
 	setTriggerEmulatorRPM(engineConfiguration->triggerSimulatorFrequency PASS_ENGINE_PARAMETER_SUFFIX);
@@ -183,9 +165,27 @@ void initTriggerEmulatorLogic(Logging *sharedLogger DECLARE_ENGINE_PARAMETER_SUF
 			phaseCount, s->wave.switchTimes, PWM_PHASE_MAX_WAVE_PER_PWM,
 			pinStates, updateTriggerWaveformIfNeeded, (pwm_gen_callback*)emulatorApplyPinState);
 
+	hasInitTriggerEmulator = true;
+}
+
+void enableTriggerStimulator() {
+	initTriggerPwm();
+	engine->directSelfStimulation = true;
+}
+
+void enableExternalTriggerStimulator() {
+	initTriggerPwm();
+	engine->directSelfStimulation = false;
+}
+
+void disableTriggerStimulator() {
+	engine->directSelfStimulation = false;
+	triggerSignal.stop();
+	hasInitTriggerEmulator = false;
+}
+
+void initTriggerEmulatorLogic(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	addConsoleActionI(CMD_RPM, setTriggerEmulatorRPM);
-	addConsoleActionI("stop_stimulator_at_index", setEmulatorAtIndex);
-	addConsoleAction("resume_stimulator", resumeStimulator);
 }
 
 void onConfigurationChangeRpmEmulatorCallback(engine_configuration_s *previousConfiguration) {
@@ -196,12 +196,12 @@ void onConfigurationChangeRpmEmulatorCallback(engine_configuration_s *previousCo
 	setTriggerEmulatorRPM(engineConfiguration->triggerSimulatorFrequency);
 }
 
-void initTriggerEmulator(Logging *sharedLogger DECLARE_ENGINE_PARAMETER_SUFFIX) {
-	scheduleMsg(sharedLogger, "Emulating %s", getConfigurationName(engineConfiguration->engineType));
+void initTriggerEmulator(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
+	efiPrintf("Emulating %s", getConfigurationName(engineConfiguration->engineType));
 
 	startTriggerEmulatorPins();
 
-	initTriggerEmulatorLogic(sharedLogger);
+	initTriggerEmulatorLogic();
 }
 
 void startTriggerEmulatorPins() {

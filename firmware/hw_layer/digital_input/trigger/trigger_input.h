@@ -13,9 +13,22 @@
 #include "trigger_structure.h"
 #include "trigger_central.h"
 
+
+#define TRIGGER_BAIL_IF_DISABLED          \
+    if (!engine->hwTriggerInputEnabled) { \
+		return;                           \
+	}
+
+#define TRIGGER_BAIL_IF_SELF_STIM                                 \
+    if (engine->directSelfStimulation) {                          \
+		/* sensor noise + self-stim = loss of trigger sync */     \
+		return;                                                   \
+	}
+
+
 #define TRIGGER_SUPPORTED_CHANNELS 2
 
-void turnOnTriggerInputPins(Logging *sharedLogger);
+void turnOnTriggerInputPins();
 void applyNewTriggerInputPins(void);
 void startTriggerInputPins(void);
 void stopTriggerInputPins(void);

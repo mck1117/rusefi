@@ -14,7 +14,7 @@
 #include "engine_configuration.h"
 #include "smart_gpio.h"
 
-void initPrimaryPins(Logging *sharedLogger);
+void initPrimaryPins();
 void initOutputPins(DECLARE_ENGINE_PARAMETER_SIGNATURE);
 
 #if EFI_GPIO_HARDWARE
@@ -91,6 +91,8 @@ private:
  */
 class NamedOutputPin : public virtual OutputPin {
 public:
+	DECLARE_ENGINE_PTR;
+
 	NamedOutputPin();
 	explicit NamedOutputPin(const char *name);
 	void setHigh();
@@ -200,7 +202,6 @@ public:
 
 	OutputPin fsioOutputs[FSIO_COMMAND_COUNT];
 	RegisteredOutputPin triggerDecoderErrorPin;
-	RegisteredOutputPin hipCs;
 	OutputPin sdCsPin;
 	OutputPin accelerometerCs;
 
@@ -216,6 +217,7 @@ private:
 
 	void stopInjectionPins();
 	void stopIgnitionPins();
+	void stopAuxValves();
 };
 
 #endif /* __cplusplus */
@@ -244,6 +246,6 @@ const char *portname(ioportid_t GPIOx);
 
 #endif /* EFI_GPIO_HARDWARE */
 
-void printSpiConfig(Logging *logging, const char *msg, spi_device_e device);
+void printSpiConfig(const char *msg, spi_device_e device);
 brain_pin_e parseBrainPin(const char *str);
 const char *hwPortname(brain_pin_e brainPin);

@@ -67,8 +67,6 @@ void TriggerState::resetTriggerState() {
 	totalRevolutionCounter = 0;
 	totalTriggerErrorCounter = 0;
 	orderingErrorCounter = 0;
-	// we need this initial to have not_running at first invocation
-	previousShaftEventTimeNt = (efitimems_t) -10 * NT_PER_SECOND;
 	lastDecodingErrorTime = US2NT(-10000000LL);
 	someSortOfTriggerError = false;
 
@@ -92,6 +90,9 @@ void TriggerState::setTriggerErrorState() {
 void TriggerState::resetCurrentCycleState() {
 	memset(currentCycle.eventCount, 0, sizeof(currentCycle.eventCount));
 	memset(currentCycle.timeOfPreviousEventNt, 0, sizeof(currentCycle.timeOfPreviousEventNt));
+#if EFI_UNIT_TEST
+	memcpy(currentCycle.totalTimeNtCopy, currentCycle.totalTimeNt, sizeof(currentCycle.totalTimeNt));
+#endif
 	memset(currentCycle.totalTimeNt, 0, sizeof(currentCycle.totalTimeNt));
 	currentCycle.current_index = 0;
 }
@@ -111,8 +112,6 @@ bool printTriggerDebug = false;
 bool printTriggerTrace = false;
 float actualSynchGap;
 #endif /* ! EFI_PROD_CODE */
-
-static Logging * logger = nullptr;
 
 void TriggerWaveform::initializeSyncPoint(TriggerState& state,
 			const TriggerConfiguration& triggerConfiguration,
@@ -298,9 +297,6 @@ bool TriggerState::isValidIndex(const TriggerWaveform& triggerShape) const {
 static trigger_wheel_e eventIndex[6] = { T_PRIMARY, T_PRIMARY, T_SECONDARY, T_SECONDARY, T_CHANNEL_3, T_CHANNEL_3 };
 static trigger_value_e eventType[6] = { TV_FALL, TV_RISE, TV_FALL, TV_RISE, TV_FALL, TV_RISE };
 
-#define getCurrentGapDuration(nowNt) \
-	(isFirstEvent ? 0 : (nowNt) - toothed_previous_time)
-
 #if EFI_UNIT_TEST
 #define PRINT_INC_INDEX 		if (printTriggerTrace) {\
 		printf("nextTriggerEvent index=%d\r\n", currentCycle.current_index); \
@@ -413,7 +409,7 @@ void TriggerState::decodeTriggerEvent(
 		const efitick_t nowNt) {
 	ScopePerf perf(PE::DecodeTriggerEvent);
 	
-	if (nowNt - previousShaftEventTimeNt > NT_PER_SECOND) {
+	if (previousEventTimer.getElapsedSecondsAndReset(nowNt) > 1) {
 		/**
 		 * We are here if there is a time gap between now and previous shaft event - that means the engine is not running.
 		 * That means we have lost synchronization since the engine is not running :)
@@ -423,7 +419,6 @@ void TriggerState::decodeTriggerEvent(
 			triggerStateListener->OnTriggerSynchronizationLost();
 		}
 	}
-	previousShaftEventTimeNt = nowNt;
 
 	bool useOnlyRisingEdgeForTrigger = triggerConfiguration.UseOnlyRisingEdgeForTrigger;
 
@@ -445,7 +440,7 @@ void TriggerState::decodeTriggerEvent(
 		firmwareError(CUSTOM_OBD_93, "toothed_previous_time after nowNt %d %d", toothed_previous_time, nowNt);
 	}
 
-	efitick_t currentDurationLong = getCurrentGapDuration(nowNt);
+	efitick_t currentDurationLong = isFirstEvent ? 0 : nowNt - toothed_previous_time;
 
 	/**
 	 * For performance reasons, we want to work with 32 bit values. If there has been more then
@@ -550,6 +545,16 @@ void TriggerState::decodeTriggerEvent(
 
 #if EFI_PROD_CODE || EFI_SIMULATOR
 			if (triggerConfiguration.VerboseTriggerSynchDetails || (someSortOfTriggerError && !silentTriggerError)) {
+
+				int rpm = GET_RPM();
+				floatms_t engineCycleDuration = getEngineCycleDuration(rpm PASS_ENGINE_PARAMETER_SUFFIX);
+				int time = currentCycle.totalTimeNt[0];
+				efiPrintf("%s duty %f %d",
+						name,
+						time / engineCycleDuration,
+						time
+						);
+
 				for (int i = 0;i<triggerShape.gapTrackingLength;i++) {
 					float ratioFrom = triggerShape.syncronizationRatioFrom[i];
 					if (cisnan(ratioFrom)) {
@@ -559,10 +564,10 @@ void TriggerState::decodeTriggerEvent(
 
 					float gap = 1.0 * toothDurations[i] / toothDurations[i + 1];
 					if (cisnan(gap)) {
-						scheduleMsg(logger, "index=%d NaN gap, you have noise issues?",
+						efiPrintf("index=%d NaN gap, you have noise issues?",
 								i);
 					} else {
-						scheduleMsg(logger, "%s rpm=%d time=%d index=%d: gap=%.3f expected from %.3f to %.3f error=%s",
+						efiPrintf("%s rpm=%d time=%d index=%d: gap=%.3f expected from %.3f to %.3f error=%s",
 								triggerConfiguration.PrintPrefix,
 								GET_RPM(),
 							/* cast is needed to make sure we do not put 64 bit value to stack*/ (int)getTimeNowSeconds(),
@@ -717,10 +722,6 @@ uint32_t TriggerState::findTriggerZeroEventIndex(
 			syncIndex, *this, shape);
 
 	return syncIndex % shape.getSize();
-}
-
-void initTriggerDecoderLogger(Logging *sharedLogger) {
-	logger = sharedLogger;
 }
 
 #endif /* EFI_SHAFT_POSITION_INPUT */

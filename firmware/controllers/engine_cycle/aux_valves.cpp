@@ -68,8 +68,7 @@ void auxPlainPinTurnOn(AuxActor *current) {
 			);
 	}
 
-void initAuxValves(Logging *sharedLogger DECLARE_ENGINE_PARAMETER_SUFFIX) {
-	UNUSED(sharedLogger);
+void initAuxValves(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	if (!isBrainPinValid(engineConfiguration->auxValves[0])) {
 		return;
 	}
@@ -106,11 +105,11 @@ void recalculateAuxValveTiming(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 		return;
 	}
 
-	engine->engineState.auxValveStart = interpolate2d("aux", tps,
+	engine->engineState.auxValveStart = interpolate2d(tps,
 			engineConfiguration->fsioCurve1Bins,
 			engineConfiguration->fsioCurve1);
 
-	engine->engineState.auxValveEnd = interpolate2d("aux", tps,
+	engine->engineState.auxValveEnd = interpolate2d(tps,
 			engineConfiguration->fsioCurve2Bins,
 			engineConfiguration->fsioCurve2);
 

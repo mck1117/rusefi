@@ -42,7 +42,7 @@ typedef enum {
 	 */
 	FORD_ASPIRE_1996 = ET_FORD_ASPIRE,
 
-	NISSAN_PRIMERA = 5,
+	NISSAN_PRIMERA = ET_NISSAN_PRIMERA,
 	HONDA_ACCORD_CD = 6,
 	FORD_INLINE_6_1995 = 7,
 	/**
@@ -106,13 +106,13 @@ typedef enum {
 
 	VW_ABA = ET_VW_ABA,
 
-	UNUSED_33 = 33,
+	HELLEN72_ETB = 33,
 
-	UNUSED_34 = 34,
+	HELLEN_NA6 = 34,
 
 	CAMARO_4 = ET_CAMARO,
 
-	UNUSED_36 = 36,
+	HELLEN_128_MERCEDES = ET_HELLEN_128_MERCEDES,
 
 	MRE_SUBARU_EJ18 = ET_MRE_SUBARU_EJ18,
 
@@ -176,6 +176,8 @@ typedef enum {
 
 	PROTEUS_DEFAULTS = 61,
 
+	PROTEUS_ANALOG_PWM_TEST = ET_PROTEUS_ANALOG_PWM_TEST,
+
 	VW_B6 = ET_VW_B6,
 
 	BMW_M73_PROTEUS = ET_PROTEUS_BMW_M73,
@@ -188,6 +190,15 @@ typedef enum {
 	PROTEUS_MIATA_NB2 = ET_PROTEUS_MIATA_NB2,
 
 	HELLEN_NB2 = ET_HELLEN_NB2,
+
+	SUBARUEG33_DEFAULTS = 70,
+
+	HELLEN_121_VAG = ET_HELLEN_121_VAG,
+	HELLEN_121_NISSAN = ET_HELLEN_121_NISSAN,
+	HELLEN_55_BMW = ET_HELLEN_55_BMW,
+	HELLEN_88_BMW = ET_HELLEN_88_BMW,
+	HELLEN_134_BMW = ET_HELLEN_134_BMW,
+	HELLEN_154_VAG = ET_HELLEN_154_VAG,
 
 
 	/**
@@ -255,7 +266,7 @@ typedef enum {
 	 * see also TT_ONE a bit below
 	 */
 	TT_ONE_PLUS_ONE = 16,
-	// "1+60/2"
+	// VVT for 2JZ
 	TT_VVT_JZ = TT_TT_VVT_JZ,
 	// just one channel with just one tooth
 	TT_ONE = TT_TT_ONE,
@@ -339,7 +350,7 @@ typedef enum {
 	/**
 	 * cam sensor of Mazda Miata NB2 - the VVT signal shape
 	 */
-	TT_VVT_MIATA_NB2 = 43,
+	TT_VVT_MIATA_NB2 = TT_TT_VVT_MIATA_NB2,
 
 	TT_RENIX_44_2_2 = TT_TT_RENIX_44_2_2,
 
@@ -366,16 +377,28 @@ typedef enum {
 	// https://rusefi.com/forum/viewtopic.php?f=5&t=1912
 	TT_TRI_TACH = TT_TT_TRI_TACH,
 
+	TT_GM_60_2_2_2 = TT_TT_GM_60_2_2_2,
+
+	/**
+	 * https://rusefi.com/forum/viewtopic.php?f=5&t=1937
+	 * HALL sensor, and can be used on all Skoda's engines (from 1000MB to 130, Favorit, Felicia)
+	 */
+	TT_SKODA_FAVORIT = TT_TT_SKODA_FAVORIT,
+
+	TT_VVT_BARRA_3_PLUS_1 = TT_TT_VVT_BARRA_3_PLUS_1,
+
+	TT_KAWA_KX450F = TT_TT_KAWA_KX450F,
+
 	// do not forget to edit "#define trigger_type_e_enum" line in integration/rusefi_config.txt file to propogate new value to rusefi.ini TS project
 	// do not forget to invoke "gen_config.bat" once you make changes to integration/rusefi_config.txt
 	// todo: one day a hero would integrate some of these things into Makefile in order to reduce manual magic
 	//
 	// Another point: once you add a new trigger, run get_trigger_images.bat which would run rusefi_test.exe from unit_tests
 	//
-	TT_UNUSED = 54, // this is used if we want to iterate over all trigger types
+	TT_UNUSED = 58, // this is used if we want to iterate over all trigger types
 
 	Force_4_bytes_size_trigger_type = ENUM_32_BITS,
-} trigger_type_e;
+} trigger_type_e; // TriggerProcessor.java has this "trigger_type_e" name hard-coded!
 
 typedef enum {
 	ADC_OFF = 0,
@@ -410,7 +433,7 @@ typedef enum {
 	SHAFT_3RD_RISING = 5,
 } trigger_event_e;
 
-typedef enum {
+typedef enum  __attribute__ ((__packed__)) {
 	/**
 	 * This mode is useful for troubleshooting and research - events are logged but no effects on phase synchronization
 	 */
@@ -428,7 +451,7 @@ typedef enum {
 	 * Mazda NB2 has three cam tooth. We synchronize based on gap ratio.
 	 * @see TT_VVT_MIATA_NB2
 	 */
-	MIATA_NB2 = 3,
+	VVT_MIATA_NB2 = 3,
 
 	/**
 	 * Single-tooth cam sensor mode where TDC and cam signal happen in the same 360 degree of 720 degree engine cycle
@@ -446,7 +469,7 @@ typedef enum {
 
 	VVT_FORD_ST170 = 7,
 
-	Force_4_bytes_size_vvt_mode = ENUM_32_BITS,
+	VVT_BARRA_3_PLUS_1 = 8,
 } vvt_mode_e;
 
 /**
@@ -481,7 +504,7 @@ typedef enum {
 
 } display_mode_e;
 
-typedef enum  __attribute__ ((__packed__)){
+typedef enum  __attribute__ ((__packed__)) {
 	TL_AUTO = 0,
 	TL_SEMI_AUTO = 1,
 	TL_MANUAL = 2,
@@ -772,7 +795,7 @@ typedef enum {
 	DBG_LOGIC_ANALYZER = 45,
 	DBG_RUSEFI_WIDEBAND = 46,
 	DBG_TCU = 47,
-	DBG_48 = 48,
+	DBG_LUA = 48,
 
 	Force_4_bytes_size_debug_mode_e = ENUM_32_BITS,
 } debug_mode_e;
@@ -829,6 +852,10 @@ typedef enum {
 	MT_BOSCH_2_5 = 10,
 
 	MT_MAZDA_1_BAR = 11,
+
+	MT_GM_2_BAR = 12,
+
+	MT_GM_1_BAR = 13,
 
 	Force_4_bytes_size_cranking_map_type = ENUM_32_BITS,
 } air_pressure_sensor_type_e;
@@ -899,33 +926,10 @@ typedef enum {
 	CAN_BUS_W202_C180 = 5,
     CAN_BUS_BMW_E90 = 6,
 	CAN_BUS_Haltech = 7,
+	CAN_BUS_MQB = 8,
+
 	Internal_ForceMyEnumIntSize_can_nbc = ENUM_32_BITS,
 } can_nbc_e;
-
-typedef enum {
-	NOT_READY,
-	/**
-	 * the step after this one is always IS_INTEGRATING
-	 * We only integrate if we have RPM
-	 */
-	READY_TO_INTEGRATE,
-	/**
-	 * the step after this one is always WAITING_FOR_ADC_TO_SKIP
-	 */
-	IS_INTEGRATING,
-	/**
-	 * the step after this one is always WAITING_FOR_RESULT_ADC
-	 */
-	WAITING_FOR_ADC_TO_SKIP,
-	/**
-	 * the step after this one is always IS_SENDING_SPI_COMMAND or READY_TO_INTEGRATE
-	 */
-	WAITING_FOR_RESULT_ADC,
-	/**
-	 * the step after this one is always READY_TO_INTEGRATE
-	 */
-	IS_SENDING_SPI_COMMAND,
-} hip_state_e;
 
 typedef enum {
 	TCHARGE_MODE_RPM_TPS = 0,
@@ -990,6 +994,9 @@ typedef enum __attribute__ ((__packed__)) {
 	GPPWM_Iat = 3,
 	GPPWM_FuelLoad = 4,
 	GPPWM_IgnLoad = 5,
+	GPPWM_AuxTemp1 = 6,
+	GPPWM_AuxTemp2 = 7,
+	GPPWM_Zero = 8,
 } gppwm_channel_e;
 
 typedef enum __attribute__ ((__packed__)) {

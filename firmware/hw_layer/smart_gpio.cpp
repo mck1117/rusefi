@@ -20,8 +20,9 @@
 #include "drivers/gpio/mc33810.h"
 #include "drivers/gpio/tle8888.h"
 #include "drivers/gpio/drv8860.h"
+#include "engine.h"
 
-EXTERN_CONFIG;
+EXTERN_ENGINE;
 
 #if (BOARD_TLE6240_COUNT > 0)
 // todo: migrate to TS or board config
@@ -86,7 +87,7 @@ struct mc33972_config mc33972 = {
 		.ssport = NULL,
 		.sspad = 0,
 		.cr1 =
-			SPI_CR1_24BIT_MODE |
+			SPI_CR1_8BIT_MODE |
 			SPI_CR1_SSM |
 			SPI_CR1_SSI |
 			/* SPI_CR1_LSBFIRST | */
@@ -95,7 +96,7 @@ struct mc33972_config mc33972 = {
 			/* SPI_CR1_CPOL | */ /* = 0 */
 			SPI_CR1_CPHA | /* = 1 */
 			0,
-		.cr2 = SPI_CR2_24BIT_MODE
+		.cr2 = SPI_CR2_8BIT_MODE
 	},
 };
 #endif /* (BOARD_MC33972_COUNT > 0) */
@@ -236,6 +237,20 @@ void initSmartGpio() {
 
 	/* external chip init */
 	gpiochips_init();
+}
+
+void tle8888startup() {
+	static efitick_t tle8888CrankingResetTime = 0;
+
+	if (CONFIG(useTLE8888_cranking_hack) && ENGINE(rpmCalculator).isCranking()) {
+		efitick_t nowNt = getTimeNowNt();
+		if (nowNt - tle8888CrankingResetTime > MS2NT(300)) {
+			tle8888_req_init();
+			// let's reset TLE8888 every 300ms while cranking since that's the best we can do to deal with undervoltage reset
+			// PS: oh yes, it's a horrible design! Please suggest something better!
+			tle8888CrankingResetTime = nowNt;
+		}
+	}
 }
 
 void stopSmartCsPins() {

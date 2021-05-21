@@ -106,6 +106,8 @@ bool FuelSchedule::addFuelEventsForCylinder(int i  DECLARE_ENGINE_PARAMETER_SUFF
 	ev->outputs[0] = output;
 	ev->outputs[1] = secondOutput;
 	ev->isSimultanious = isSimultanious;
+	// Stash the cylinder number so we can select the correct fueling bank later
+	ev->cylinderNumber = injectorIndex;
 
 	if (!isSimultanious && !output->isInitialized()) {
 		// todo: extract method for this index math
@@ -131,7 +133,7 @@ bool FuelSchedule::addFuelEventsForCylinder(int i  DECLARE_ENGINE_PARAMETER_SUFF
 }
 
 void FuelSchedule::addFuelEvents(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
-	for (int cylinderIndex = 0; cylinderIndex < CONFIG(specs.cylindersCount); cylinderIndex++) {
+	for (cylinders_count_t cylinderIndex = 0; cylinderIndex < CONFIG(specs.cylindersCount); cylinderIndex++) {
 		InjectionEvent *ev = &elements[cylinderIndex];
 		ev->ownIndex = cylinderIndex;  // todo: is this assignment needed here? we now initialize in constructor
 		bool result = addFuelEventsForCylinder(cylinderIndex PASS_ENGINE_PARAMETER_SUFFIX);
@@ -151,7 +153,7 @@ void FuelSchedule::onTriggerTooth(size_t toothIndex, int rpm, efitick_t nowNt DE
 		return;
 	}
 
-	for (int i = 0; i < CONFIG(specs.cylindersCount); i++) {
+	for (cylinders_count_t i = 0; i < CONFIG(specs.cylindersCount); i++) {
 		elements[i].onTriggerTooth(toothIndex, rpm, nowNt);
 	}
 }

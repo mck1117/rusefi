@@ -46,8 +46,6 @@
 #include "stepper.h"
 #endif
 
-static Logging *logger;
-
 EXTERN_ENGINE;
 
 // todo: move all static vars to engine->engineState.idle?
@@ -127,47 +125,47 @@ static iacPidMultiplier_t iacPidMultMap("iacPidMultiplier");
 #if ! EFI_UNIT_TEST
 
 void idleDebug(const char *msg, percent_t value) {
-	scheduleMsg(logger, "idle debug: %s%.2f", msg, value);
+	efiPrintf("idle debug: %s%.2f", msg, value);
 }
 
 static void showIdleInfo(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	const char * idleModeStr = getIdle_mode_e(engineConfiguration->idleMode);
-	scheduleMsg(logger, "useStepperIdle=%s useHbridges=%s",
+	efiPrintf("useStepperIdle=%s useHbridges=%s",
 			boolToString(CONFIG(useStepperIdle)), boolToString(CONFIG(useHbridges)));
-	scheduleMsg(logger, "idleMode=%s position=%.2f",
+	efiPrintf("idleMode=%s position=%.2f",
 			idleModeStr, getIdlePosition());
 
 	if (CONFIG(useStepperIdle)) {
 		if (CONFIG(useHbridges)) {
-			scheduleMsg(logger, "Coil A:");
-			scheduleMsg(logger, " pin1=%s", hwPortname(CONFIG(stepperDcIo[0].directionPin1)));
-			scheduleMsg(logger, " pin2=%s", hwPortname(CONFIG(stepperDcIo[0].directionPin2)));
-			showDcMotorInfo(logger, 2);
-			scheduleMsg(logger, "Coil B:");
-			scheduleMsg(logger, " pin1=%s", hwPortname(CONFIG(stepperDcIo[1].directionPin1)));
-			scheduleMsg(logger, " pin2=%s", hwPortname(CONFIG(stepperDcIo[1].directionPin2)));
-			showDcMotorInfo(logger, 3);
+			efiPrintf("Coil A:");
+			efiPrintf(" pin1=%s", hwPortname(CONFIG(stepperDcIo[0].directionPin1)));
+			efiPrintf(" pin2=%s", hwPortname(CONFIG(stepperDcIo[0].directionPin2)));
+			showDcMotorInfo(2);
+			efiPrintf("Coil B:");
+			efiPrintf(" pin1=%s", hwPortname(CONFIG(stepperDcIo[1].directionPin1)));
+			efiPrintf(" pin2=%s", hwPortname(CONFIG(stepperDcIo[1].directionPin2)));
+			showDcMotorInfo(3);
 		} else {
-			scheduleMsg(logger, "directionPin=%s reactionTime=%.2f", hwPortname(CONFIG(idle).stepperDirectionPin),
+			efiPrintf("directionPin=%s reactionTime=%.2f", hwPortname(CONFIG(idle).stepperDirectionPin),
 					engineConfiguration->idleStepperReactionTime);
-			scheduleMsg(logger, "stepPin=%s steps=%d", hwPortname(CONFIG(idle).stepperStepPin),
+			efiPrintf("stepPin=%s steps=%d", hwPortname(CONFIG(idle).stepperStepPin),
 					engineConfiguration->idleStepperTotalSteps);
-			scheduleMsg(logger, "enablePin=%s/%d", hwPortname(engineConfiguration->stepperEnablePin),
+			efiPrintf("enablePin=%s/%d", hwPortname(engineConfiguration->stepperEnablePin),
 					engineConfiguration->stepperEnablePinMode);
 		}
 	} else {
 		if (!CONFIG(isDoubleSolenoidIdle)) {
-			scheduleMsg(logger, "idle valve freq=%d on %s", CONFIG(idle).solenoidFrequency,
+			efiPrintf("idle valve freq=%d on %s", CONFIG(idle).solenoidFrequency,
 					hwPortname(CONFIG(idle).solenoidPin));
 		} else {
-			scheduleMsg(logger, "idle valve freq=%d on %s", CONFIG(idle).solenoidFrequency,
+			efiPrintf("idle valve freq=%d on %s", CONFIG(idle).solenoidFrequency,
 					hwPortname(CONFIG(idle).solenoidPin));
-			scheduleMsg(logger, " and %s", hwPortname(CONFIG(secondSolenoidPin)));
+			efiPrintf(" and %s", hwPortname(CONFIG(secondSolenoidPin)));
 		}
 	}
 
 	if (engineConfiguration->idleMode == IM_AUTO) {
-		getIdlePid(PASS_ENGINE_PARAMETER_SIGNATURE)->showPidStatus(logger, "idle");
+		getIdlePid(PASS_ENGINE_PARAMETER_SIGNATURE)->showPidStatus("idle");
 	}
 }
 
@@ -183,7 +181,7 @@ percent_t getIdlePosition() {
 void setManualIdleValvePosition(int positionPercent) {
 	if (positionPercent < 1 || positionPercent > 99)
 		return;
-	scheduleMsg(logger, "setting idle valve position %d", positionPercent);
+	efiPrintf("setting idle valve position %d", positionPercent);
 #if ! EFI_UNIT_TEST
 	showIdleInfo();
 #endif /* EFI_UNIT_TEST */
@@ -202,7 +200,7 @@ int IdleController::getTargetRpm(float clt) const {
 
 	float fsioBump = engine->fsioState.fsioIdleTargetRPMAdjustment;
 
-	return fsioBump + interpolate2d("cltRpm", clt, CONFIG(cltIdleRpmBins), CONFIG(cltIdleRpm));
+	return fsioBump + interpolate2d(clt, CONFIG(cltIdleRpmBins), CONFIG(cltIdleRpm));
 }
 
 IIdleController::Phase IdleController::determinePhase(int rpm, int targetRpm, SensorResult tps) const {
@@ -233,13 +231,13 @@ IIdleController::Phase IdleController::determinePhase(int rpm, int targetRpm, Se
 float IdleController::getCrankingOpenLoop(float clt) const {
 	return 
 		CONFIG(crankingIACposition)		// Base cranking position (cranking page)
-		 * interpolate2d("cltCrankingT", clt, config->cltCrankingCorrBins, config->cltCrankingCorr);
+		 * interpolate2d(clt, config->cltCrankingCorrBins, config->cltCrankingCorr);
 }
 
 float IdleController::getRunningOpenLoop(float clt, SensorResult tps) const {
 	float running =
 		CONFIG(manIdlePosition)		// Base idle position (slider)
-		* interpolate2d("cltT", clt, config->cltIdleCorrBins, config->cltIdleCorr);
+		* interpolate2d(clt, config->cltIdleCorrBins, config->cltIdleCorr);
 
 	// Now we bump it by the AC/fan amount if necessary
 	running += engine->acSwitchState ? CONFIG(acIdleExtraOffset) : 0;
@@ -429,7 +427,7 @@ static percent_t automaticIdleController(float tpsPos, float rpm, int targetRpm,
 		engine->engineState.idle.idleState = PID_UPPER;
 		const auto [cltValid, clt] = Sensor::get(SensorType::Clt);
 		if (CONFIG(useIacTableForCoasting) && cltValid) {
-			percent_t iacPosForCoasting = interpolate2d("iacCoasting", clt, CONFIG(iacCoastingBins), CONFIG(iacCoasting));
+			percent_t iacPosForCoasting = interpolate2d(clt, CONFIG(iacCoastingBins), CONFIG(iacCoasting));
 			newValue = interpolateClamped(idlePidLowerRpm, newValue, idlePidLowerRpm + CONFIG(idlePidRpmUpperLimit), iacPosForCoasting, rpm);
 		} else {
 			// Well, just leave it as is, without PID regulation...
@@ -441,7 +439,12 @@ static percent_t automaticIdleController(float tpsPos, float rpm, int targetRpm,
 }
 
 	float IdleController::getIdlePosition() {
-		efiAssert(OBD_PCM_Processor_Fault, engineConfiguration != NULL, "engineConfiguration pointer", 0);
+		// Simplify hardware CI: we borrow the idle valve controller as a PWM source for various stimulation tasks
+		// The logic in this function is solidly unit tested, so it's not necessary to re-test the particulars on real hardware.
+		#ifdef HARDWARE_CI
+			return CONFIG(manIdlePosition);
+		#endif
+
 	/*
 	 * Here we have idle logic thread - actual stepper movement is implemented in a separate
 	 * working thread,
@@ -474,8 +477,8 @@ static percent_t automaticIdleController(float tpsPos, float rpm, int targetRpm,
 		engine->engineState.isAutomaticIdle = tps.Valid && engineConfiguration->idleMode == IM_AUTO;
 
 		if (engineConfiguration->isVerboseIAC && engine->engineState.isAutomaticIdle) {
-			scheduleMsg(logger, "Idle state %s", getIdle_state_e(engine->engineState.idle.idleState));
-			getIdlePid(PASS_ENGINE_PARAMETER_SIGNATURE)->showPidStatus(logger, "idle");
+			efiPrintf("Idle state %s", getIdle_state_e(engine->engineState.idle.idleState));
+			getIdlePid(PASS_ENGINE_PARAMETER_SIGNATURE)->showPidStatus("idle");
 		}
 
 		finishIdleTestIfNeeded();
@@ -485,11 +488,11 @@ static percent_t automaticIdleController(float tpsPos, float rpm, int targetRpm,
 		float cltCorrection;
 		// Use separate CLT correction table for cranking
 		if (engineConfiguration->overrideCrankingIacSetting && phase == IIdleController::Phase::Cranking) {
-			cltCorrection = interpolate2d("cltCrankingT", clt, config->cltCrankingCorrBins, config->cltCrankingCorr);
+			cltCorrection = interpolate2d(clt, config->cltCrankingCorrBins, config->cltCrankingCorr);
 		} else {
 			// this value would be ignored if running in AUTO mode
 			// but we need it while cranking in AUTO mode
-			cltCorrection = interpolate2d("cltT", clt, config->cltIdleCorrBins, config->cltIdleCorr);
+			cltCorrection = interpolate2d(clt, config->cltIdleCorrBins, config->cltIdleCorr);
 		}
 
 		percent_t iacPosition;
@@ -532,7 +535,8 @@ static percent_t automaticIdleController(float tpsPos, float rpm, int targetRpm,
 		}
 
 #if EFI_TUNER_STUDIO
-		tsOutputChannels.isIdleClosedLoop = phase == Phase::Idling && CONFIG(idleMode) == IM_AUTO;
+		tsOutputChannels.isIdleClosedLoop = phase == Phase::Idling;
+		tsOutputChannels.isIdleCoasting = phase == Phase::Coasting;
 
 		if (engineConfiguration->debugMode == DBG_IDLE_CONTROL) {
 			if (engineConfiguration->idleMode == IM_AUTO) {
@@ -607,7 +611,7 @@ void onConfigurationChangeIdleCallback(engine_configuration_s *previousConfigura
 
 void setTargetIdleRpm(int value) {
 	setTargetRpmCurve(value PASS_ENGINE_PARAMETER_SUFFIX);
-	scheduleMsg(logger, "target idle RPM %d", value);
+	efiPrintf("target idle RPM %d", value);
 	showIdleInfo();
 }
 
@@ -639,14 +643,13 @@ void setIdleDFactor(float value) {
  */
 void startIdleBench(void) {
 	timeToStopIdleTest = getTimeNowUs() + MS2US(3000); // 3 seconds
-	scheduleMsg(logger, "idle valve bench test");
+	efiPrintf("idle valve bench test");
 	showIdleInfo();
 }
 
 #endif /* EFI_UNIT_TEST */
 
-void startIdleThread(Logging*sharedLogger DECLARE_ENGINE_PARAMETER_SUFFIX) {
-	logger = sharedLogger;
+void startIdleThread(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	INJECT_ENGINE_REFERENCE(&idleControllerInstance);
 	idleControllerInstance.init(&CONFIG(idleTimingPid));
 	INJECT_ENGINE_REFERENCE(&industrialWithOverrideIdlePid);
@@ -658,7 +661,7 @@ void startIdleThread(Logging*sharedLogger DECLARE_ENGINE_PARAMETER_SUFFIX) {
 #if ! EFI_UNIT_TEST
 	// todo: we still have to explicitly init all hardware on start in addition to handling configuration change via
 	// 'applyNewHardwareSettings' todo: maybe unify these two use-cases?
-	initIdleHardware(sharedLogger PASS_ENGINE_PARAMETER_SUFFIX);
+	initIdleHardware(PASS_ENGINE_PARAMETER_SIGNATURE);
 #endif /* EFI_UNIT_TEST */
 
 	DISPLAY_STATE(Engine)
@@ -701,9 +704,6 @@ void startIdleThread(Logging*sharedLogger DECLARE_ENGINE_PARAMETER_SUFFIX) {
 	/* DISPLAY_ELSE */
 			DISPLAY_TEXT(Manual_idle_control);
 	/* DISPLAY_ENDIF */
-
-
-	//scheduleMsg(logger, "initial idle %d", idlePositionController.value);
 
 #if ! EFI_UNIT_TEST
 	// this is neutral/no gear switch input. on Miata it's wired both to clutch pedal and neutral in gearbox

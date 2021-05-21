@@ -30,8 +30,8 @@
 #include "speed_density.h"
 #include "advance_map.h"
 #include "sensor.h"
+#include "flash_main.h"
 
-#include "hip9011_lookup.h"
 #include "hip9011_logic.h"
 
 #if EFI_MEMS
@@ -109,29 +109,6 @@ EXTERN_ENGINE;
 //#define TS_DEFAULT_SPEED 115200
 #define TS_DEFAULT_SPEED 38400
 
-#define xxxxx 0
-
-#if 0
-static fuel_table_t alphaNfuel = {
-		{/*0  engineLoad=0.00*/   /*0 800.0*/xxxxx, /*1 1213.0*/xxxxx, /*2 1626.0*/xxxxx, /*3 2040.0*/xxxxx, /*4 2453.0*/xxxxx, /*5 2866.0*/xxxxx, /*6 3280.0*/xxxxx, /*7 3693.0*/xxxxx, /*8 4106.0*/xxxxx, /*9 4520.0*/xxxxx, /*10 4933.0*/xxxxx, /*11 5346.0*/xxxxx, /*12 5760.0*/xxxxx, /*13 6173.0*/xxxxx, /*14 6586.0*/xxxxx, /*15 7000.0*/xxxxx},
-		{/*1  engineLoad=6.66*/   /*0 800.0*/xxxxx, /*1 1213.0*/xxxxx, /*2 1626.0*/xxxxx, /*3 2040.0*/xxxxx, /*4 2453.0*/xxxxx, /*5 2866.0*/xxxxx, /*6 3280.0*/xxxxx, /*7 3693.0*/xxxxx, /*8 4106.0*/xxxxx, /*9 4520.0*/xxxxx, /*10 4933.0*/xxxxx, /*11 5346.0*/xxxxx, /*12 5760.0*/xxxxx, /*13 6173.0*/xxxxx, /*14 6586.0*/xxxxx, /*15 7000.0*/xxxxx},
-		{/*2  engineLoad=13.33*/  /*0 800.0*/xxxxx, /*1 1213.0*/xxxxx, /*2 1626.0*/xxxxx, /*3 2040.0*/xxxxx, /*4 2453.0*/xxxxx, /*5 2866.0*/xxxxx, /*6 3280.0*/xxxxx, /*7 3693.0*/xxxxx, /*8 4106.0*/xxxxx, /*9 4520.0*/xxxxx, /*10 4933.0*/xxxxx, /*11 5346.0*/xxxxx, /*12 5760.0*/xxxxx, /*13 6173.0*/xxxxx, /*14 6586.0*/xxxxx, /*15 7000.0*/xxxxx},
-		{/*3  engineLoad=20.00*/  /*0 800.0*/xxxxx, /*1 1213.0*/xxxxx, /*2 1626.0*/xxxxx, /*3 2040.0*/xxxxx, /*4 2453.0*/xxxxx, /*5 2866.0*/xxxxx, /*6 3280.0*/xxxxx, /*7 3693.0*/xxxxx, /*8 4106.0*/xxxxx, /*9 4520.0*/xxxxx, /*10 4933.0*/xxxxx, /*11 5346.0*/xxxxx, /*12 5760.0*/xxxxx, /*13 6173.0*/xxxxx, /*14 6586.0*/xxxxx, /*15 7000.0*/xxxxx},
-		{/*4  engineLoad=26.66*/  /*0 800.0*/xxxxx, /*1 1213.0*/xxxxx, /*2 1626.0*/xxxxx, /*3 2040.0*/xxxxx, /*4 2453.0*/xxxxx, /*5 2866.0*/xxxxx, /*6 3280.0*/xxxxx, /*7 3693.0*/xxxxx, /*8 4106.0*/xxxxx, /*9 4520.0*/xxxxx, /*10 4933.0*/xxxxx, /*11 5346.0*/xxxxx, /*12 5760.0*/xxxxx, /*13 6173.0*/xxxxx, /*14 6586.0*/xxxxx, /*15 7000.0*/xxxxx},
-		{/*5  engineLoad=33.33*/  /*0 800.0*/xxxxx, /*1 1213.0*/xxxxx, /*2 1626.0*/xxxxx, /*3 2040.0*/xxxxx, /*4 2453.0*/xxxxx, /*5 2866.0*/xxxxx, /*6 3280.0*/xxxxx, /*7 3693.0*/xxxxx, /*8 4106.0*/xxxxx, /*9 4520.0*/xxxxx, /*10 4933.0*/xxxxx, /*11 5346.0*/xxxxx, /*12 5760.0*/xxxxx, /*13 6173.0*/xxxxx, /*14 6586.0*/xxxxx, /*15 7000.0*/xxxxx},
-		{/*6  engineLoad=40.00*/  /*0 800.0*/xxxxx, /*1 1213.0*/xxxxx, /*2 1626.0*/xxxxx, /*3 2040.0*/xxxxx, /*4 2453.0*/xxxxx, /*5 2866.0*/xxxxx, /*6 3280.0*/xxxxx, /*7 3693.0*/xxxxx, /*8 4106.0*/xxxxx, /*9 4520.0*/xxxxx, /*10 4933.0*/xxxxx, /*11 5346.0*/xxxxx, /*12 5760.0*/xxxxx, /*13 6173.0*/xxxxx, /*14 6586.0*/xxxxx, /*15 7000.0*/xxxxx},
-		{/*7  engineLoad=46.66*/  /*0 800.0*/xxxxx, /*1 1213.0*/xxxxx, /*2 1626.0*/xxxxx, /*3 2040.0*/xxxxx, /*4 2453.0*/xxxxx, /*5 2866.0*/xxxxx, /*6 3280.0*/xxxxx, /*7 3693.0*/xxxxx, /*8 4106.0*/xxxxx, /*9 4520.0*/xxxxx, /*10 4933.0*/xxxxx, /*11 5346.0*/xxxxx, /*12 5760.0*/xxxxx, /*13 6173.0*/xxxxx, /*14 6586.0*/xxxxx, /*15 7000.0*/xxxxx},
-		{/*8  engineLoad=53.33*/  /*0 800.0*/xxxxx, /*1 1213.0*/xxxxx, /*2 1626.0*/xxxxx, /*3 2040.0*/xxxxx, /*4 2453.0*/xxxxx, /*5 2866.0*/xxxxx, /*6 3280.0*/xxxxx, /*7 3693.0*/xxxxx, /*8 4106.0*/xxxxx, /*9 4520.0*/xxxxx, /*10 4933.0*/xxxxx, /*11 5346.0*/xxxxx, /*12 5760.0*/xxxxx, /*13 6173.0*/xxxxx, /*14 6586.0*/xxxxx, /*15 7000.0*/xxxxx},
-		{/*9  engineLoad=60.00*/  /*0 800.0*/xxxxx, /*1 1213.0*/xxxxx, /*2 1626.0*/xxxxx, /*3 2040.0*/xxxxx, /*4 2453.0*/xxxxx, /*5 2866.0*/xxxxx, /*6 3280.0*/xxxxx, /*7 3693.0*/xxxxx, /*8 4106.0*/xxxxx, /*9 4520.0*/xxxxx, /*10 4933.0*/xxxxx, /*11 5346.0*/xxxxx, /*12 5760.0*/xxxxx, /*13 6173.0*/xxxxx, /*14 6586.0*/xxxxx, /*15 7000.0*/xxxxx},
-		{/*10 engineLoad=66.66*/  /*0 800.0*/xxxxx, /*1 1213.0*/xxxxx, /*2 1626.0*/xxxxx, /*3 2040.0*/xxxxx, /*4 2453.0*/xxxxx, /*5 2866.0*/xxxxx, /*6 3280.0*/xxxxx, /*7 3693.0*/xxxxx, /*8 4106.0*/xxxxx, /*9 4520.0*/xxxxx, /*10 4933.0*/xxxxx, /*11 5346.0*/xxxxx, /*12 5760.0*/xxxxx, /*13 6173.0*/xxxxx, /*14 6586.0*/xxxxx, /*15 7000.0*/xxxxx},
-		{/*11 engineLoad=73.33*/  /*0 800.0*/xxxxx, /*1 1213.0*/xxxxx, /*2 1626.0*/xxxxx, /*3 2040.0*/xxxxx, /*4 2453.0*/xxxxx, /*5 2866.0*/xxxxx, /*6 3280.0*/xxxxx, /*7 3693.0*/xxxxx, /*8 4106.0*/xxxxx, /*9 4520.0*/xxxxx, /*10 4933.0*/xxxxx, /*11 5346.0*/xxxxx, /*12 5760.0*/xxxxx, /*13 6173.0*/xxxxx, /*14 6586.0*/xxxxx, /*15 7000.0*/xxxxx},
-		{/*12 engineLoad=80.00*/  /*0 800.0*/xxxxx, /*1 1213.0*/xxxxx, /*2 1626.0*/xxxxx, /*3 2040.0*/xxxxx, /*4 2453.0*/xxxxx, /*5 2866.0*/xxxxx, /*6 3280.0*/xxxxx, /*7 3693.0*/xxxxx, /*8 4106.0*/xxxxx, /*9 4520.0*/xxxxx, /*10 4933.0*/xxxxx, /*11 5346.0*/xxxxx, /*12 5760.0*/xxxxx, /*13 6173.0*/xxxxx, /*14 6586.0*/xxxxx, /*15 7000.0*/xxxxx},
-		{/*13 engineLoad=86.66*/  /*0 800.0*/xxxxx, /*1 1213.0*/xxxxx, /*2 1626.0*/xxxxx, /*3 2040.0*/xxxxx, /*4 2453.0*/xxxxx, /*5 2866.0*/xxxxx, /*6 3280.0*/xxxxx, /*7 3693.0*/xxxxx, /*8 4106.0*/xxxxx, /*9 4520.0*/xxxxx, /*10 4933.0*/xxxxx, /*11 5346.0*/xxxxx, /*12 5760.0*/xxxxx, /*13 6173.0*/xxxxx, /*14 6586.0*/xxxxx, /*15 7000.0*/xxxxx},
-		{/*14 engineLoad=93.33*/  /*0 800.0*/xxxxx, /*1 1213.0*/xxxxx, /*2 1626.0*/xxxxx, /*3 2040.0*/xxxxx, /*4 2453.0*/xxxxx, /*5 2866.0*/xxxxx, /*6 3280.0*/xxxxx, /*7 3693.0*/xxxxx, /*8 4106.0*/xxxxx, /*9 4520.0*/xxxxx, /*10 4933.0*/xxxxx, /*11 5346.0*/xxxxx, /*12 5760.0*/xxxxx, /*13 6173.0*/xxxxx, /*14 6586.0*/xxxxx, /*15 7000.0*/xxxxx},
-		{/*15 engineLoad=100.00*/ /*0 800.0*/xxxxx, /*1 1213.0*/xxxxx, /*2 1626.0*/xxxxx, /*3 2040.0*/xxxxx, /*4 2453.0*/xxxxx, /*5 2866.0*/xxxxx, /*6 3280.0*/xxxxx, /*7 3693.0*/xxxxx, /*8 4106.0*/xxxxx, /*9 4520.0*/xxxxx, /*10 4933.0*/xxxxx, /*11 5346.0*/xxxxx, /*12 5760.0*/xxxxx, /*13 6173.0*/xxxxx, /*14 6586.0*/xxxxx, /*15 7000.0*/xxxxx}
-		};
-#endif
-
 /**
  * Current engine configuration. On firmware start we assign empty configuration, then
  * we copy actual configuration after reading settings.
@@ -159,18 +136,14 @@ void rememberCurrentConfiguration(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 #endif /* EFI_ACTIVE_CONFIGURATION_IN_FLASH */
 }
 
-extern LoggingWithStorage sharedLogger;
-
 static void wipeString(char *string, int size) {
 	// we have to reset bytes after \0 symbol in order to calculate correct tune CRC from MSQ file
 	for (int i = strlen(string) + 1; i < size; i++) {
-		// todo: open question if it's worth replacing for loop with a memset. would a memset be much faster?
-		// do we care about performance here?
 		string[i] = 0;
 	}
 }
 
-void wipeStrings(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
+static void wipeStrings(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	wipeString(engineConfiguration->engineMake, sizeof(vehicle_info_t));
 	wipeString(engineConfiguration->engineCode, sizeof(vehicle_info_t));
 	wipeString(engineConfiguration->vehicleName, sizeof(vehicle_info_t));
@@ -196,7 +169,7 @@ void onBurnRequest(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 void incrementGlobalConfigurationVersion(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	ENGINE(globalConfigurationVersion++);
 #if EFI_DEFAILED_LOGGING
-	scheduleMsg(&sharedLogger, "set globalConfigurationVersion=%d", globalConfigurationVersion);
+	efiPrintf("set globalConfigurationVersion=%d", globalConfigurationVersion);
 #endif /* EFI_DEFAILED_LOGGING */
 /**
  * All these callbacks could be implemented as listeners, but these days I am saving RAM
@@ -245,30 +218,9 @@ void setConstantDwell(floatms_t dwellMs DECLARE_CONFIG_PARAMETER_SUFFIX) {
 	setLinearCurve(engineConfiguration->sparkDwellValues, dwellMs, dwellMs, 0.01);
 }
 
-void setLambdaMap(lambda_table_t table, float value) {
-	for (int l = 0; l < FUEL_LOAD_COUNT; l++) {
-		for (int rpmIndex = 0; rpmIndex < FUEL_RPM_COUNT; rpmIndex++) {
-			table[l][rpmIndex] = (int)(value * PACK_MULT_LAMBDA_CFG);
-		}
-	}
-}
-
-// todo: make this a template
-void setMap(fuel_table_t table, float value) {
-	for (int l = 0; l < FUEL_LOAD_COUNT; l++) {
-		for (int rpmIndex = 0; rpmIndex < FUEL_RPM_COUNT; rpmIndex++) {
-			table[l][rpmIndex] = value;
-		}
-	}
-}
-
 void setWholeIgnitionIatCorr(float value DECLARE_CONFIG_PARAMETER_SUFFIX) {
-#if (IGN_LOAD_COUNT == FUEL_LOAD_COUNT) && (IGN_RPM_COUNT == FUEL_RPM_COUNT)
 	// todo: make setMap a template
-	setMap(config->ignitionIatCorrTable, value);
-#else
-	UNUSED(value);
-#endif
+	setTable(config->ignitionIatCorrTable, value);
 }
 
 void setFuelTablesLoadBin(float minValue, float maxValue DECLARE_CONFIG_PARAMETER_SUFFIX) {
@@ -277,23 +229,15 @@ void setFuelTablesLoadBin(float minValue, float maxValue DECLARE_CONFIG_PARAMETE
 	setLinearCurve(config->lambdaLoadBins, minValue, maxValue, 1);
 }
 
-void setTimingMap(ignition_table_t map, float value) {
-	for (int l = 0; l < IGN_LOAD_COUNT; l++) {
-		for (int r = 0; r < IGN_RPM_COUNT; r++) {
-			map[l][r] = value;
-		}
-	}
-}
-
 void setWholeIatCorrTimingTable(float value DECLARE_CONFIG_PARAMETER_SUFFIX) {
-	setTimingMap(config->ignitionIatCorrTable, value);
+	setTable(config->ignitionIatCorrTable, value);
 }
 
 /**
  * See also crankingTimingAngle
  */
 void setWholeTimingTable_d(angle_t value DECLARE_CONFIG_PARAMETER_SUFFIX) {
-	setTimingMap(config->ignitionTable, value);
+	setTable(config->ignitionTable, value);
 }
 
 static void initTemperatureCurve(float *bins, float *values, int size, float defaultValue) {
@@ -305,7 +249,7 @@ static void initTemperatureCurve(float *bins, float *values, int size, float def
 
 void prepareVoidConfiguration(engine_configuration_s *engineConfiguration) {
 	efiAssertVoid(OBD_PCM_Processor_Fault, engineConfiguration != NULL, "ec NULL");
-	memset(engineConfiguration, 0, sizeof(engine_configuration_s));
+	efi::clear(engineConfiguration);
 
 	engineConfiguration->clutchDownPinMode = PI_PULLUP;
 	engineConfiguration->clutchUpPinMode = PI_PULLUP;
@@ -536,6 +480,13 @@ static void setDefaultCrankingSettings(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 
 	static const float advanceBins[] = { 0, 200, 400, 1000 };
 	copyArray(engineConfiguration->crankingAdvanceBins, advanceBins);
+
+#if !EFI_UNIT_TEST
+	// don't set this for unit tests, as it makes things more complicated to test
+	engineConfiguration->postCrankingFactor = 1.2;
+#endif
+
+	engineConfiguration->postCrankingDurationSec = 10;
 }
 
 /**
@@ -659,6 +610,55 @@ void setDefaultGppwmParameters(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	}
 }
 
+void setDefaultEngineNoiseTable(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
+	setRpmTableBin(engineConfiguration->knockNoiseRpmBins, ENGINE_NOISE_CURVE_SIZE);
+
+	engineConfiguration->knockNoise[0] = 2; // 800
+	engineConfiguration->knockNoise[1] = 2; // 1700
+	engineConfiguration->knockNoise[2] = 2; // 2600
+	engineConfiguration->knockNoise[3] = 2; // 3400
+	engineConfiguration->knockNoise[4] = 2; // 4300
+	engineConfiguration->knockNoise[5] = 2; // 5200
+	engineConfiguration->knockNoise[6] = 2; // 6100
+	engineConfiguration->knockNoise[7] = 2; // 7000
+}
+
+static void setHip9011FrankensoPinout(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
+	/**
+	 * SPI on PB13/14/15
+	 */
+	//	CONFIG(hip9011CsPin) = GPIOD_0; // rev 0.1
+
+	CONFIG(isHip9011Enabled) = true;
+	engineConfiguration->hip9011PrescalerAndSDO = HIP_8MHZ_PRESCALER; // 8MHz chip
+	CONFIG(is_enabled_spi_2) = true;
+	// todo: convert this to rusEfi, hardware-independent enum
+#if EFI_PROD_CODE
+#ifdef EFI_HIP_CS_PIN
+	CONFIG(hip9011CsPin) = EFI_HIP_CS_PIN;
+#else
+	CONFIG(hip9011CsPin) = GPIOB_0; // rev 0.4
+#endif
+	CONFIG(hip9011CsPinMode) = OM_OPENDRAIN;
+
+	CONFIG(hip9011IntHoldPin) = GPIOB_11;
+	CONFIG(hip9011IntHoldPinMode) = OM_OPENDRAIN;
+
+	engineConfiguration->spi2SckMode = PO_OPENDRAIN; // 4
+	engineConfiguration->spi2MosiMode = PO_OPENDRAIN; // 4
+	engineConfiguration->spi2MisoMode = PO_PULLUP; // 32
+#endif /* EFI_PROD_CODE */
+
+	engineConfiguration->hip9011Gain = 1;
+	engineConfiguration->knockVThreshold = 4;
+	engineConfiguration->maxKnockSubDeg = 20;
+
+
+	if (!CONFIG(useTpicAdvancedMode)) {
+	    engineConfiguration->hipOutputChannel = EFI_ADC_10; // PC0
+	}
+}
+
 /**
  * @brief	Global default engine configuration
  * This method sets the global engine configuration defaults. These default values are then
@@ -677,7 +677,7 @@ void setDefaultGppwmParameters(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
  */
 static void setDefaultEngineConfiguration(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 #if (! EFI_UNIT_TEST)
-	memset(&persistentState.persistentConfiguration, 0, sizeof(persistentState.persistentConfiguration));
+	efi::clear(persistentState.persistentConfiguration);
 #endif
 	prepareVoidConfiguration(engineConfiguration);
 
@@ -702,6 +702,8 @@ static void setDefaultEngineConfiguration(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 #if EFI_BOOST_CONTROL
     setDefaultBoostParameters(PASS_CONFIG_PARAMETER_SIGNATURE);
 #endif
+
+    engineConfiguration->afterCrankingIACtaperDuration = 35;
 
     CONFIG(tachPulsePerRev) = 1;
 
@@ -729,6 +731,10 @@ static void setDefaultEngineConfiguration(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 
 	CONFIG(mapMinBufferLength) = 1;
 
+	// 50% duty cycle is the default for tach signal
+	CONFIG(tachPulseDurationAsDutyCycle) = true;
+	CONFIG(tachPulseDuractionMs) = 0.5;
+
 	CONFIG(startCrankingDuration) = 3;
 
 	CONFIG(compressionRatio) = 9;
@@ -742,8 +748,6 @@ static void setDefaultEngineConfiguration(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	engineConfiguration->postCrankingDurationSec = 2;
 
 	initTemperatureCurve(IAT_FUEL_CORRECTION_CURVE, 1);
-
-	engineConfiguration->tachPulseDuractionMs = 4;
 
 	engineConfiguration->auxPid[0].minValue = 10;
 	engineConfiguration->auxPid[0].maxValue = 90;
@@ -792,16 +796,14 @@ static void setDefaultEngineConfiguration(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	setLinearCurve(engineConfiguration->map.samplingWindowBins, 800, 7000, 1);
 	setLinearCurve(engineConfiguration->map.samplingWindow, 50, 50, 1);
 
-	setLambdaMap(config->lambdaTable, 1.0f);
-	engineConfiguration->stoichRatioPrimary = 14.7f * PACK_MULT_AFR_CFG;
+	setTable(config->lambdaTable, 1.0f);
+	engineConfiguration->stoichRatioPrimary = STOICH_RATIO * PACK_MULT_AFR_CFG;
 	engineConfiguration->stoichRatioSecondary = 9.0f * PACK_MULT_AFR_CFG;
 
 	setDefaultVETable(PASS_ENGINE_PARAMETER_SIGNATURE);
 
-#if (IGN_LOAD_COUNT == FUEL_LOAD_COUNT) && (IGN_RPM_COUNT == FUEL_RPM_COUNT)
-	// todo: make setMap a template
-	setMap(config->injectionPhase, -180);
-#endif
+	setTable(config->injectionPhase, -180.0f);
+
 	setRpmTableBin(config->injPhaseRpmBins, FUEL_RPM_COUNT);
 	setFuelTablesLoadBin(10, 160 PASS_CONFIG_PARAMETER_SUFFIX);
 	setDefaultIatTimingCorrection(PASS_ENGINE_PARAMETER_SIGNATURE);
@@ -812,6 +814,10 @@ static void setDefaultEngineConfiguration(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	setLinearCurve(config->tpsTpsAccelFromRpmBins, 0, 100, 10);
 	setLinearCurve(config->tpsTpsAccelToRpmBins, 0, 100, 10);
 
+	setLinearCurve(config->vvtTable1LoadBins, 20, 120, 10);
+	setRpmTableBin(config->vvtTable1RpmBins, FSIO_TABLE_8);
+	setLinearCurve(config->vvtTable2LoadBins, 20, 120, 10);
+	setRpmTableBin(config->vvtTable2RpmBins, FSIO_TABLE_8);
 	setLinearCurve(config->fsioTable1LoadBins, 20, 120, 10);
 	setRpmTableBin(config->fsioTable1RpmBins, FSIO_TABLE_8);
 	setLinearCurve(config->fsioTable2LoadBins, 20, 120, 10);
@@ -821,7 +827,7 @@ static void setDefaultEngineConfiguration(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	setLinearCurve(config->fsioTable4LoadBins, 20, 120, 10);
 	setRpmTableBin(config->fsioTable4RpmBins, FSIO_TABLE_8);
 
-	initEngineNoiseTable(PASS_ENGINE_PARAMETER_SIGNATURE);
+	setDefaultEngineNoiseTable(PASS_ENGINE_PARAMETER_SIGNATURE);
 
 	engineConfiguration->clt.config = {0, 23.8889, 48.8889, 9500, 2100, 1000, 1500};
 
@@ -848,7 +854,7 @@ static void setDefaultEngineConfiguration(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	engineConfiguration->cranking.rpm = 550;
 	engineConfiguration->cutFuelOnHardLimit = true;
 	engineConfiguration->cutSparkOnHardLimit = true;
-
+	engineConfiguration->failedMapFallback = 60;
 
 	engineConfiguration->tChargeMinRpmMinTps = 0.25;
 	engineConfiguration->tChargeMinRpmMaxTps = 0.25;
@@ -920,8 +926,6 @@ static void setDefaultEngineConfiguration(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	engineConfiguration->ignitionMode = IM_ONE_COIL;
 	engineConfiguration->globalTriggerAngleOffset = 0;
 	engineConfiguration->extraInjectionOffset = 0;
-	engineConfiguration->ignitionOffset = 0;
-	engineConfiguration->sensorChartFrequency = 20;
 
 	engineConfiguration->fuelAlgorithm = LM_SPEED_DENSITY;
 
@@ -970,7 +974,6 @@ static void setDefaultEngineConfiguration(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	engineConfiguration->HD44780height = 4;
 
 	engineConfiguration->cylinderBore = 87.5;
-	engineConfiguration->knockBandCustom = BAND(engineConfiguration->cylinderBore);
 
 	setEgoSensor(ES_14Point7_Free PASS_CONFIG_PARAMETER_SUFFIX);
 
@@ -1008,11 +1011,12 @@ static void setDefaultEngineConfiguration(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	engineConfiguration->debugMode = DBG_ALTERNATOR_PID;
 
 	engineConfiguration->acIdleRpmBump = 200;
-	engineConfiguration->knockDetectionWindowStart = 35;
-	engineConfiguration->knockDetectionWindowEnd = 135;
 
-	engineConfiguration->fuelLevelEmptyTankVoltage = 0;
-	engineConfiguration->fuelLevelFullTankVoltage = 5;
+	/* these two are used for HIP9011 only
+	 * Currently this is offset from fire event, not TDC */
+	/* TODO: convert to offset from TDC */
+	engineConfiguration->knockDetectionWindowStart = 15.0 + 5.0;
+	engineConfiguration->knockDetectionWindowEnd = 15.0 + 45.0;
 
 	/**
 	 * this is RPM. 10000 rpm is only 166Hz, 800 rpm is 13Hz
@@ -1062,6 +1066,8 @@ static void setDefaultEngineConfiguration(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	// set_fsio_expression 1 "rpm > fsio_setting(1)"
 	setFsio(0, GPIO_UNASSIGNED, RPM_ABOVE_USER_SETTING_1 PASS_CONFIG_PARAMETER_SUFFIX);
 #endif /* EFI_FSIO */
+
+	strncpy(config->luaScript, "function onTick()\nend", efi::size(config->luaScript));
 }
 
 /**
@@ -1089,9 +1095,6 @@ void setDefaultFrankensoConfiguration(DECLARE_CONFIG_PARAMETER_SIGNATURE) {
 	engineConfiguration->triggerInputPins[0] = GPIOC_6;
 	engineConfiguration->triggerInputPins[1] = GPIOA_5;
 
-	//engineConfiguration->logicAnalyzerPins[1] = GPIOE_5; // GPIOE_5 is a popular option (if available)
-
-
 	// set this to SPI_DEVICE_3 to enable stimulation
 	//engineConfiguration->digitalPotentiometerSpiDevice = SPI_DEVICE_3;
 	engineConfiguration->digitalPotentiometerChipSelect[0] = GPIOD_7;
@@ -1118,7 +1121,7 @@ void setDefaultFrankensoConfiguration(DECLARE_CONFIG_PARAMETER_SIGNATURE) {
 #endif /* EFI_MEMS */
 
 #if EFI_HIP_9011
-	setHip9011FrankensoPinout();
+	setHip9011FrankensoPinout(PASS_CONFIG_PARAMETER_SIGNATURE);
 #endif /* EFI_HIP_9011 */
 
 #if EFI_FILE_LOGGING
@@ -1130,7 +1133,50 @@ void setDefaultFrankensoConfiguration(DECLARE_CONFIG_PARAMETER_SIGNATURE) {
 	engineConfiguration->is_enabled_spi_3 = true;
 }
 
-void resetConfigurationExt(Logging * logger, configuration_callback_t boardCallback, engine_type_e engineType DECLARE_ENGINE_PARAMETER_SUFFIX) {
+#ifdef CONFIG_RESET_SWITCH_PORT
+// this pin is not configurable at runtime so that we have a reliable way to reset configuration
+#define SHOULD_IGNORE_FLASH() (palReadPad(CONFIG_RESET_SWITCH_PORT, CONFIG_RESET_SWITCH_PIN) == 0)
+#else
+#define SHOULD_IGNORE_FLASH() (false)
+#endif // CONFIG_RESET_SWITCH_PORT
+
+// by default, do not ignore config from flash! use it!
+#ifndef IGNORE_FLASH_CONFIGURATION
+#define IGNORE_FLASH_CONFIGURATION false
+#endif
+
+void loadConfiguration(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
+#ifdef CONFIG_RESET_SWITCH_PORT
+	// initialize the reset pin if necessary
+	palSetPadMode(CONFIG_RESET_SWITCH_PORT, CONFIG_RESET_SWITCH_PIN, PAL_MODE_INPUT_PULLUP);
+#endif /* CONFIG_RESET_SWITCH_PORT */
+
+#if ! EFI_ACTIVE_CONFIGURATION_IN_FLASH
+	// Clear the active configuration so that registered output pins (etc) detect the change on startup and init properly
+	prepareVoidConfiguration(&activeConfiguration);
+#endif /* EFI_ACTIVE_CONFIGURATION_IN_FLASH */
+
+#if EFI_INTERNAL_FLASH
+	if (SHOULD_IGNORE_FLASH() || IGNORE_FLASH_CONFIGURATION) {
+		engineConfiguration->engineType = DEFAULT_ENGINE_TYPE;
+		resetConfigurationExt(engineConfiguration->engineType PASS_ENGINE_PARAMETER_SUFFIX);
+		writeToFlashNow();
+	} else {
+		// this call reads configuration from flash memory or sets default configuration
+		// if flash state does not look right.
+		readFromFlash();
+	}
+#else // not EFI_INTERNAL_FLASH
+	// This board doesn't load configuration, initialize the default
+	engineConfiguration->engineType = DEFAULT_ENGINE_TYPE;
+	resetConfigurationExt(engineConfiguration->engineType PASS_ENGINE_PARAMETER_SUFFIX);
+#endif /* EFI_INTERNAL_FLASH */
+
+	// Force any board configuration options that humans shouldn't be able to change
+	setBoardConfigOverrides();
+}
+
+void resetConfigurationExt(configuration_callback_t boardCallback, engine_type_e engineType DECLARE_ENGINE_PARAMETER_SUFFIX) {
 	enginePins.reset(); // that's mostly important for functional tests
 	/**
 	 * Let's apply global defaults first
@@ -1146,7 +1192,8 @@ void resetConfigurationExt(Logging * logger, configuration_callback_t boardCallb
 
 #if EFI_PROD_CODE
 	// call overrided board-specific configuration setup, if needed (for custom boards only)
-	setBoardConfigurationOverrides();
+	setBoardDefaultConfiguration();
+	setBoardConfigOverrides();
 #endif
 
 	engineConfiguration->engineType = engineType;
@@ -1161,7 +1208,7 @@ void resetConfigurationExt(Logging * logger, configuration_callback_t boardCallb
 	case PROMETHEUS_DEFAULTS:
 	case MINIMAL_PINS:
 		// all basic settings are already set in prepareVoidConfiguration(), no need to set anything here
-		// nothing to do - we do it all in setBoardConfigurationOverrides
+		// nothing to do - we do it all in setBoardDefaultConfiguration
 		break;
 	case TEST_ENGINE:
 		setTestEngineConfiguration(PASS_CONFIG_PARAMETER_SIGNATURE);
@@ -1230,10 +1277,28 @@ void resetConfigurationExt(Logging * logger, configuration_callback_t boardCallb
 	case PROTEUS_MIATA_NB2:
 		setMiataNB2_ProteusEngineConfiguration(PASS_CONFIG_PARAMETER_SIGNATURE);
 		break;
+#ifdef HARDWARE_CI
+	case PROTEUS_ANALOG_PWM_TEST:
+		setProteusAnalogPwmTest(PASS_CONFIG_PARAMETER_SIGNATURE);
+		break;
+#endif // HARDWARE_CI
 #endif // HW_PROTEUS
 #if HW_HELLEN
 	case HELLEN_NB2:
 		setMiataNB2_Hellen72(PASS_CONFIG_PARAMETER_SIGNATURE);
+		break;
+	case HELLEN72_ETB:
+		setHellen72etb(PASS_CONFIG_PARAMETER_SIGNATURE);
+		break;
+	case HELLEN_128_MERCEDES:
+	case HELLEN_121_VAG:
+	case HELLEN_121_NISSAN:
+	case HELLEN_55_BMW:
+	case HELLEN_88_BMW:
+	case HELLEN_134_BMW:
+	case HELLEN_154_VAG:
+	case HELLEN_NA6:
+		setHellenNA6(PASS_CONFIG_PARAMETER_SIGNATURE);
 		break;
 #endif // HW_HELLEN
 #if HW_FRANKENSO
@@ -1370,10 +1435,15 @@ void resetConfigurationExt(Logging * logger, configuration_callback_t boardCallb
 		setTest33816EngineConfiguration(PASS_CONFIG_PARAMETER_SIGNATURE);
 		break;
 #endif // HW_FRANKENSO
+#ifdef HW_SUBARU_EG33
+	case SUBARUEG33_DEFAULTS:
+		setSubaruEG33Defaults(PASS_CONFIG_PARAMETER_SIGNATURE);
+		break;
+#endif //HW_SUBARU_EG33
 	default:
 		firmwareError(CUSTOM_UNEXPECTED_ENGINE_TYPE, "Unexpected engine type: %d", engineType);
 	}
-	applyNonPersistentConfiguration(logger PASS_ENGINE_PARAMETER_SUFFIX);
+	applyNonPersistentConfiguration(PASS_ENGINE_PARAMETER_SIGNATURE);
 
 #if EFI_TUNER_STUDIO
 	syncTunerStudioCopy();
@@ -1384,8 +1454,8 @@ void emptyCallbackWithConfiguration(engine_configuration_s * engineConfiguration
 	UNUSED(engineConfiguration);
 }
 
-void resetConfigurationExt(Logging * logger, engine_type_e engineType DECLARE_ENGINE_PARAMETER_SUFFIX) {
-	resetConfigurationExt(logger, &emptyCallbackWithConfiguration, engineType PASS_ENGINE_PARAMETER_SUFFIX);
+void resetConfigurationExt(engine_type_e engineType DECLARE_ENGINE_PARAMETER_SUFFIX) {
+	resetConfigurationExt(&emptyCallbackWithConfiguration, engineType PASS_ENGINE_PARAMETER_SUFFIX);
 }
 
 void validateConfiguration(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
@@ -1403,16 +1473,16 @@ void validateConfiguration(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	}
 }
 
-void applyNonPersistentConfiguration(Logging * logger DECLARE_ENGINE_PARAMETER_SUFFIX) {
+void applyNonPersistentConfiguration(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 #if EFI_PROD_CODE
 	efiAssertVoid(CUSTOM_APPLY_STACK, getCurrentRemainingStack() > EXPECTED_REMAINING_STACK, "apply c");
-	scheduleMsg(logger, "applyNonPersistentConfiguration()");
+	efiPrintf("applyNonPersistentConfiguration()");
 #endif
 
 	assertEngineReference();
 
 #if EFI_ENGINE_CONTROL
-	ENGINE(initializeTriggerWaveform(logger PASS_ENGINE_PARAMETER_SUFFIX));
+	ENGINE(initializeTriggerWaveform(PASS_ENGINE_PARAMETER_SIGNATURE));
 #endif // EFI_ENGINE_CONTROL
 
 #if EFI_FSIO
@@ -1461,8 +1531,6 @@ void setFrankenso0_1_joystick(engine_configuration_s *engineConfiguration) {
 	engineConfiguration->joystickDPin = GPIOD_11;
 }
 
-static const ConfigOverrides defaultConfigOverrides{};
-// This symbol is weak so that a board_configuration.cpp file can override it
-__attribute__((weak)) const ConfigOverrides& getConfigOverrides() {
-	return defaultConfigOverrides;
-}
+// These symbols are weak so that a board_configuration.cpp file can override them
+__attribute__((weak)) void setBoardDefaultConfiguration(void) { }
+__attribute__((weak)) void setBoardConfigOverrides(void) { }

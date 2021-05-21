@@ -9,16 +9,11 @@ import java.util.regex.Pattern;
  * This file would override file content only of content has changed, disregarding the magic tag line.
  */
 public class LazyFile implements Output {
-    public static final String LAZY_FILE_TAG = "was generated automatically by rusEfi tool ";
-    private static final String PROPERTY_NAME = "rusefi.generator.lazyfile.enabled";
-    private static boolean ENABLED = Boolean.getBoolean(PROPERTY_NAME);
+    public static final String LAZY_FILE_TAG = "was generated automatically by rusEFI tool ";
+    public static final String LAZY_FILE_TAG_LOWER = LAZY_FILE_TAG.toLowerCase();
     private static boolean isLazyCheckEnabled = true;
 
-    static {
-        SystemOut.println(PROPERTY_NAME + "=" + ENABLED);
-    }
-
-    private String filename;
+    private final String filename;
 
     private final StringBuffer content = new StringBuffer();
     private final StringBuffer contentWithoutTag = new StringBuffer();
@@ -30,9 +25,9 @@ public class LazyFile implements Output {
     @Override
     public void write(String line) {
         content.append(line);
-        String lines[] = line.split("\\r?\\n");
+        String[] lines = line.split("\\r?\\n");
         for (String subLine : lines) {
-            if (!subLine.contains(LAZY_FILE_TAG)) {
+            if (!subLine.toLowerCase().contains(LAZY_FILE_TAG_LOWER)) {
                 contentWithoutTag.append(subLine);
             }
         }
@@ -83,9 +78,9 @@ public class LazyFile implements Output {
         Scanner in = new Scanner(Paths.get(filename), IoUtils.CHARSET.name());
         Pattern pat = Pattern.compile(".*\\R|.+\\z");
         String line;
-        StringBuffer sb = new StringBuffer();
+        StringBuilder sb = new StringBuilder();
         while ((line = in.findWithinHorizon(pat, 0)) != null) {
-            if (!line.contains(LAZY_FILE_TAG))
+            if (!line.toLowerCase().contains(LAZY_FILE_TAG_LOWER))
                 sb.append(line);
         }
         return sb.toString();

@@ -56,6 +56,8 @@ static LENameOrdinalPair leFan(LE_METHOD_FAN, "fan");
 static LENameOrdinalPair leCoolant(LE_METHOD_COOLANT, "coolant");
 static LENameOrdinalPair leIntakeTemp(LE_METHOD_INTAKE_AIR, "iat");
 static LENameOrdinalPair leIsCoolantBroken(LE_METHOD_IS_COOLANT_BROKEN, "is_clt_broken");
+static LENameOrdinalPair leOilPressure(LE_METHOD_OIL_PRESSURE, "oilp");
+
 // @returns boolean state of A/C toggle switch
 static LENameOrdinalPair leAcToggle(LE_METHOD_AC_TOGGLE, "ac_on_switch");
 // @returns float number of seconds since last A/C toggle
@@ -73,6 +75,7 @@ static LENameOrdinalPair leStartupFuelPumpDuration(LE_METHOD_STARTUP_FUEL_PUMP_D
 static LENameOrdinalPair leInShutdown(LE_METHOD_IN_SHUTDOWN, "in_shutdown");
 static LENameOrdinalPair leInMrBench(LE_METHOD_IN_MR_BENCH, "in_mr_bench");
 static LENameOrdinalPair leTimeSinceTrigger(LE_METHOD_TIME_SINCE_TRIGGER_EVENT, "time_since_trigger");
+static LENameOrdinalPair leFuelRate(LE_METHOD_FUEL_FLOW_RATE, "fuel_flow");
 
 #include "fsio_names.def"
 
@@ -112,7 +115,6 @@ static LEElement * starterRelayDisableLogic;
 static LEElement * mainRelayLogic;
 #endif /* EFI_MAIN_RELAY_CONTROL */
 
-static Logging *logger;
 #if EFI_PROD_CODE || EFI_SIMULATOR
 
 FsioResult getEngineValue(le_action_e action DECLARE_ENGINE_PARAMETER_SUFFIX) {
@@ -133,13 +135,14 @@ FsioResult getEngineValue(le_action_e action DECLARE_ENGINE_PARAMETER_SUFFIX) {
 	case LE_METHOD_RPM:
 		return Sensor::get(SensorType::Rpm).value_or(0);
 	case LE_METHOD_MAF:
-		return getRealMaf(PASS_ENGINE_PARAMETER_SIGNATURE);
+		return Sensor::get(SensorType::Maf).value_or(0);
 	case LE_METHOD_MAP:
 		return Sensor::get(SensorType::Map).value_or(0);
 #if EFI_SHAFT_POSITION_INPUT
 	case LE_METHOD_INTAKE_VVT:
+		return engine->triggerCentral.getVVTPosition(0, 0);
 	case LE_METHOD_EXHAUST_VVT:
-		return engine->triggerCentral.getVVTPosition();
+		return engine->triggerCentral.getVVTPosition(0, 1);
 #endif
 	case LE_METHOD_TIME_SINCE_TRIGGER_EVENT:
 		return engine->triggerCentral.getTimeSinceTriggerEvent(getTimeNowNt());
@@ -161,9 +164,13 @@ FsioResult getEngineValue(le_action_e action DECLARE_ENGINE_PARAMETER_SUFFIX) {
 	case LE_METHOD_IN_MR_BENCH:
 		return engine->isInMainRelayBench();
 	case LE_METHOD_VBATT:
-		return getVBatt(PASS_ENGINE_PARAMETER_SIGNATURE);
+		return Sensor::get(SensorType::BatteryVoltage).value_or(0);
 	case LE_METHOD_TPS:
 		return Sensor::get(SensorType::DriverThrottleIntent).value_or(0);
+	case LE_METHOD_FUEL_FLOW_RATE:
+		return engine->engineState.fuelConsumption.getConsumptionGramPerSecond();
+	case LE_METHOD_OIL_PRESSURE:
+		return Sensor::get(SensorType::OilPressure).value_or(0);
 	// cfg_xxx references are code generated
 #include "fsio_getters.def"
 	default:
@@ -182,50 +189,50 @@ static void setFsioAnalogInputPin(const char *indexStr, const char *pinName) {
 // todo: reduce code duplication between all "set pin methods"
 	int index = atoi(indexStr) - 1;
 	if (index < 0 || index >= FSIO_ANALOG_INPUT_COUNT) {
-		scheduleMsg(logger, "invalid FSIO index: %d", index);
+		efiPrintf("invalid FSIO index: %d", index);
 		return;
 	}
 	brain_pin_e pin = parseBrainPin(pinName);
 	// todo: extract method - code duplication with other 'set_xxx_pin' methods?
 	if (pin == GPIO_INVALID) {
-		scheduleMsg(logger, "invalid pin name [%s]", pinName);
+		efiPrintf("invalid pin name [%s]", pinName);
 		return;
 	}
 	engineConfiguration->fsioAdc[index] = (adc_channel_e) pin;
-	scheduleMsg(logger, "FSIO analog input pin #%d [%s]", (index + 1), hwPortname(pin));
+	efiPrintf("FSIO analog input pin #%d [%s]", (index + 1), hwPortname(pin));
 }
 
 static void setFsioDigitalInputPin(const char *indexStr, const char *pinName) {
 	// todo: reduce code duplication between all "set pin methods"
 	int index = atoi(indexStr) - 1;
 	if (index < 0 || index >= FSIO_COMMAND_COUNT) {
-		scheduleMsg(logger, "invalid FSIO index: %d", index);
+		efiPrintf("invalid FSIO index: %d", index);
 		return;
 	}
 	brain_pin_e pin = parseBrainPin(pinName);
 	// todo: extract method - code duplication with other 'set_xxx_pin' methods?
 	if (pin == GPIO_INVALID) {
-		scheduleMsg(logger, "invalid pin name [%s]", pinName);
+		efiPrintf("invalid pin name [%s]", pinName);
 		return;
 	}
 	CONFIG(fsioDigitalInputs)[index] = pin;
-	scheduleMsg(logger, "FSIO digital input pin #%d [%s]", (index + 1), hwPortname(pin));
+	efiPrintf("FSIO digital input pin #%d [%s]", (index + 1), hwPortname(pin));
 }
 
 static void setFsioPidOutputPin(const char *indexStr, const char *pinName) {
 	int index = atoi(indexStr) - 1;
-	if (index < 0 || index >= AUX_PID_COUNT) {
-		scheduleMsg(logger, "invalid AUX index: %d", index);
+	if (index < 0 || index >= CAM_INPUTS_COUNT) {
+		efiPrintf("invalid VVT index: %d", index);
 		return;
 	}
 	brain_pin_e pin = parseBrainPin(pinName);
 	// todo: extract method - code duplication with other 'set_xxx_pin' methods?
 	if (pin == GPIO_INVALID) {
-		scheduleMsg(logger, "invalid pin name [%s]", pinName);
+		efiPrintf("invalid pin name [%s]", pinName);
 		return;
 	}
 	engineConfiguration->auxPidPins[index] = pin;
-	scheduleMsg(logger, "FSIO aux pin #%d [%s]", (index + 1), hwPortname(pin));
+	efiPrintf("VVT pid pin #%d [%s]", (index + 1), hwPortname(pin));
 }
 
 static void showFsioInfo(void);
@@ -233,18 +240,18 @@ static void showFsioInfo(void);
 static void setFsioOutputPin(const char *indexStr, const char *pinName) {
 	int index = atoi(indexStr) - 1;
 	if (index < 0 || index >= FSIO_COMMAND_COUNT) {
-		scheduleMsg(logger, "invalid FSIO index: %d", index);
+		efiPrintf("invalid FSIO index: %d", index);
 		return;
 	}
 	brain_pin_e pin = parseBrainPin(pinName);
 	// todo: extract method - code duplication with other 'set_xxx_pin' methods?
 	if (pin == GPIO_INVALID) {
-		scheduleMsg(logger, "invalid pin name [%s]", pinName);
+		efiPrintf("invalid pin name [%s]", pinName);
 		return;
 	}
 	CONFIG(fsioOutputPins)[index] = pin;
-	scheduleMsg(logger, "FSIO output pin #%d [%s]", (index + 1), hwPortname(pin));
-	scheduleMsg(logger, "please writeconfig and reboot for pin to take effect");
+	efiPrintf("FSIO output pin #%d [%s]", (index + 1), hwPortname(pin));
+	efiPrintf("please writeconfig and reboot for pin to take effect");
 	showFsioInfo();
 }
 #endif /* EFI_PROD_CODE */
@@ -337,7 +344,7 @@ float getFsioOutputValue(int index DECLARE_ENGINE_PARAMETER_SUFFIX) {
 		warning(CUSTOM_NO_FSIO, "no FSIO for #%d %s", index + 1, hwPortname(CONFIG(fsioOutputPins)[index]));
 		return NAN;
 	} else {
-		return calc.getValue2(engine->fsioState.fsioLastValue[index], state.fsioLogics[index] PASS_ENGINE_PARAMETER_SUFFIX);
+		return calc.evaluate("FSIO", engine->fsioState.fsioLastValue[index], state.fsioLogics[index] PASS_ENGINE_PARAMETER_SUFFIX);
 	}
 }
 
@@ -360,7 +367,7 @@ static void runFsioCalculation(int index DECLARE_ENGINE_PARAMETER_SUFFIX) {
 	} else {
 		int value = (int) fvalue;
 		if (value != enginePins.fsioOutputs[index].getLogicValue()) {
-			//		scheduleMsg(logger, "setting %s %s", getIo_pin_e(pin), boolToString(value));
+			//		efiPrintf("setting %s %s", getIo_pin_e(pin), boolToString(value));
 			enginePins.fsioOutputs[index].setValue(value);
 		}
 	}
@@ -404,14 +411,14 @@ static void setPinState(const char * msg, OutputPin *pin, LEElement *element DEC
 	if (!element) {
 		warning(CUSTOM_FSIO_INVALID_EXPRESSION, "invalid expression for %s", msg);
 	} else {
-		int value = (int)calc.getValue2(pin->getLogicValue(), element PASS_ENGINE_PARAMETER_SUFFIX);
+		int value = (int)calc.evaluate(msg, pin->getLogicValue(), element PASS_ENGINE_PARAMETER_SUFFIX);
 		if (pin->isInitialized() && value != pin->getLogicValue()) {
 
 			for (int i = 0;i < calc.currentCalculationLogPosition;i++) {
-				scheduleMsg(logger, "calc %d: action %s value %.2f", i, action2String(calc.calcLogAction[i]), calc.calcLogValue[i]);
+				efiPrintf("calc %d: action %s value %.2f", i, action2String(calc.calcLogAction[i]), calc.calcLogValue[i]);
 			}
 
-			scheduleMsg(logger, "setPin %s %s", msg, value ? "on" : "off");
+			efiPrintf("setPin %s %s", msg, value ? "on" : "off");
 			pin->setValue(value);
 		}
 	}
@@ -422,14 +429,14 @@ static void setPinState(const char * msg, OutputPin *pin, LEElement *element DEC
 static void setFsioFrequency(int index, int frequency) {
 	index--;
 	if (index < 0 || index >= FSIO_COMMAND_COUNT) {
-		scheduleMsg(logger, "invalid FSIO index: %d", index);
+		efiPrintf("invalid FSIO index: %d", index);
 		return;
 	}
 	CONFIG(fsioFrequency)[index] = frequency;
 	if (frequency == 0) {
-		scheduleMsg(logger, "FSIO output #%d@%s set to on/off mode", index + 1, hwPortname(CONFIG(fsioOutputPins)[index]));
+		efiPrintf("FSIO output #%d@%s set to on/off mode", index + 1, hwPortname(CONFIG(fsioOutputPins)[index]));
 	} else {
-		scheduleMsg(logger, "Setting FSIO frequency %dHz on #%d@%s", frequency, index + 1, hwPortname(CONFIG(fsioOutputPins)[index]));
+		efiPrintf("Setting FSIO frequency %dHz on #%d@%s", frequency, index + 1, hwPortname(CONFIG(fsioOutputPins)[index]));
 	}
 }
 #endif /* EFI_PROD_CODE */
@@ -446,7 +453,7 @@ static bool updateValueOrWarning(int humanIndex, const char *msg, float *value D
 		return false;
 	} else {
 		float beforeValue = *value;
-		*value = calc.getValue2(beforeValue, element PASS_ENGINE_PARAMETER_SUFFIX);
+		*value = calc.evaluate(msg, beforeValue, element PASS_ENGINE_PARAMETER_SUFFIX);
 		// floating '==' comparison without EPS seems fine here
 		return (beforeValue != *value);
 	}
@@ -558,27 +565,27 @@ void runFsio(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 static void showFsio(const char *msg, LEElement *element) {
 #if EFI_PROD_CODE || EFI_SIMULATOR
 	if (msg != NULL)
-		scheduleMsg(logger, "%s:", msg);
-	while (element != NULL) {
-		scheduleMsg(logger, "action %d: fValue=%.2f", element->action, element->fValue);
-		element = element->next;
+		efiPrintf("%s:", msg);
+	while (element->action != LE_METHOD_RETURN) {
+		efiPrintf("action %d: fValue=%.2f", element->action, element->fValue);
+		element++;
 	}
-	scheduleMsg(logger, "<end>");
+	efiPrintf("<end>");
 #endif
 }
 
 static void showFsioInfo(void) {
 #if EFI_PROD_CODE || EFI_SIMULATOR
-	scheduleMsg(logger, "sys used %d/user used %d", sysPool.getSize(), userPool.getSize());
+	efiPrintf("sys used %d/user used %d", sysPool.getSize(), userPool.getSize());
 	showFsio("a/c", acRelayLogic);
 	showFsio("fuel", fuelPumpLogic);
 	showFsio("fan", radiatorFanLogic);
 	showFsio("alt", alternatorLogic);
 
-	for (int i = 0; i < AUX_PID_COUNT ; i++) {
+	for (int i = 0; i < CAM_INPUTS_COUNT ; i++) {
 		brain_pin_e pin = engineConfiguration->auxPidPins[i];
 		if (isBrainPinValid(pin)) {
-			scheduleMsg(logger, "FSIO aux #%d [%s]", (i + 1),
+			efiPrintf("VVT pid #%d [%s]", (i + 1),
 					hwPortname(pin));
 
 		}
@@ -595,24 +602,24 @@ static void showFsioInfo(void) {
 			 */
 			int freq = CONFIG(fsioFrequency)[i];
 			const char *modeMessage = freq == 0 ? " (on/off mode)" : "";
-			scheduleMsg(logger, "FSIO #%d [%s] at %s@%dHz%s value=%.2f", (i + 1), exp,
+			efiPrintf("FSIO #%d [%s] at %s@%dHz%s value=%.2f", (i + 1), exp,
 					hwPortname(CONFIG(fsioOutputPins)[i]),
 					freq, modeMessage,
 					engine->fsioState.fsioLastValue[i]);
-//			scheduleMsg(logger, "user-defined #%d value=%.2f", i, engine->engineConfigurationPtr2->fsioLastValue[i]);
+//			efiPrintf("user-defined #%d value=%.2f", i, engine->engineConfigurationPtr2->fsioLastValue[i]);
 			showFsio(NULL, state.fsioLogics[i]);
 		}
 	}
 	for (int i = 0; i < FSIO_COMMAND_COUNT; i++) {
 		float v = CONFIG(fsio_setting)[i];
 		if (!cisnan(v)) {
-			scheduleMsg(logger, "user property #%d: %.2f", i + 1, v);
+			efiPrintf("user property #%d: %.2f", i + 1, v);
 		}
 	}
 	for (int i = 0; i < FSIO_COMMAND_COUNT; i++) {
 		brain_pin_e inputPin = CONFIG(fsioDigitalInputs)[i];
 		if (isBrainPinValid(inputPin)) {
-			scheduleMsg(logger, "FSIO digital input #%d: %s", i, hwPortname(inputPin));
+			efiPrintf("FSIO digital input #%d: %s", i, hwPortname(inputPin));
 		}
 	}
 #endif
@@ -625,7 +632,7 @@ static void setFsioSetting(float humanIndexF, float value) {
 #if EFI_PROD_CODE || EFI_SIMULATOR
 	int index = (int)humanIndexF - 1;
 	if (index < 0 || index >= FSIO_COMMAND_COUNT) {
-		scheduleMsg(logger, "invalid FSIO index: %d", (int)humanIndexF);
+		efiPrintf("invalid FSIO index: %d", (int)humanIndexF);
 		return;
 	}
 	engineConfiguration->fsio_setting[index] = value;
@@ -636,16 +643,16 @@ static void setFsioSetting(float humanIndexF, float value) {
 void setFsioExpression(const char *indexStr, const char *quotedLine DECLARE_CONFIG_PARAMETER_SUFFIX) {
 	int index = atoi(indexStr) - 1;
 	if (index < 0 || index >= FSIO_COMMAND_COUNT) {
-		scheduleMsg(logger, "invalid FSIO index: %d", index);
+		efiPrintf("invalid FSIO index: %d", index);
 		return;
 	}
 	char * l = unquote((char*) quotedLine);
 	if (strlen(l) > LE_COMMAND_LENGTH - 1) {
-		scheduleMsg(logger, "Too long %d", strlen(l));
+		efiPrintf("Too long %d", strlen(l));
 		return;
 	}
 
-	scheduleMsg(logger, "setting user out #%d to [%s]", index + 1, l);
+	efiPrintf("setting user out #%d to [%s]", index + 1, l);
 	strcpy(config->fsioFormulas[index], l);
 }
 
@@ -660,14 +667,14 @@ void applyFsioExpression(const char *indexStr, const char *quotedLine DECLARE_EN
 static void rpnEval(char *line) {
 #if EFI_PROD_CODE || EFI_SIMULATOR
 	line = unquote(line);
-	scheduleMsg(logger, "Parsing [%s]", line);
+	efiPrintf("Parsing [%s]", line);
 	evalPool.reset();
 	LEElement * e = evalPool.parseExpression(line);
 	if (e == NULL) {
-		scheduleMsg(logger, "parsing failed");
+		efiPrintf("parsing failed");
 	} else {
-		float result = evalCalc.getValue2(0, e PASS_ENGINE_PARAMETER_SUFFIX);
-		scheduleMsg(logger, "Evaluate result: %.2f", result);
+		float result = evalCalc.evaluate("eval", 0, e PASS_ENGINE_PARAMETER_SUFFIX);
+		efiPrintf("Evaluate result: %.2f", result);
 	}
 #endif
 }
@@ -685,10 +692,8 @@ ValueProvider3D *getFSIOTable(int index) {
 	}
 }
 
-void initFsioImpl(Logging *sharedLogger DECLARE_ENGINE_PARAMETER_SUFFIX) {
-#if EFI_PROD_CODE || EFI_SIMULATOR
-	logger = sharedLogger;
-#else
+void initFsioImpl(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
+#if EFI_UNIT_TEST
 	// only unit test needs this
 	sysPool.reset();
 #endif
@@ -771,7 +776,7 @@ void runHardcodedFsio(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 
 	// see MAIN_RELAY_LOGIC
 	if (isBrainPinValid(CONFIG(mainRelayPin))) {
-		enginePins.mainRelay.setValue((getTimeNowSeconds() < 2) || (getVBatt(PASS_ENGINE_PARAMETER_SIGNATURE) > LOW_VBATT) || engine->isInShutdownMode());
+		enginePins.mainRelay.setValue((getTimeNowSeconds() < 2) || (Sensor::get(SensorType::BatteryVoltage).value_or(0) > LOW_VBATT) || engine->isInShutdownMode());
 	}
 	// see STARTER_RELAY_LOGIC
 	if (isBrainPinValid(CONFIG(starterRelayDisablePin))) {
@@ -781,7 +786,7 @@ void runHardcodedFsio(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	if (isBrainPinValid(CONFIG(fanPin))) {
 		auto clt = Sensor::get(SensorType::Clt);
 		enginePins.fanRelay.setValue(!clt.Valid || (enginePins.fanRelay.getLogicValue() && (clt.Value > engineConfiguration->fanOffTemperature)) || 
-			(clt.Value > engineConfiguration->fanOnTemperature) || engine->isCltBroken);
+			(clt.Value > engineConfiguration->fanOnTemperature) || !clt.Valid);
 	}
 	// see AC_RELAY_LOGIC
 	if (isBrainPinValid(CONFIG(acRelayPin))) {

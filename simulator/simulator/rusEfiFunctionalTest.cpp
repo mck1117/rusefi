@@ -29,6 +29,7 @@
 #include "map_averaging.h"
 #include "memstreams.h"
 #include <chprintf.h>
+#include "rusefi_lua.h"
 
 #define DEFAULT_SIM_RPM 1200
 #define DEFAULT_SNIFFER_THR 2500
@@ -36,8 +37,6 @@
 EXTERN_ENGINE;
 
 extern WaveChart waveChart;
-
-LoggingWithStorage sharedLogger("simulator");
 
 int getRemainingStack(thread_t *otp) {
 	return 99999;
@@ -94,18 +93,9 @@ void rusEfiFunctionalTest(void) {
 	itoa10(versionBuffer, (int)getRusEfiVersion());
 	printToConsole(versionBuffer);
 
-#if EFI_SHAFT_POSITION_INPUT
-	/**
-	 * This is so early because we want to init logger
-	 * which would be used while finding trigger sync index
-	 * while reading configuration
-	 */
-	initTriggerDecoderLogger(&sharedLogger);
-#endif /* EFI_SHAFT_POSITION_INPUT */
+	engine->setConfig();
 
-	engine->setConfig(config);
-
-	initializeConsole(&sharedLogger);
+	initializeConsole();
 
 	initStatusLoop();
 	initDataStructures(PASS_ENGINE_PARAMETER_SIGNATURE);
@@ -113,15 +103,17 @@ void rusEfiFunctionalTest(void) {
 
 	// todo: reduce code duplication with initEngineContoller
 
-	resetConfigurationExt(NULL, FORD_ESCORT_GT PASS_ENGINE_PARAMETER_SUFFIX);
-	engine->directSelfStimulation = true;
+	resetConfigurationExt(MINIMAL_PINS PASS_ENGINE_PARAMETER_SUFFIX);
+	enableTriggerStimulator();
 
-	commonInitEngineController(&sharedLogger);
+	commonInitEngineController();
 
-	initTriggerCentral(&sharedLogger);
-	initTriggerEmulator(&sharedLogger PASS_ENGINE_PARAMETER_SUFFIX);
+	initTriggerCentral();
+	initTriggerEmulator(PASS_ENGINE_PARAMETER_SIGNATURE);
 
 	startStatusThreads();
+
+	startLoggingProcessor();
 
 	runChprintfTest();
 
@@ -129,6 +121,10 @@ void rusEfiFunctionalTest(void) {
 
 	setTriggerEmulatorRPM(DEFAULT_SIM_RPM PASS_ENGINE_PARAMETER_SUFFIX);
 	engineConfiguration->engineSnifferRpmThreshold = DEFAULT_SNIFFER_THR;
+
+	startSerialChannels();
+
+	startLua();
 }
 
 void printPendingMessages(void) {
@@ -159,8 +155,4 @@ void logMsg(const char *format, ...) {
 //	vfprintf(fp, format, args);
 //
 //	fclose(fp);
-}
-
-BaseChannel * getConsoleChannel(void) {
-	return (BaseChannel *)EFI_CONSOLE_SERIAL_DEVICE;
 }

@@ -19,13 +19,8 @@
 
 EXTERN_ENGINE;
 
-static const ConfigOverrides configOverrides = {
-	.canTxPin = GPIOD_1,
-	.canRxPin = GPIOD_0,
-};
-
-const ConfigOverrides& getConfigOverrides() {
-	return configOverrides;
+static void hellenWbo() {
+	engineConfiguration->enableAemXSeries = true;
 }
 
 static void setInjectorPins() {
@@ -48,10 +43,10 @@ static void setInjectorPins() {
 }
 
 static void setIgnitionPins() {
-	engineConfiguration->ignitionPins[0] = GPIOI_8;
-	engineConfiguration->ignitionPins[1] = GPIOE_5;
-	engineConfiguration->ignitionPins[2] = GPIOE_4;
-	engineConfiguration->ignitionPins[3] = GPIOE_3;
+	engineConfiguration->ignitionPins[0] = GPIOI_8; // 3F - IGN_1 (1&4)
+	engineConfiguration->ignitionPins[1] = GPIO_UNASSIGNED ; // GPIOE_4
+	engineConfiguration->ignitionPins[2] = GPIOE_5; // 3I - IGN_2 (2&3)
+	engineConfiguration->ignitionPins[3] = GPIO_UNASSIGNED; // GPIOE_3
 
 	//engineConfiguration->ignitionPins[4] = GPIOE_2;
 	//engineConfiguration->ignitionPins[5] = GPIOI_5;
@@ -80,11 +75,12 @@ static void setupVbatt() {
 	// 4.7k high side/4.7k low side = 2.0 ratio divider
 	engineConfiguration->analogInputDividerCoefficient = 2.0f;
 
-	// set vbatt_divider 4.0
-	// 10k high side/3.333k low side
-	engineConfiguration->vbattDividerCoeff = (10.0f + 10.0f / 3.0f) / (10.0f / 3.0f);	// = 4
+	// set vbatt_divider 5.835
+	// 33k / 6.8k
+	engineConfiguration->vbattDividerCoeff = (33 + 6.8) / 6.8; // 5.835
+
 	// pin input +12 from Main Relay
-	engineConfiguration->vbattAdcChannel = EFI_ADC_NONE; // EFI_ADC_5 on ADC3
+	engineConfiguration->vbattAdcChannel = EFI_ADC_5; // 4T
 
 	engineConfiguration->adcVcc = 3.29f;
 }
@@ -103,16 +99,27 @@ static void setupDefaultSensorInputs() {
 	engineConfiguration->mafAdcChannel = EFI_ADC_10;
 	engineConfiguration->map.sensor.hwChannel = EFI_ADC_11;
 
-	engineConfiguration->afr.hwChannel = EFI_ADC_12;
+	engineConfiguration->afr.hwChannel = EFI_ADC_1;
 
-	engineConfiguration->clt.adcChannel = EFI_ADC_0;
-	engineConfiguration->clt.config.bias_resistor = 4700;
+	engineConfiguration->clt.adcChannel = EFI_ADC_12;
 
-	engineConfiguration->iat.adcChannel = EFI_ADC_1;
-	engineConfiguration->iat.config.bias_resistor = 4700;
+	engineConfiguration->iat.adcChannel = EFI_ADC_13;
 
 	engineConfiguration->auxTempSensor1.adcChannel = EFI_ADC_NONE;
 	engineConfiguration->auxTempSensor2.adcChannel = EFI_ADC_NONE;
+}
+
+void setBoardConfigOverrides(void) {
+	setLedPins();
+	setupVbatt();
+	setSdCardConfigurationOverrides();
+
+	engineConfiguration->clt.config.bias_resistor = 4700;
+	engineConfiguration->iat.config.bias_resistor = 4700;
+
+	engineConfiguration->canTxPin = GPIOD_1;
+	engineConfiguration->canRxPin = GPIOD_0;
+	hellenWbo();
 }
 
 void setPinConfigurationOverrides(void) {
@@ -128,18 +135,17 @@ void setSerialConfigurationOverrides(void) {
 
 
 /**
- * @brief   Board-specific configuration code overrides.
+ * @brief   Board-specific configuration defaults.
  *
  * See also setDefaultEngineConfiguration
  *
  * @todo    Add your board-specific code, if any.
  */
-void setBoardConfigurationOverrides(void) {
+void setBoardDefaultConfiguration(void) {
 	setInjectorPins();
 	setIgnitionPins();
-	setLedPins();
-	setupVbatt();
-	setSdCardConfigurationOverrides();
+
+	engineConfiguration->isSdCardEnabled = true;
 
 	CONFIG(enableSoftwareKnock) = true;
 
@@ -149,6 +155,7 @@ void setBoardConfigurationOverrides(void) {
 	engineConfiguration->fuelPumpPin = GPIOG_2;	// OUT_IO9
 	engineConfiguration->idle.solenoidPin = GPIOD_14;	// OUT_PWM5
 	engineConfiguration->fanPin = GPIOD_12;	// OUT_PWM8
+	engineConfiguration->mainRelayPin = GPIOI_2;	// OUT_LOW3
 
 	// "required" hardware is done - set some reasonable defaults
 	setupDefaultSensorInputs();
@@ -167,19 +174,21 @@ void setBoardConfigurationOverrides(void) {
 	engineConfiguration->injectionMode = IM_SIMULTANEOUS;//IM_BATCH;// IM_SEQUENTIAL;
 }
 
-void setAdcChannelOverrides(void) {
-}
-
 /**
  * @brief   Board-specific SD card configuration code overrides. Needed by bootloader code.
  * @todo    Add your board-specific code, if any.
  */
 void setSdCardConfigurationOverrides(void) {
-	engineConfiguration->sdCardSpiDevice = SPI_DEVICE_2;
-	engineConfiguration->spi2mosiPin = GPIOB_15;
-	engineConfiguration->spi2misoPin = GPIOB_14;
-	engineConfiguration->spi2sckPin = GPIOB_13;
-	engineConfiguration->sdCardCsPin = GPIOB_12;
-	CONFIG(is_enabled_spi_2) = true;
-//	engineConfiguration->isSdCardEnabled = true;
+	engineConfiguration->sdCardSpiDevice = SPI_DEVICE_3;
+
+	engineConfiguration->spi3mosiPin = GPIOC_12;
+	engineConfiguration->spi3misoPin = GPIOC_11;
+	engineConfiguration->spi3sckPin = GPIOC_10;
+	engineConfiguration->sdCardCsPin = GPIOA_15;
+
+//	engineConfiguration->spi2mosiPin = GPIOB_15;
+//	engineConfiguration->spi2misoPin = GPIOB_14;
+//	engineConfiguration->spi2sckPin = GPIOB_13;
+//	engineConfiguration->sdCardCsPin = GPIOB_12;
+	CONFIG(is_enabled_spi_3) = true;
 }

@@ -32,13 +32,18 @@ extern WaveChart waveChart;
 
 // todo: clean this mess, this should become 'static'/private
 EnginePins enginePins;
-static Logging* logger;
 
-static pin_output_mode_e DEFAULT_OUTPUT = OM_DEFAULT;
+pin_output_mode_e DEFAULT_OUTPUT = OM_DEFAULT;
 pin_output_mode_e INVERTED_OUTPUT = OM_INVERTED;
 
 static const char *sparkNames[] = { "Coil 1", "Coil 2", "Coil 3", "Coil 4", "Coil 5", "Coil 6", "Coil 7", "Coil 8",
 		"Coil 9", "Coil 10", "Coil 11", "Coil 12"};
+
+const char *vvtNames[] = {
+		PROTOCOL_VVT1_NAME,
+		PROTOCOL_VVT2_NAME,
+		PROTOCOL_VVT3_NAME,
+		PROTOCOL_VVT4_NAME};
 
 // these short names are part of engine sniffer protocol
 static const char *sparkShortNames[] = { PROTOCOL_COIL1_SHORT_NAME, "c2", "c3", "c4", "c5", "c6", "c7", "c8",
@@ -116,8 +121,7 @@ EnginePins::EnginePins() :
 		alternatorPin("Alternator control", CONFIG_PIN_OFFSETS(alternatorControl)),
 		checkEnginePin("checkEnginePin", CONFIG_PIN_OFFSETS(malfunctionIndicator)),
 		tachOut("tachOut", CONFIG_PIN_OFFSETS(tachOutput)),
-		triggerDecoderErrorPin("led: trigger debug", CONFIG_PIN_OFFSETS(triggerError)),
-		hipCs("hipCs", CONFIG_PIN_OFFSETS(hip9011Cs))
+		triggerDecoderErrorPin("led: trigger debug", CONFIG_PIN_OFFSETS(triggerError))
 {
 	tachOut.name = PROTOCOL_TACH_NAME;
 	hpfpValve.name = PROTOCOL_HPFP_NAME;
@@ -177,6 +181,7 @@ bool EnginePins::stopPins() {
 void EnginePins::unregisterPins() {
 	stopInjectionPins();
     stopIgnitionPins();
+    stopAuxValves();
 
 #if EFI_ELECTRONIC_THROTTLE_BODY
 	unregisterEtbPins();
@@ -202,7 +207,7 @@ void EnginePins::debug() {
 #if EFI_PROD_CODE
 	RegisteredOutputPin * pin = registeredOutputHead;
 	while (pin != nullptr) {
-		scheduleMsg(logger, "%s %d", pin->registrationName, pin->currentLogicValue);
+		efiPrintf("%s %d", pin->registrationName, pin->currentLogicValue);
 		pin = pin->next;
 	}
 #endif // EFI_PROD_CODE
@@ -247,18 +252,33 @@ void EnginePins::stopInjectionPins(void) {
 #endif /* EFI_PROD_CODE */
 }
 
+void EnginePins::stopAuxValves(void) {
+#if EFI_PROD_CODE
+	for (int i = 0; i < AUX_DIGITAL_VALVE_COUNT; i++) {
+		NamedOutputPin *output = &enginePins.auxValve[i];
+		// todo: do we need auxValveMode and reuse code?
+		if (isConfigurationChanged(auxValves[i])) {
+			(output)->deInit();
+		}
+	}
+#endif /* EFI_PROD_CODE */
+}
+
 void EnginePins::startAuxValves(void) {
 #if EFI_PROD_CODE
 	for (int i = 0; i < AUX_DIGITAL_VALVE_COUNT; i++) {
 		NamedOutputPin *output = &enginePins.auxValve[i];
-		output->initPin(output->name, engineConfiguration->auxValves[i]);
+		// todo: do we need auxValveMode and reuse code?
+		if (isConfigurationChanged(auxValves[i])) {
+			output->initPin(output->name, engineConfiguration->auxValves[i]);
+		}
 	}
 #endif /* EFI_PROD_CODE */
 }
 
 void EnginePins::startIgnitionPins(void) {
 #if EFI_PROD_CODE
-	for (int i = 0; i < engineConfiguration->specs.cylindersCount; i++) {
+	for (size_t i = 0; i < engineConfiguration->specs.cylindersCount; i++) {
 		NamedOutputPin *output = &enginePins.coils[i];
 		if (isPinOrModeChanged(ignitionPins[i], ignitionPinMode)) {
 			output->initPin(output->name, CONFIG(ignitionPins)[i], &CONFIG(ignitionPinMode));
@@ -270,7 +290,7 @@ void EnginePins::startIgnitionPins(void) {
 void EnginePins::startInjectionPins(void) {
 #if EFI_PROD_CODE
 	// todo: should we move this code closer to the injection logic?
-	for (int i = 0; i < engineConfiguration->specs.cylindersCount; i++) {
+	for (size_t i = 0; i < engineConfiguration->specs.cylindersCount; i++) {
 		NamedOutputPin *output = &enginePins.injectors[i];
 		if (isPinOrModeChanged(injectionPins[i], injectionPinMode)) {
 			output->initPin(output->name, CONFIG(injectionPins)[i],
@@ -326,7 +346,7 @@ bool NamedOutputPin::stop() {
 #if EFI_GPIO_HARDWARE
 	if (isInitialized() && getLogicValue()) {
 		setValue(false);
-		scheduleMsg(logger, "turning off %s", name);
+		efiPrintf("turning off %s", name);
 		return true;
 	}
 #endif /* EFI_GPIO_HARDWARE */
@@ -552,7 +572,7 @@ void OutputPin::deInit() {
 	ext = false;
 #endif // (BOARD_EXT_GPIOCHIPS > 0)
 
-	scheduleMsg(logger, "unregistering %s", hwPortname(brainPin));
+	efiPrintf("unregistering %s", hwPortname(brainPin));
 
 #if EFI_GPIO_HARDWARE && EFI_PROD_CODE
 	efiSetPadUnused(brainPin);
@@ -574,8 +594,7 @@ uint8_t criticalErrorLedState;
 #define LED_ERROR_BRAIN_PIN_MODE DEFAULT_OUTPUT
 #endif /* LED_ERROR_BRAIN_PIN_MODE */
 
-void initPrimaryPins(Logging *sharedLogger) {
-	logger = sharedLogger;
+void initPrimaryPins() {
 #if EFI_PROD_CODE
 	enginePins.errorLedPin.initPin("led: CRITICAL status", LED_CRITICAL_ERROR_BRAIN_PIN, &(LED_ERROR_BRAIN_PIN_MODE));
 	criticalErrorLedPort = getHwPort("CRITICAL", LED_CRITICAL_ERROR_BRAIN_PIN);

@@ -13,14 +13,13 @@ import static com.rusefi.ConfigDefinition.EOL;
 
 public class TSProjectConsumer implements ConfigurationConsumer {
     private static final String TS_FILE_INPUT_NAME = "rusefi.input";
-    private static final int LENGTH = 24;
     private static final String CONFIG_DEFINITION_START = "CONFIG_DEFINITION_START";
     private static final String CONFIG_DEFINITION_END = "CONFIG_DEFINITION_END";
     private static final String TS_CONDITION = "@@if_";
     public static final String SETTING_CONTEXT_HELP_END = "SettingContextHelpEnd";
     public static final String SETTING_CONTEXT_HELP = "SettingContextHelp";
     public static String TS_FILE_OUTPUT_NAME = "rusefi.ini";
-    private StringBuilder settingContextHelp = new StringBuilder();
+    private final StringBuilder settingContextHelp = new StringBuilder();
 
     private final CharArrayWriter tsWriter;
     private final String tsPath;
@@ -54,9 +53,8 @@ public class TSProjectConsumer implements ConfigurationConsumer {
         }
 
         if (configField.isBit()) {
-            tsHeader.write("\t" + addTabsUpTo(nameWithPrefix, LENGTH));
-            tsHeader.write("= bits,    U32,   ");
-            tsHeader.write("\t" + tsPosition + ", [");
+            tsHeader.write(nameWithPrefix + " = bits, U32,");
+            tsHeader.write(" " + tsPosition + ", [");
             tsHeader.write(bitIndex + ":" + bitIndex);
             tsHeader.write("], \"" + configField.getFalseName() + "\", \"" + configField.getTrueName() + "\"");
             tsHeader.write(EOL);
@@ -71,29 +69,28 @@ public class TSProjectConsumer implements ConfigurationConsumer {
                 bits = handleTsInfo(bits, 5);
             }
 
-            tsHeader.write("\t" + addTabsUpTo(nameWithPrefix, LENGTH));
-            int size = configField.getState().tsCustomSize.get(configField.getType());
-//            tsHeader.headerWrite("\t" + size + ",");
-            //          tsHeader.headerWrite("\t" + tsPosition + ",");
             bits = bits.replaceAll("@OFFSET@", "" + tsPosition);
-            tsHeader.write("\t = " + bits);
+            tsHeader.write(nameWithPrefix + " = " + bits);
 
-            tsPosition += size;
+            tsPosition += configField.getState().tsCustomSize.get(configField.getType());
         } else if (configField.getTsInfo() == null) {
             throw new IllegalArgumentException("Need TS info for " + configField.getName() + " at "+ prefix);
+        } else if (configField.getArraySize() == 0) {
+            // write nothing for empty array
+            // TS does not like those
         } else if (configField.getArraySize() != 1) {
-            tsHeader.write("\t" + addTabsUpTo(nameWithPrefix, LENGTH) + "\t\t= array, ");
+            tsHeader.write(nameWithPrefix + " = array, ");
             tsHeader.write(TypesHelper.convertToTs(configField.getType()) + ",");
-            tsHeader.write("\t" + tsPosition + ",");
-            tsHeader.write("\t[" + configField.getArraySize() + "],");
-            tsHeader.write("\t" + handleTsInfo(configField.getTsInfo(), 1));
+            tsHeader.write(" " + tsPosition + ",");
+            tsHeader.write(" [" + configField.getArraySize() + "],");
+            tsHeader.write(" " + handleTsInfo(configField.getTsInfo(), 1));
 
             tsPosition += configField.getArraySize() * configField.getElementSize();
         } else {
-            tsHeader.write("\t" + addTabsUpTo(nameWithPrefix, LENGTH) + "\t\t= scalar, ");
+            tsHeader.write(nameWithPrefix + " = scalar, ");
             tsHeader.write(TypesHelper.convertToTs(configField.getType()) + ",");
-            tsHeader.write("\t" + tsPosition + ",");
-            tsHeader.write("\t" + handleTsInfo(configField.getTsInfo(), 1));
+            tsHeader.write(" " + tsPosition + ",");
+            tsHeader.write(" " + handleTsInfo(configField.getTsInfo(), 1));
             tsPosition += configField.getArraySize() * configField.getElementSize();
         }
         tsHeader.write(EOL);
@@ -150,7 +147,7 @@ public class TSProjectConsumer implements ConfigurationConsumer {
     }
 
     protected void writeTunerStudioFile(String tsPath, String fieldsSection) throws IOException {
-        TsFileContent tsContent = readTsFile(tsPath);
+        TsFileContent tsContent = readTsTemplateInputFile(tsPath);
         SystemOut.println("Got " + tsContent.getPrefix().length() + "/" + tsContent.getPostfix().length() + " of " + TS_FILE_INPUT_NAME);
 
         // File.getPath() would eliminate potential separator at the end of the path
@@ -177,7 +174,11 @@ public class TSProjectConsumer implements ConfigurationConsumer {
         tsHeader.close();
     }
 
-    private static TsFileContent readTsFile(String tsPath) throws IOException {
+    /**
+     * rusefi.input has all the content of the future .ini file with the exception of data page
+     * TODO: start generating [outputs] section as well
+     */
+    private static TsFileContent readTsTemplateInputFile(String tsPath) throws IOException {
         String fileName = getTsFileInputName(tsPath);
         BufferedReader r = new BufferedReader(new InputStreamReader(new FileInputStream(fileName), CHARSET.name()));
 
@@ -200,7 +201,7 @@ public class TSProjectConsumer implements ConfigurationConsumer {
             if (line.contains(TS_CONDITION)) {
                 String token = getToken(line);
                 String strValue = VariableRegistry.INSTANCE.get(token);
-                boolean value = Boolean.valueOf(strValue);
+                boolean value = Boolean.parseBoolean(strValue);
                 if (!value)
                     continue; // skipping this line
                 line = removeToken(line);
@@ -263,16 +264,5 @@ public class TSProjectConsumer implements ConfigurationConsumer {
             tsWriter.write("; total TS size = " + totalTsSize + EOL);
             VariableRegistry.INSTANCE.register("TOTAL_CONFIG_SIZE", totalTsSize);
         }
-    }
-
-
-    private static String addTabsUpTo(String name, int length) {
-        StringBuilder result = new StringBuilder(name);
-        int currentLength = name.length();
-        while (currentLength < length) {
-            result.append("\t");
-            currentLength += 4;
-        }
-        return result.toString();
     }
 }

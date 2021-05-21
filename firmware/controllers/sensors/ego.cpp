@@ -38,7 +38,7 @@ static int totalEgoCnt = 0;
 static int prevEgoCnt = 0;
 
 // todo: move it to engineConfiguration
-static const float stoichAfr = 14.7f;
+static const float stoichAfr = STOICH_RATIO;
 static const float maxAfrDeviation = 5.0f;	// 9.7..19.7
 static const int minAvgSize = (EGO_AVG_BUF_SIZE / 2);	// ~0.6 sec for 20ms period of 'fast' callback, and it matches a lag time of most narrow EGOs
 static const int maxAvgSize = (EGO_AVG_BUF_SIZE - 1);	// the whole buffer
@@ -130,7 +130,7 @@ float getAfr(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	float volts = getVoltageDivided("ego", sensor->hwChannel PASS_ENGINE_PARAMETER_SUFFIX);
 
 	if (CONFIG(afr_type) == ES_NarrowBand) {
-		float afr = interpolate2d("narrow", volts, engineConfiguration->narrowToWideOxygenBins, engineConfiguration->narrowToWideOxygen);
+		float afr = interpolate2d(volts, engineConfiguration->narrowToWideOxygenBins, engineConfiguration->narrowToWideOxygen);
 #ifdef EFI_NARROW_EGO_AVERAGING
 		if (useAveraging)
 			afr = updateEgoAverage(afr);

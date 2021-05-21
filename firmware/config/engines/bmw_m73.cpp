@@ -94,7 +94,7 @@ void m73engine(DECLARE_CONFIG_PARAMETER_SIGNATURE) {
 	CONFIG(isFasterEngineSpinUpEnabled) = true;
 	CONFIG(fuelAlgorithm) = LM_ALPHA_N;
 
-	engineConfiguration->vvtMode = VVT_FIRST_HALF;
+	engineConfiguration->vvtMode[0] = VVT_FIRST_HALF;
 
 	engineConfiguration->globalTriggerAngleOffset = 90;
 	setOperationMode(engineConfiguration, FOUR_STROKE_CRANK_SENSOR);
@@ -110,7 +110,6 @@ void m73engine(DECLARE_CONFIG_PARAMETER_SIGNATURE) {
 	engineConfiguration->cranking.baseFuel = 30;
 
 	engineConfiguration->cylinderBore = 85.0;
-	engineConfiguration->knockBandCustom = BAND(engineConfiguration->cylinderBore);
 }
 
 
