@@ -116,12 +116,6 @@ public class ParseListener extends RusefiConfigGrammarBaseListener {
         scope = new Scope();
     }
 
-    String decodeIdentifierReplacement(RusefiConfigGrammarParser.ReplacementIdentContext ctx) {
-        String defineName = ctx.IdentifierChars() != null ? ctx.IdentifierChars().getText() : ctx.identifier().IdentifierChars().getText();
-
-        return definitions.get(defineName).value;
-    }
-
     void handleFieldOptionsList(FieldOptions options, RusefiConfigGrammarParser.FieldOptionsListContext ctx) {
         // Null means no options were configured, use defaults
         if (ctx == null) {
