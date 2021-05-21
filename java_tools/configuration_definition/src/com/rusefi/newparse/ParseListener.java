@@ -128,19 +128,21 @@ public class ParseListener extends RusefiConfigGrammarBaseListener {
             return;
         }
 
-        // this is a legacy field option list, parse it as such
-        if (!ctx.numexpr().isEmpty()) {
-            options.units = ctx.QuotedString().getText();
-            options.scale = evalResults.remove();
-            options.offset = evalResults.remove();
-            options.min = evalResults.remove();
-            options.max = evalResults.remove();
-            options.digits = Integer.parseInt(ctx.integer().getText());
-
+        if (ctx.fieldOption().size() == 0) {
             options.comment = ctx.SemicolonedString() != null ? ctx.SemicolonedString().getText() : "";
 
-            // we should have consumed everything on the results list
-            assert(evalResults.size() == 0);
+            // this is a legacy field option list, parse it as such
+            if (!ctx.numexpr().isEmpty()) {
+                options.units = ctx.QuotedString().getText();
+                options.scale = evalResults.remove();
+                options.offset = evalResults.remove();
+                options.min = evalResults.remove();
+                options.max = evalResults.remove();
+                options.digits = Integer.parseInt(ctx.integer().getText());
+
+                // we should have consumed everything on the results list
+                assert(evalResults.size() == 0);
+            }
 
             return;
         }
@@ -208,7 +210,12 @@ public class ParseListener extends RusefiConfigGrammarBaseListener {
             } else if (typedef instanceof EnumTypedef) {
                 EnumTypedef bTypedef = (EnumTypedef) typedef;
 
-                scope.structFields.add(new EnumField(bTypedef.type, type, name, bTypedef.values));
+                options = new FieldOptions();
+
+                // Merge the read-in options list with the default from the typedef (if exists)
+                handleFieldOptionsList(options, ctx.fieldOptionsList());
+
+                scope.structFields.add(new EnumField(bTypedef.type, type, name, bTypedef.values, options));
                 return;
             } else if (typedef instanceof StringTypedef) {
                 StringTypedef sTypedef = (StringTypedef) typedef;
@@ -288,7 +295,10 @@ public class ParseListener extends RusefiConfigGrammarBaseListener {
             } else if (typedef instanceof EnumTypedef) {
                 EnumTypedef bTypedef = (EnumTypedef) typedef;
 
-                EnumField prototype = new EnumField(bTypedef.type, type, name, bTypedef.values);
+                options = new FieldOptions();
+                handleFieldOptionsList(options, ctx.fieldOptionsList());
+
+                EnumField prototype = new EnumField(bTypedef.type, type, name, bTypedef.values, options);
 
                 scope.structFields.add(new ArrayField<EnumField>(prototype, length, iterate));
                 return;

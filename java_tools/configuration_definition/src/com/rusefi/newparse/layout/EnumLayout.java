@@ -1,6 +1,7 @@
 package com.rusefi.newparse.layout;
 
 import com.rusefi.newparse.parsing.EnumField;
+import com.rusefi.newparse.parsing.FieldOptions;
 import com.rusefi.newparse.parsing.Type;
 
 import java.io.PrintStream;
@@ -10,12 +11,14 @@ public class EnumLayout extends Layout {
     private final Type type;
     private final String enumType;
     private final String values;
+    private final FieldOptions options;
 
     public EnumLayout(EnumField field) {
         this.name = field.name;
         this.type = field.type;
         this.enumType = field.enumType;
         this.values = field.values;
+        this.options = field.options;
     }
 
     @Override
@@ -43,7 +46,7 @@ public class EnumLayout extends Layout {
 
     @Override
     public void writeCLayout(PrintStream ps) {
-        this.writeCOffsetHeader(ps, null, null);
+        this.writeCOffsetHeader(ps, this.options.comment, this.options.units);
         ps.println("\t" + this.enumType + " " + this.name + ";");
     }
 }
