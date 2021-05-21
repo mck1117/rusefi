@@ -33,6 +33,7 @@ public abstract class Layout {
         if (comment != null) {
             comment = comment.replaceAll(";", "");
             comment = comment.replaceAll("[+]", "");
+            comment = comment.replaceAll("\\n", "\n\t * ");
             if (comment.length() == 0) {
                 comment = null;
             }

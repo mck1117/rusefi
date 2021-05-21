@@ -260,8 +260,9 @@ public class ParseListener extends RusefiConfigGrammarBaseListener {
             scope.structFields.add(group);
         }
 
-        // TODO: read comment off the end of the bit field
-        group.addBitField(new BitField(name));
+        String comment = ctx.SemicolonedSuffix() == null ? null : ctx.SemicolonedSuffix().getText();
+
+        group.addBitField(new BitField(name, comment));
     }
 
     @Override
@@ -362,7 +363,9 @@ public class ParseListener extends RusefiConfigGrammarBaseListener {
         assert(scope != null);
         assert(scope.structFields != null);
 
-        Struct s = new Struct(structName, scope.structFields, ctx.StructNoPrefix() != null);
+        String comment = ctx.restOfLine() == null ? null : ctx.restOfLine().getText().toString();
+
+        Struct s = new Struct(structName, scope.structFields, ctx.StructNoPrefix() != null, comment);
         structs.put(structName, s);
         structList.add(s);
         lastStruct = s;

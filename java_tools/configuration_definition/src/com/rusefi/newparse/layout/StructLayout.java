@@ -12,6 +12,7 @@ public class StructLayout extends Layout {
 
     private final String typeName;
     private final String name;
+    private final String comment;
     private final Boolean noPrefix;
     private final int size;
 
@@ -45,6 +46,7 @@ public class StructLayout extends Layout {
 
         this.typeName = parsedStruct.name;
         this.name = name;
+        this.comment = parsedStruct.comment;
         this.noPrefix = parsedStruct.noPrefix;
 
         int initialOffest = offset;
@@ -168,6 +170,11 @@ public class StructLayout extends Layout {
     }
 
     public void writeCLayoutRoot(PrintStream ps) {
+        if (this.comment != null) {
+            ps.println("/**\n * @brief " + this.comment);
+            ps.println("*/");
+        }
+
         ps.println("// start of " + this.typeName);
         ps.println("struct " + this.typeName + " {");
 
