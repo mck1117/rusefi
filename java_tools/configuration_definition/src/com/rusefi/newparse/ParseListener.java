@@ -11,7 +11,12 @@ import java.util.stream.Collectors;
 public class ParseListener extends RusefiConfigGrammarBaseListener {
     Map<String, Definition> definitions = new HashMap<>();
     Map<String, Struct> structs = new HashMap<>();
+    List<Struct> structList = new ArrayList<>();
     Map<String, Typedef> typedefs = new HashMap<>();
+
+    public List<Struct> getStructs() {
+        return structList;
+    }
 
     class Scope {
         public List<Field> structFields = new ArrayList<>();
@@ -349,6 +354,7 @@ public class ParseListener extends RusefiConfigGrammarBaseListener {
 
         Struct s = new Struct(structName, scope.structFields, ctx.StructNoPrefix() != null);
         structs.put(structName, s);
+        structList.add(s);
         lastStruct = s;
 
         // We're leaving with this struct, re-apply the next struct out so more fields can be added to it
