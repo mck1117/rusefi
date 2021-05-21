@@ -147,9 +147,8 @@ public class StructLayout extends Layout {
 
     @Override
     public void writeTunerstudioLayout(PrintStream ps, StructNamePrefixer prefixer) {
-        ps.println("; start struct " + this.typeName);
-
         if (!this.noPrefix) {
+            ps.println("; start struct " + this.typeName);
             prefixer.push(this.name);
         }
 
@@ -160,7 +159,9 @@ public class StructLayout extends Layout {
             prefixer.pop();
         }
 
-        ps.println("; end struct " + this.typeName);
+        if (!this.noPrefix) {
+            ps.println("; end struct " + this.typeName);
+        }
     }
 
     @Override
