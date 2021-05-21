@@ -42,9 +42,9 @@ public class ArrayLayout extends Layout {
         ps.print(this.type.tsType);
         ps.print(", ");
         ps.print(this.offset);
-        ps.print(", ");
+        ps.print(", [");
         ps.print(this.length);
-        ps.print(", ");
+        ps.print("], ");
 
         options.printTsFormat(ps);
 
