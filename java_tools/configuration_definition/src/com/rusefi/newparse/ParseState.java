@@ -36,6 +36,30 @@ public class ParseState extends RusefiConfigGrammarBaseListener {
         assert(evalStack.empty());
     }
 
+    private Definition.OverwritePolicy definitionOverwritePolicy = Definition.OverwritePolicy.NotAllowed;
+
+    public void addDefinition(String name, String value, Definition.OverwritePolicy overwritePolicy) {
+        Definition existingDefinition = definitions.getOrDefault(name, null);
+
+        if (existingDefinition != null) {
+            switch (existingDefinition.overwritePolicy) {
+                case NotAllowed:
+                    throw new IllegalStateException("Tried to add definition for " + name + ", but one already existed.");
+                case Replace:
+                    definitions.remove(existingDefinition);
+                case IgnoreNew:
+                    // ignore the new definition, do nothing
+                    return;
+            }
+        }
+
+        definitions.put(name, new Definition(name, value, overwritePolicy));
+    }
+
+    public void setDefinitionPolicy(Definition.OverwritePolicy policy) {
+        this.definitionOverwritePolicy = policy;
+    }
+
     @Override
     public void exitDefinition(RusefiConfigGrammarParser.DefinitionContext ctx) {
         String name = ctx.identifier().getText();
@@ -49,7 +73,7 @@ public class ParseState extends RusefiConfigGrammarBaseListener {
             value = ctx.restOfLine().getText();
         }
 
-        definitions.put(name, new Definition(name, value));
+        addDefinition(name, value, this.definitionOverwritePolicy);
     }
 
     String typedefName = null;

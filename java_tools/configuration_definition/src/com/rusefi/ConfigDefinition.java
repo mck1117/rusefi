@@ -5,6 +5,7 @@ import com.rusefi.generated.RusefiConfigGrammarParser;
 import com.rusefi.newparse.ParseState;
 import com.rusefi.newparse.layout.StructLayout;
 import com.rusefi.newparse.layout.StructNamePrefixer;
+import com.rusefi.newparse.parsing.Definition;
 import com.rusefi.newparse.parsing.Struct;
 import com.rusefi.output.*;
 import com.rusefi.util.*;
@@ -254,12 +255,20 @@ public class ConfigDefinition {
             ParseState listener = new ParseState();
 
             // First load prepend files
-            for (String prependFile : prependFiles) {
-                parseFile(listener, prependFile);
+            {
+                // Ignore duplicates of definitions made during prepend phase
+                listener.setDefinitionPolicy(Definition.OverwritePolicy.IgnoreNew);
+                for (String prependFile : prependFiles) {
+                    parseFile(listener, prependFile);
+                }
             }
 
             // Now load the main config file
-            parseFile(listener, definitionInputFile);
+            {
+                // don't allow duplicates in the main file
+                listener.setDefinitionPolicy(Definition.OverwritePolicy.NotAllowed);
+                parseFile(listener, definitionInputFile);
+            }
 
             // Write C structs
             PrintStream cPrintStream = new PrintStream(new FileOutputStream(destCHeaderFileName));
