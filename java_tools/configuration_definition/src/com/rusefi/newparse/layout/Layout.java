@@ -27,6 +27,10 @@ public abstract class Layout {
 
     public void writeTunerstudioLayout(PrintStream ps, StructNamePrefixer prefixer) {}
 
+    public void writeTunerstudioLayout(PrintStream ps, StructNamePrefixer prefixer, int arrayLength) {
+        throw new IllegalStateException("This type can't be in an array!");
+    }
+
     protected void writeCOffsetHeader(PrintStream ps, String comment, String units) {
         ps.println("\t/**");
 
@@ -53,8 +57,9 @@ public abstract class Layout {
         ps.println("\t */");
     }
 
-    public void writeCLayout(PrintStream ps) {
-        ps.println("xx");
+    public void writeCLayout(PrintStream ps) { }
 
+    public void writeCLayout(PrintStream ps, int arrayLength) {
+        throw new IllegalStateException("This type can't be in an array!");
     }
 }

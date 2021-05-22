@@ -27,7 +27,7 @@ public class StringLayout extends Layout {
 
     @Override
     public String toString() {
-        return "Unused " + super.toString();
+        return "String " + super.toString();
     }
 
     @Override
@@ -45,5 +45,11 @@ public class StringLayout extends Layout {
     public void writeCLayout(PrintStream ps) {
         this.writeCOffsetHeader(ps, null, null);
         ps.println("\tchar " + this.name + "[" + this.size + "];");
+    }
+
+    @Override
+    public void writeCLayout(PrintStream ps, int arrayLength) {
+        this.writeCOffsetHeader(ps, null, null);
+        ps.println("\tchar " + this.name + "[" + arrayLength + "][" + this.size + "];");
     }
 }

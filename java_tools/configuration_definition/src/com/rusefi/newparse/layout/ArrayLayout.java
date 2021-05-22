@@ -1,59 +1,69 @@
 package com.rusefi.newparse.layout;
 
-import com.rusefi.newparse.parsing.FieldOptions;
-import com.rusefi.newparse.parsing.ScalarField;
-import com.rusefi.newparse.parsing.Type;
+import com.rusefi.newparse.parsing.*;
 
 import java.io.PrintStream;
 
 public class ArrayLayout extends Layout {
-    private String name;
-    private Type type;
-    private FieldOptions options;
-    private int length;
+    protected final int length;
 
-    public ArrayLayout(ScalarField prototype, int length) {
-        this.name = prototype.name;
-        this.options = prototype.options;
-        this.type = prototype.type;
+    protected final Layout prototypeLayout;
+
+    public ArrayLayout(PrototypeField prototype, int length) {
         this.length = length;
+
+        if (prototype instanceof ScalarField) {
+            prototypeLayout = new ScalarLayout((ScalarField)prototype);
+        } else if (prototype instanceof EnumField) {
+            prototypeLayout = new EnumLayout((EnumField) prototype);
+        } else if (prototype instanceof StringField) {
+            prototypeLayout = new StringLayout((StringField) prototype);
+        } else if (prototype instanceof StructField) {
+            StructField structPrototype = (StructField)prototype;
+            prototypeLayout = new StructLayout(0, prototype.name, structPrototype.struct);
+        } else {
+            throw new RuntimeException("unexpected field type during array layout");
+        }
     }
 
     @Override
     public int getSize() {
-        return this.type.size * this.length;
+        return this.prototypeLayout.getSize() * this.length;
     }
 
     @Override
     public int getAlignment() {
-        // Arrays only need to be aligned on the size of the element, not the size of the array
-        return this.type.size;
+        // Arrays only need to be aligned on the alignment of the element, not the whole array
+        return this.prototypeLayout.getAlignment();
+    }
+
+    @Override
+    public void setOffset(int offset) {
+        super.setOffset(offset);
+        this.prototypeLayout.setOffset(offset);
+    }
+
+    @Override
+    public void setOffsetWithinStruct(int offset) {
+        super.setOffsetWithinStruct(offset);
+        this.prototypeLayout.setOffsetWithinStruct(offset);
     }
 
     @Override
     public String toString() {
-        return "Scalar " + type.cType + " " + super.toString();
+        return "Array of " + this.prototypeLayout.toString() + " length " + this.length + " " + super.toString();
     }
 
     @Override
     public void writeTunerstudioLayout(PrintStream ps, StructNamePrefixer prefixer) {
-        ps.print(prefixer.get(this.name));
-        ps.print(" = array, ");
-        ps.print(this.type.tsType);
-        ps.print(", ");
-        ps.print(this.offset);
-        ps.print(", [");
-        ps.print(this.length);
-        ps.print("], ");
-
-        options.printTsFormat(ps);
-
-        ps.println();
+        this.prototypeLayout.writeTunerstudioLayout(ps, prefixer, this.length);
     }
 
     @Override
     public void writeCLayout(PrintStream ps) {
-        this.writeCOffsetHeader(ps, this.options.comment, this.options.units);
-        ps.println("\t" + this.type.cType + " " + this.name + "[" + this.length + "];");
+        // Skip zero length arrays, they may be used for padding
+        if (this.length > 0) {
+            this.prototypeLayout.writeCLayout(ps, this.length);
+        }
     }
 }

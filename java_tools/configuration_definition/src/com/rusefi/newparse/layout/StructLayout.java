@@ -10,7 +10,7 @@ import java.util.List;
 public class StructLayout extends Layout {
     /*private*/public List<Layout> children = new ArrayList<>();
 
-    private final String typeName;
+    public final String typeName;
     private final String name;
     private final String comment;
     private final Boolean noPrefix;
@@ -55,19 +55,22 @@ public class StructLayout extends Layout {
             if (f instanceof ArrayField) {
                 ArrayField asf = (ArrayField)f;
 
-                if (asf.iterate) {
+                // If not a scalar, you must iterate
+                assert(asf.prototype instanceof ScalarField || asf.iterate);
 
-                    // TODO: this only works for TS, not c where we need it to stay an array
-                    for (int i = 0; i < asf.length; i++) {
-                        offset = addItem(offset, asf.prototype);
-                        //offset = addStruct(offset, asf.struct, asf.name + (i + 1));
+                if (asf.iterate) {
+                    if (asf.prototype instanceof StructField) {
+                        // Struct: special case of a struct array
+                        offset = addItem(offset, new ArrayIterateStructLayout((StructField)asf.prototype, asf.length));
+                    } else {
+                        // array of scalars (or enums)
+                        offset = addItem(offset, new ArrayIterateScalarLayout(asf.prototype, asf.length));
                     }
                 } else /* !iterate */ {
                     // If not a scalar, you must iterate
                     assert(asf.prototype instanceof ScalarField);
 
                     ScalarField prototype = (ScalarField)asf.prototype;
-
                     offset = addItem(offset, new ArrayLayout(prototype, asf.length));
                 }
             } else {
@@ -140,6 +143,12 @@ public class StructLayout extends Layout {
     }
 
     @Override
+    public int getAlignment() {
+        // All structs should be aligned on a 4 byte boundary
+        return 4;
+    }
+
+    @Override
     public String toString() {
         return "Struct " + this.typeName + " " + super.toString();
     }
@@ -168,6 +177,12 @@ public class StructLayout extends Layout {
     public void writeCLayout(PrintStream ps) {
         this.writeCOffsetHeader(ps, null, null);
         ps.println("\t" + this.typeName + " " + this.name + ";");
+    }
+
+    @Override
+    public void writeCLayout(PrintStream ps, int arrayLength) {
+        this.writeCOffsetHeader(ps, null, null);
+        ps.println("\t" + this.typeName + " " + this.name + "[" + arrayLength + "];");
     }
 
     public void writeCLayoutRoot(PrintStream ps) {

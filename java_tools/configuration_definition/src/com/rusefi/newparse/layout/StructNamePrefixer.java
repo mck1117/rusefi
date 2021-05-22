@@ -14,7 +14,17 @@ public class StructNamePrefixer {
         stack.push(name + "_");
     }
 
+    private String suffix = new String();
+
+    public void setSuffix(String suffix) {
+        this.suffix = suffix;
+    }
+
+    public void resetSuffix() {
+        this.suffix = new String();
+    }
+
     String get(String name) {
-        return stack.stream().collect(Collectors.joining()) + name;
+        return stack.stream().collect(Collectors.joining()) + name + suffix;
     }
 }
