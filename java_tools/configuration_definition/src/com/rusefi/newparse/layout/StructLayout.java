@@ -66,7 +66,7 @@ public class StructLayout extends Layout {
                         // array of scalars (or enums)
                         offset = addItem(offset, new ArrayIterateScalarLayout(asf.prototype, asf.length));
                     }
-                } else /* !iterate */ {
+                } else /* not iterate */ {
                     // If not a scalar, you must iterate
                     assert(asf.prototype instanceof ScalarField);
 
