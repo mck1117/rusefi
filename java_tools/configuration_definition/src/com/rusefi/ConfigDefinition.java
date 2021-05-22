@@ -240,6 +240,8 @@ public class ConfigDefinition {
 
         SystemOut.println("Reading definition from " + definitionInputFile);
 
+        prependFiles.add("C:\\Users\\matth\\source\\rusefi\\firmware\\config\\boards\\proteus\\prepend.txt");
+
         for (String prependFile : prependFiles)
             readPrependValues(VariableRegistry.INSTANCE, prependFile);
 
@@ -251,11 +253,12 @@ public class ConfigDefinition {
         {
             ParseState listener = new ParseState();
 
-            // First load prepends
+            // First load prepend files
             for (String prependFile : prependFiles) {
                 parseFile(listener, prependFile);
             }
 
+            // Now load the main config file
             parseFile(listener, definitionInputFile);
 
             // Write C structs
