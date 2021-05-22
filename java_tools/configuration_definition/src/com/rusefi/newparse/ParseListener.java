@@ -123,7 +123,13 @@ public class ParseListener extends RusefiConfigGrammarBaseListener {
         }
 
         if (ctx.fieldOption().size() == 0) {
-            options.comment = ctx.SemicolonedString() != null ? ctx.SemicolonedString().getText() : "";
+            if (ctx.SemicolonedString() != null) {
+                options.comment = ctx.SemicolonedString().getText();
+            } else if (ctx.SemicolonedSuffix() != null) {
+                options.comment = ctx.SemicolonedSuffix().getText();
+            } else {
+                options.comment = "";
+            }
 
             // this is a legacy field option list, parse it as such
             if (!ctx.numexpr().isEmpty()) {
