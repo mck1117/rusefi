@@ -75,23 +75,6 @@ public class ConfigDefinition {
     }
 
     public static void main(String[] args) throws FileNotFoundException, IOException {
-        CharStream in = new ANTLRInputStream(new FileReader("/home/matthew/source/rusefi/firmware/integration/rusefi_config.txt"));
-        RusefiConfigGrammarLexer lexer = new RusefiConfigGrammarLexer(in);
-        TokenStream tokens = new CommonTokenStream(lexer);
-        RusefiConfigGrammarParser parser = new RusefiConfigGrammarParser(tokens);
-        ParseTree tree = parser.content();
-        ParseTreeWalker walker = new ParseTreeWalker();
-        ParseListener listener = new ParseListener();
-        walker.walk(listener, tree);
-
-
-        Struct lastStruct = listener.getLastStruct();
-        StructLayout layout = new StructLayout(0, "root", lastStruct);
-
-        //layout.writeTunerstudioLayout(System.out, new StructNamePrefixer());
-
-        ((StructLayout)layout.children.get(0)).writeCLayoutRoot(System.out);
-
         try {
             doJob(args);
         } catch (Throwable e) {
@@ -265,6 +248,32 @@ public class ConfigDefinition {
            processYamls(VariableRegistry.INSTANCE, yamlFiles, state);
         }
 
+        // Parse the input files
+        {
+            ParseListener listener = new ParseListener();
+
+            // First load prepends
+            for (String prependFile : prependFiles) {
+                parseFile(listener, prependFile);
+            }
+
+            parseFile(listener, definitionInputFile);
+
+            // Write C structs
+            PrintStream cPrintStream = new PrintStream(new FileOutputStream(destCHeaderFileName));
+            for (Struct s : listener.getStructs()) {
+                StructLayout sl = new StructLayout(0, "root", s);
+                sl.writeCLayoutRoot(cPrintStream);
+            }
+            cPrintStream.close();
+
+            // Write tunerstudio layout
+            PrintStream tsPrintStream = new PrintStream(new FileOutputStream(tsPath + "/test.ini"));
+            StructLayout root = new StructLayout(0, "root", listener.getLastStruct());
+            root.writeTunerstudioLayout(tsPrintStream, new StructNamePrefixer());
+            tsPrintStream.close();
+        }
+
         BufferedReader definitionReader = new BufferedReader(new InputStreamReader(new FileInputStream(definitionInputFile), IoUtils.CHARSET.name()));
 
         List<ConfigurationConsumer> destinations = new ArrayList<>();
@@ -279,9 +288,9 @@ public class ConfigDefinition {
             destinations.add(new SignatureConsumer(signatureDestination, tmpRegistry));
         }
         if (needToUpdateOtherFiles) {
-            if (destCHeaderFileName != null) {
+            /*if (destCHeaderFileName != null) {
                 destinations.add(new CHeaderConsumer(destCHeaderFileName));
-            }
+            }*/
             if (javaDestinationFileName != null) {
                 destinations.add(new FileJavaFieldsConsumer(state, javaDestinationFileName));
             }
@@ -578,4 +587,10 @@ public class ConfigDefinition {
         return c.getValue();
     }
 
+    private static void parseFile(ParseListener listener, String filePath) throws FileNotFoundException, IOException {
+        CharStream in = new ANTLRInputStream(new FileInputStream(filePath));
+        RusefiConfigGrammarParser parser = new RusefiConfigGrammarParser(new CommonTokenStream(new RusefiConfigGrammarLexer(in)));
+        ParseTree tree = parser.content();
+        new ParseTreeWalker().walk(listener, tree);
+    }
 }
