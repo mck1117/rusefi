@@ -8,7 +8,7 @@ import jdk.nashorn.internal.runtime.regexp.joni.constants.StringType;
 import java.util.*;
 import java.util.stream.Collectors;
 
-public class ParseListener extends RusefiConfigGrammarBaseListener {
+public class ParseState extends RusefiConfigGrammarBaseListener {
     Map<String, Definition> definitions = new HashMap<>();
     Map<String, Struct> structs = new HashMap<>();
     List<Struct> structList = new ArrayList<>();
@@ -24,6 +24,17 @@ public class ParseListener extends RusefiConfigGrammarBaseListener {
 
     Scope scope = null;
     Stack<Scope> scopes = new Stack<>();
+
+    @Override
+    public void exitContent(RusefiConfigGrammarParser.ContentContext ctx) {
+        assert(this.scopes.empty());
+        assert(this.scope == null);
+
+        assert(this.typedefName == null);
+
+        assert(evalResults.isEmpty());
+        assert(evalStack.empty());
+    }
 
     @Override
     public void exitDefinition(RusefiConfigGrammarParser.DefinitionContext ctx) {
