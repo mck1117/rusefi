@@ -2,7 +2,7 @@ package com.rusefi;
 
 import com.rusefi.generated.RusefiConfigGrammarLexer;
 import com.rusefi.generated.RusefiConfigGrammarParser;
-import com.rusefi.newparse.ParseListener;
+import com.rusefi.newparse.ParseState;
 import com.rusefi.newparse.layout.StructLayout;
 import com.rusefi.newparse.layout.StructNamePrefixer;
 import com.rusefi.newparse.parsing.Struct;
@@ -11,7 +11,6 @@ import com.rusefi.util.*;
 import org.antlr.v4.runtime.ANTLRInputStream;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CommonTokenStream;
-import org.antlr.v4.runtime.TokenStream;
 import org.antlr.v4.runtime.tree.ParseTree;
 import org.antlr.v4.runtime.tree.ParseTreeWalker;
 
@@ -250,7 +249,7 @@ public class ConfigDefinition {
 
         // Parse the input files
         {
-            ParseListener listener = new ParseListener();
+            ParseState listener = new ParseState();
 
             // First load prepends
             for (String prependFile : prependFiles) {
@@ -587,7 +586,7 @@ public class ConfigDefinition {
         return c.getValue();
     }
 
-    private static void parseFile(ParseListener listener, String filePath) throws FileNotFoundException, IOException {
+    private static void parseFile(ParseState listener, String filePath) throws FileNotFoundException, IOException {
         CharStream in = new ANTLRInputStream(new FileInputStream(filePath));
         RusefiConfigGrammarParser parser = new RusefiConfigGrammarParser(new CommonTokenStream(new RusefiConfigGrammarLexer(in)));
         ParseTree tree = parser.content();
