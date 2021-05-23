@@ -254,6 +254,9 @@ public class ConfigDefinition {
         {
             ParseState listener = new ParseState();
 
+            // First process yaml files
+            //processYamls(listener, yamlFiles);
+
             // First load prepend files
             {
                 // Ignore duplicates of definitions made during prepend phase

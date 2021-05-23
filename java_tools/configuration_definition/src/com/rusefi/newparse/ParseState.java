@@ -348,7 +348,6 @@ public class ParseState extends RusefiConfigGrammarBaseListener {
                 scope.structFields.add(new ArrayField<StringField>(prototype, length, iterate));
                 return;
             } else {
-                // TODO: throw
                 throw new RuntimeException("didn't understand type " + type + " for element " + name);
             }
         } else {

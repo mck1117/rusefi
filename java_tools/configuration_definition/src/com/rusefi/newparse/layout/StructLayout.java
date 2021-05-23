@@ -105,7 +105,6 @@ public class StructLayout extends Layout {
             l = new StringLayout((StringField) f);
         } else {
             throw new RuntimeException("unexpected field type during layout");
-            // TODO: throw
         }
 
         return addItem(offset, l);
