@@ -79,6 +79,9 @@ int TriggerCentral::getHwEventCounter(int index) const {
 EXTERN_ENGINE;
 
 angle_t TriggerCentral::getVVTPosition(uint8_t bankIndex, uint8_t camIndex) {
+	if (bankIndex >= BANKS_COUNT || camIndex >= CAMS_PER_BANK) {
+		return NAN;
+	}
 	return vvtPosition[bankIndex][camIndex];
 }
 
@@ -689,6 +692,10 @@ void onConfigurationChangeTriggerCallback(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 		changed |= isConfigurationChanged(camInputs[i]);
 	}
 
+	for (int i = 0; i < GAP_TRACKING_LENGTH; i++) {
+		changed |= isConfigurationChanged(triggerGapOverride[i]);
+	}
+
 	changed |=
 		isConfigurationChanged(trigger.type) ||
 		isConfigurationChanged(ambiguousOperationMode) ||
@@ -701,6 +708,7 @@ void onConfigurationChangeTriggerCallback(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 		isConfigurationChanged(triggerInputPins[2]) ||
 		isConfigurationChanged(vvtMode) ||
 		isConfigurationChanged(vvtCamSensorUseRise) ||
+		isConfigurationChanged(overrideTriggerGaps) ||
 		isConfigurationChanged(vvtOffset);
 	if (changed) {
 		assertEngineReference();
