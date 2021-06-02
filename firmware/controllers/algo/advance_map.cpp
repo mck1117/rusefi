@@ -37,9 +37,6 @@ static ign_Map3D_t advanceMap("advance");
 // This coeff in ctor parameter is sufficient for int16<->float conversion!
 static ign_Map3D_t iatAdvanceCorrectionMap("iat corr");
 
-// todo: reset this between cranking attempts?! #2735
-int minCrankingRpm = 0;
-
 #if IGN_LOAD_COUNT == DEFAULT_IGN_LOAD_COUNT
 static const float iatTimingRpmBins[IGN_LOAD_COUNT] = {880,	1260,	1640,	2020,	2400,	2780,	3000,	3380,	3760,	4140,	4520,	5000,	5700,	6500,	7200,	8000};
 
@@ -128,16 +125,10 @@ static angle_t getCrankingAdvance(int rpm, float engineLoad DECLARE_ENGINE_PARAM
 	// get advance from the separate table for Cranking
 	if (CONFIG(useSeparateAdvanceForCranking)) {
 		return interpolate2d(rpm, CONFIG(crankingAdvanceBins), CONFIG(crankingAdvance));
+	} else {
+		return CONFIG(crankingTimingAngle);
 	}
-
-	// Interpolate the cranking timing angle to the earlier running angle for faster engine start
-	angle_t crankingToRunningTransitionAngle = getRunningAdvance(CONFIG(cranking.rpm), engineLoad PASS_ENGINE_PARAMETER_SUFFIX);
-	// interpolate not from zero, but starting from min. possible rpm detected
-	if (rpm < minCrankingRpm || minCrankingRpm == 0)
-		minCrankingRpm = rpm;
-	return interpolateClamped(minCrankingRpm, CONFIG(crankingTimingAngle), CONFIG(cranking.rpm), crankingToRunningTransitionAngle, rpm);
 }
-
 
 angle_t getAdvance(int rpm, float engineLoad DECLARE_ENGINE_PARAMETER_SUFFIX) {
 #if EFI_ENGINE_CONTROL && EFI_SHAFT_POSITION_INPUT
