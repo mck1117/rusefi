@@ -17,6 +17,7 @@ EndStruct: 'end_struct';
 Definition: '#define';
 Unused: 'unused';
 Custom: 'custom';
+Scaled: 'scaled';
 Datatype: (('S'|'U')('08'|'16'|'32')) | 'F32';
 Iterate: 'iterate';
 Bits: 'bits';
@@ -122,7 +123,7 @@ enumRhs
 
 enumTypedefSuffix: /*ignored*/integer Bits ',' Datatype ',' '@OFFSET@' ',' '[' integer ':' integer ']' ',' enumRhs ;
 scalarTypedefSuffix: /*ignored*/integer Scalar ',' Datatype ',' '@OFFSET@' fieldOptionsList ;
-arrayTypedefSuffix: /*ignored*/arrayLengthSpec Array ',' Datatype ',' '@OFFSET@' ',' '[' arrayLengthSpec ']' fieldOptionsList;
+arrayTypedefSuffix: /*ignored*/arrayLengthSpec Array ',' Datatype ',' '@OFFSET@' ',' '[' arrayLengthSpec ']' fieldOptionsList Scaled?;
 stringTypedefSuffix: /*ignored*/replacementIdent 'string' ',' 'ASCII' ',' '@OFFSET@' ',' numexpr;
 
 typedef: Custom identifier (enumTypedefSuffix | scalarTypedefSuffix | arrayTypedefSuffix | stringTypedefSuffix);
