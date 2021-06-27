@@ -229,7 +229,7 @@ public class ParseState extends RusefiConfigGrammarBaseListener {
         FieldOptions options = new FieldOptions();
         handleFieldOptionsList(options, ctx.fieldOptionsList());
 
-        this.typedefs.put(this.typedefName, new ArrayTypedef(this.typedefName, this.arrayDim, datatype, options));
+        this.typedefs.put(this.typedefName, new ArrayTypedef(this.typedefName, this.arrayDim, datatype, options, ctx.Scaled() != null));
     }
 
     @Override
@@ -346,7 +346,7 @@ public class ParseState extends RusefiConfigGrammarBaseListener {
                 // Merge the read-in options list with the default from the typedef (if exists)
                 handleFieldOptionsList(options, ctx.fieldOptionsList());
 
-                ScalarField prototype = new ScalarField(arTypedef.type, name, options);
+                ScalarField prototype = new ScalarField(arTypedef.type, name, options, arTypedef.scaled);
                 scope.structFields.add(new ArrayField<>(prototype, arTypedef.length, false));
                 return;
             } else if (typedef instanceof EnumTypedef) {
@@ -379,7 +379,7 @@ public class ParseState extends RusefiConfigGrammarBaseListener {
         // Merge the read-in options list with the default from the typedef (if exists)
         handleFieldOptionsList(options, ctx.fieldOptionsList());
 
-        scope.structFields.add(new ScalarField(Type.findByCtype(type).get(), name, options));
+        scope.structFields.add(new ScalarField(Type.findByCtype(type).get(), name, options, false));
     }
 
     @Override
@@ -478,7 +478,7 @@ public class ParseState extends RusefiConfigGrammarBaseListener {
         // Merge the read-in options list with the default from the typedef (if exists)
         handleFieldOptionsList(options, ctx.fieldOptionsList());
 
-        ScalarField prototype = new ScalarField(Type.findByCtype(type).get(), name, options);
+        ScalarField prototype = new ScalarField(Type.findByCtype(type).get(), name, options, false);
 
         scope.structFields.add(new ArrayField<>(prototype, length, iterate));
     }

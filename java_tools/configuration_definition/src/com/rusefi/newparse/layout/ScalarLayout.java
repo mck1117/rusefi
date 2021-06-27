@@ -12,11 +12,13 @@ public class ScalarLayout extends Layout {
     private String name;
     private Type type;
     private FieldOptions options;
+    private boolean scaled;
 
     public ScalarLayout(ScalarField field) {
         this.name = field.name;
         this.options = field.options;
         this.type = field.type;
+        this.scaled = field.scaled;
     }
 
     @Override
@@ -83,16 +85,35 @@ public class ScalarLayout extends Layout {
         printAfterArrayLength(ps);
     }
 
-    @Override
-    public void writeCLayout(PrintStream ps) {
+    private void writeCLayout(PrintStream ps, String trailer) {
         this.writeCOffsetHeader(ps, this.options.comment, this.options.units);
-        ps.print("\t" + this.type.cType.replaceAll("^int32_t$", "int") + " " + this.name);
 
-        if (ConfigDefinition.needZeroInit) {
-            ps.print(" = (" + this.type.cType.replaceAll("^int32_t$", "int") + ")0");
+        String storageType = this.type.cType.replaceAll("^int32_t$", "int");
+
+        ps.print("\t");
+
+        if (this.scaled) {
+            ps.print("scaled_channel<" + storageType + ", " + Math.round(1 / options.scale) + "> ");
+        } else {
+            ps.print(storageType);
+            ps.print(" ");
         }
 
+        ps.print(this.name);
+
+        ps.print(trailer);
+
         ps.println(";");
+    }
+
+    @Override
+    public void writeCLayout(PrintStream ps) {
+        String trailer = "";
+        if (ConfigDefinition.needZeroInit) {
+            trailer = " = (" + this.type.cType.replaceAll("^int32_t$", "int") + ")0";
+        }
+
+        writeCLayout(ps, trailer);
     }
 
     @Override
@@ -101,6 +122,8 @@ public class ScalarLayout extends Layout {
 
         StringBuilder al = new StringBuilder();
 
+        al.append("[");
+
         al.append(arrayLength[0]);
 
         for (int i = 1; i < arrayLength.length; i++) {
@@ -108,6 +131,8 @@ public class ScalarLayout extends Layout {
             al.append(arrayLength[i]);
         }
 
-        ps.println("\t" + this.type.cType.replaceAll("^int32_t$", "int") + " " + this.name + "[" + al + "];");
+        al.append("]");
+
+        writeCLayout(ps, al.toString());
     }
 }
