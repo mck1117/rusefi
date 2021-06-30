@@ -801,6 +801,7 @@ typedef enum {
 	DBG_RUSEFI_WIDEBAND = 46,
 	DBG_TCU = 47,
 	DBG_LUA = 48,
+	DBG_MANIFOLD_PRESSURE_ESTIMATE = 49,
 
 	Force_4_bytes_size_debug_mode_e = ENUM_32_BITS,
 } debug_mode_e;
