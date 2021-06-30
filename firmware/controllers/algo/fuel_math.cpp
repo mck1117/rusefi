@@ -26,6 +26,7 @@
 #include "alphan_airmass.h"
 #include "maf_airmass.h"
 #include "speed_density_airmass.h"
+#include "mpo_airmass.h"
 #include "fuel_math.h"
 #include "fuel_computer.h"
 #include "injector_model.h"
