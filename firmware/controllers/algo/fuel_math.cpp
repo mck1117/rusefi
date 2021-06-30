@@ -161,11 +161,14 @@ floatms_t getRunningFuel(floatms_t baseFuel DECLARE_ENGINE_PARAMETER_SUFFIX) {
 
 /* DISPLAY_ENDIF */
 
+static MpoAirmass mpoAirmass(veMap, mapEstimationTable);
 static SpeedDensityAirmass sdAirmass(veMap, mapEstimationTable);
 static MafAirmass mafAirmass(veMap);
 static AlphaNAirmass alphaNAirmass(veMap);
 
 AirmassModelBase* getAirmassModel(engine_load_mode_e mode DECLARE_ENGINE_PARAMETER_SUFFIX) {
+	return &mpoAirmass;
+	
 	switch (mode) {
 		case LM_SPEED_DENSITY: return &sdAirmass;
 		case LM_REAL_MAF: return &mafAirmass;

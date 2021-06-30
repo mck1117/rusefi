@@ -4,6 +4,11 @@
 
 class MpoAirmass : public SpeedDensityBase {
 public:
+	explicit SpeedDensityAirmass(const ValueProvider3D& veTable, const ValueProvider3D& mapEstimationTable)
+		: SpeedDensityBase(veTable)
+		, m_mapEstimationTable(&mapEstimationTable)
+	{}
+
 	AirmassResult getAirmass(int rpm) const override;
 
 private:
