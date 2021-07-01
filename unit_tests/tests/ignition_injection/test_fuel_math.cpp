@@ -1,6 +1,7 @@
 #include "engine_test_helper.h"
 #include "fuel_math.h"
 #include "alphan_airmass.h"
+#include "mpo_airmass.h"
 #include "maf_airmass.h"
 #include "mocks.h"
 
@@ -136,6 +137,53 @@ TEST(AirmassModes, VeOverride) {
 	Sensor::setMockValue(SensorType::Tps1, 30.0f);
 	dut.getAirmass(0);
 	EXPECT_FLOAT_EQ(ENGINE(engineState.currentVeLoad), 30.0f);
+}
+
+TEST(AirmassModes, mpo) {
+	WITH_ENGINE_TEST_HELPER(FORD_ASPIRE_1996);
+	engineConfiguration->fuelAlgorithm = LM_REAL_MAF;
+	engineConfiguration->injector.flow = 200;
+
+	ENGINE(engineState.sd.tChargeK) = 273;
+
+	MockVp3d veTable;
+	// Ensure that the correct cell is read from the VE table
+	EXPECT_CALL(veTable, getValue(_, _))
+		.WillRepeatedly(Return(75.0f));
+
+	MockVp3d mapEstimateTable;
+	// Ensure that the correct cell is read from the VE table
+	EXPECT_CALL(mapEstimateTable, getValue(_, _))
+	.WillRepeatedly([](float xRpm, float y) {
+			return y / 100;
+		});
+
+	MpoAirmass dut(veTable, mapEstimateTable);
+	INJECT_ENGINE_REFERENCE(&dut);
+
+	Sensor::setMockValue(SensorType::Tps1, 50);
+	Sensor::setMockValue(SensorType::Map, 60);
+
+	for (size_t i = 0; i < 500; i++)
+	{
+		dut.getAirmass(2000);
+	}
+
+	Sensor::setMockValue(SensorType::Map, 50);
+
+	for (size_t i = 0; i < 500; i++)
+	{
+		dut.getAirmass(2000);
+	}
+	
+	Sensor::setMockValue(SensorType::Tps1, 40);
+
+	for (size_t i = 0; i < 500; i++)
+	{
+		dut.getAirmass(2000);
+	}
+
+	dut.getAirmass(2000);
 }
 
 void setInjectionMode(int value DECLARE_ENGINE_PARAMETER_SUFFIX);
