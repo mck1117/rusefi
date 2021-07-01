@@ -94,8 +94,6 @@ AirmassResult MpoAirmass::getAirmass(int rpm) {
 	float ve2 = getVe(rpm, estimatedMap2);
 	float airMass2 = getAirmassImpl(ve2, estimatedMap2, tChargeK PASS_ENGINE_PARAMETER_SUFFIX);
 
-	printf("%f\t%f\t%f\t%f\t%f\t%f\n", throttleFlow, feedback, portFlow, currentMass, estimatedMap2, airMass2);
-
 #if EFI_TUNER_STUDIO
 	if (CONFIG(debugMode) == DBG_MANIFOLD_PRESSURE_ESTIMATE) {
 		tsOutputChannels.debugFloatField1 = 1000 * throttleFlow;
