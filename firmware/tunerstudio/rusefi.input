@@ -3578,6 +3578,9 @@ cmd_set_engine_type_default					= "@@TS_IO_TEST_COMMAND_char@@\x00\x31\x00\x00"
 		field = "MAP Averaging Logic @",				mapAveragingSchedulingAtIndex
 		field = "showHumanReadableWarning (affects Burn)",	showHumanReadableWarning
 		field = "Ford redundant TPS mode",				useFordRedundantTps
+		field = "mpo kp", mpoKp
+		field = "mpo ki", mpoKi
+		field = "mpo manifold", mpoManifoldVolume
 
 
        help = helpGeneral, "rusEFI General Help"

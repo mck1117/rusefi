@@ -19,20 +19,20 @@ float MpoAirmass::estimateThrottleFlow(int rpm, float airTemp) const {
 		);
 
 	// Estimate the total mass flow based on that airmass
-	return estThrottleAirmass * CONFIG(specs.cylindersCount) * rpm / 12000;
+	return estThrottleAirmass * CONFIG(specs.cylindersCount) * rpm / (120 * 1000);
 }
 
 float MpoAirmass::getFeedback(float estimatedMap, float dt) {
-	float timeConstant = 0.5f;
-	float integratorGain = 1 / timeConstant;
+	float integratorGain = CONFIG(mpoKi);
 
 	float measuredMap = Sensor::get(SensorType::Map).value_or(0);
 	float error = measuredMap - estimatedMap;
 
 	float integrator = error * integratorGain * dt + m_integrator;
+	integrator = clampF(0.1f, integrator, 10);
 	m_integrator = integrator;
 
-	float proportional = error * 0.01f;
+	float proportional = error * CONFIG(mpoKp);
 
 	return clampF(0.01f, proportional + integrator, 100);
 }
@@ -51,7 +51,7 @@ AirmassResult MpoAirmass::getAirmass(int rpm) {
 	//Sensor::setMockValue(SensorType::Map, 80);
 
 	constexpr float dt = FAST_CALLBACK_PERIOD_MS / 1000.0f;
-	float manifoldVolumeM3 = 0.01f;		// 10 liters
+	float manifoldVolumeM3 = CONFIG(mpoManifoldVolume) / 1000; // liters -> m^3
 
 	float throttleFlow = estimateThrottleFlow(rpm, tChargeK);
 
@@ -77,7 +77,7 @@ AirmassResult MpoAirmass::getAirmass(int rpm) {
 	float ve = getVe(rpm, estimatedMap);
 	float airMass = getAirmassImpl(ve, estimatedMap, tChargeK PASS_ENGINE_PARAMETER_SUFFIX);
 
-	float portFlow = airMass * CONFIG(specs.cylindersCount) * rpm / 12000;
+	float portFlow = airMass * CONFIG(specs.cylindersCount) * rpm / (120 * 1000);
 
 	float netManifoldFlow = throttleFlow - portFlow;
 	float massDelta = netManifoldFlow * dt;
