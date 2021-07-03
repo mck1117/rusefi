@@ -305,7 +305,7 @@ expected<percent_t> EtbController::getSetpointEtb() const {
 
 	percent_t etbIdlePosition = clampF(
 									0,
-									CONFIG(useETBforIdleControl) ? m_idlePosition : 0,
+									m_idlePosition,
 									100
 								);
 	percent_t etbIdleAddition = 0.01f * CONFIG(etbIdleThrottleRange) * etbIdlePosition;
@@ -1007,11 +1007,6 @@ void initElectronicThrottle(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 }
 
 void setEtbIdlePosition(percent_t pos DECLARE_ENGINE_PARAMETER_SUFFIX) {
-	if (!Sensor::hasSensor(SensorType::AcceleratorPedal)) {
-		firmwareError(CUSTOM_NO_ETB_FOR_IDLE, "No ETB to use for idle");
-		return;
-	}
-
 	for (int i = 0; i < ETB_COUNT; i++) {
 		if (auto etb = engine->etbControllers[i]) {
 			etb->setIdlePosition(pos);

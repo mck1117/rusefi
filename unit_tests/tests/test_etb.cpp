@@ -219,7 +219,6 @@ TEST(etb, idlePlumbing) {
 	StrictMock<MockEtb> mocks[ETB_COUNT];
 
 	WITH_ENGINE_TEST_HELPER(TEST_ENGINE);
-	engineConfiguration->useETBforIdleControl = true;
 
 	Sensor::setMockValue(SensorType::AcceleratorPedal, 50.0f, true);
 
@@ -234,9 +233,6 @@ TEST(etb, idlePlumbing) {
 
 TEST(etb, testSetpointOnlyPedal) {
 	WITH_ENGINE_TEST_HELPER(TEST_ENGINE);
-
-	// Don't use ETB for idle, we aren't testing that yet - just pedal table for now
-	engineConfiguration->useETBforIdleControl = false;
 
 	EtbController etb;
 	INJECT_ENGINE_REFERENCE(&etb);
@@ -293,7 +289,6 @@ TEST(etb, setpointIdle) {
 	WITH_ENGINE_TEST_HELPER(TEST_ENGINE);
 
 	// Use ETB for idle, but don't give it any range (yet)
-	engineConfiguration->useETBforIdleControl = true;
 	engineConfiguration->etbIdleThrottleRange = 0;
 
 	// Must have TPS & PPS initialized for ETB setup

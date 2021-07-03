@@ -54,12 +54,11 @@ void applyIACposition(percent_t position DECLARE_ENGINE_PARAMETER_SUFFIX) {
 	 */
 	float duty = PERCENT_TO_DUTY(position);
 
-	if (CONFIG(useETBforIdleControl)) {
 #if EFI_ELECTRONIC_THROTTLE_BODY
-		setEtbIdlePosition(position PASS_ENGINE_PARAMETER_SUFFIX);
+	setEtbIdlePosition(position PASS_ENGINE_PARAMETER_SUFFIX);
 #endif // EFI_ELECTRONIC_THROTTLE_BODY
-#if ! EFI_UNIT_TEST
-	} else if (CONFIG(useStepperIdle)) {
+
+	if (CONFIG(useStepperIdle)) {
 		iacMotor.setTargetPosition(duty * engineConfiguration->idleStepperTotalSteps);
 #endif /* EFI_UNIT_TEST */
 	} else {
@@ -94,7 +93,6 @@ bool isIdleHardwareRestartNeeded() {
 			isConfigurationChanged(idle.stepperStepPin) ||
 			isConfigurationChanged(idle.solenoidFrequency) ||
 			isConfigurationChanged(useStepperIdle) ||
-			isConfigurationChanged(useETBforIdleControl) ||
 			isConfigurationChanged(idle.solenoidPin) ||
 			isConfigurationChanged(secondSolenoidPin);
 }
@@ -141,8 +139,8 @@ void initIdleHardware(DECLARE_ENGINE_PARAMETER_SUFFIX) {
 
 		// This greatly improves PID accuracy for steppers with a small number of steps
 		idlePositionSensitivityThreshold = 1.0f / engineConfiguration->idleStepperTotalSteps;
-	} else if (engineConfiguration->useETBforIdleControl || !isBrainPinValid(CONFIG(idle).solenoidPin)) {
-		// here we do nothing for ETB idle and for no idle
+	} else if ( !isBrainPinValid(CONFIG(idle).solenoidPin)) {
+		// here we do nothing for no idle
 	} else {
 		// we are here for single or double solenoid idle
 
