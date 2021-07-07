@@ -35,16 +35,18 @@ typedef struct __attribute__ ((packed)) {
 	bool injector : 1;
 } composite_logger_s;
 
+static_assert(sizeof(composite_logger_s) == COMPOSITE_PACKET_SIZE, "composite packet size");
+
 /**
  * Engine idles around 20Hz and revs up to 140Hz, at 60/2 and 8 cylinders we have about 20Khz events
  * If we can read buffer at 50Hz we want buffer to be about 400 elements.
  */
-static composite_logger_s buffer[COMPOSITE_PACKET_COUNT] CCM_OPTIONAL;
-static composite_logger_s *ptr_buffer_first = &buffer[0];
-static composite_logger_s *ptr_buffer_second = &buffer[(COMPOSITE_PACKET_COUNT/2)-1];
-static size_t NextIdx = 0;
-static volatile bool ToothLoggerEnabled = false;
-static volatile bool firstBuffer = true;
+#define BUFFER_SIZE (COMPOSITE_PACKET_COUNT / 2)
+static composite_logger_s buffers[2][BUFFER_SIZE] CCM_OPTIONAL;
+static composite_logger_s* frontBuffer = buffers[0];
+static composite_logger_s* backBuffer = buffers[1];
+static size_t nextIdx = 0;
+static bool ToothLoggerEnabled = false;
 static uint32_t lastEdgeTimestamp = 0;
 
 static bool currentTrigger1 = false;
@@ -56,7 +58,7 @@ static bool currentCoilState = false;
 static bool currentInjectorState = false;
 
 int getCompositeRecordCount() {
-	return NextIdx;
+	return nextIdx;
 }
 
 
@@ -78,40 +80,43 @@ int copyCompositeEvents(CompositeEvent *events) {
 
 #endif // EFI_UNIT_TEST
 
+static efitick_t lastReadyTime = 0;
+
 static void SetNextCompositeEntry(efitick_t timestamp DECLARE_ENGINE_PARAMETER_SUFFIX) {
 	uint32_t nowUs = NT2US(timestamp);
-	
-	// TS uses big endian, grumble
-	buffer[NextIdx].timestamp = SWAP_UINT32(nowUs);
-	buffer[NextIdx].priLevel = currentTrigger1;
-	buffer[NextIdx].secLevel = currentTrigger2;
-	buffer[NextIdx].trigger = currentTdc;
-	buffer[NextIdx].sync = engine->triggerCentral.triggerState.getShaftSynchronized();
-	buffer[NextIdx].coil = currentCoilState;
-	buffer[NextIdx].injector = currentInjectorState;
 
-	NextIdx++;
-
-	static_assert(sizeof(composite_logger_s) == COMPOSITE_PACKET_SIZE, "composite packet size");
-
-	//If we hit the end, loop
-	if ((firstBuffer) && (NextIdx >= (COMPOSITE_PACKET_COUNT/2))) {
-		/* first half is full */
-#if EFI_TUNER_STUDIO		
-		tsOutputChannels.toothLogReady = true;
-#endif		
-		firstBuffer = false;
-	}
-	if ((!firstBuffer) && (NextIdx >= sizeof(buffer) / sizeof(buffer[0]))) {
-#if EFI_TUNER_STUDIO		
-		tsOutputChannels.toothLogReady = true;
-#endif		
-		NextIdx = 0;
-		firstBuffer = true;
+	if (nextIdx >= BUFFER_SIZE) {
+		// Buffer full, nothing to do.
+		return;
 	}
 
-	/////tsOutputChannels.toothLogReady = true;
+	// Claim an entry, and write to it under lock
+	{
+		chibios_rt::CriticalSectionLocker csl;
 
+		// TS uses big endian, grumble
+		auto& entry = frontBuffer[nextIdx++];
+		entry.timestamp = SWAP_UINT32(nowUs);
+		entry.priLevel = currentTrigger1;
+		entry.secLevel = currentTrigger2;
+		entry.trigger = currentTdc;
+		entry.sync = engine->triggerCentral.triggerState.getShaftSynchronized();
+		entry.coil = currentCoilState;
+		entry.injector = currentInjectorState;
+
+		if (nextIdx >= BUFFER_SIZE) {
+			// Signal that there are now events in the buffer available to read
+			tsOutputChannels.toothLogReady = true;
+			lastReadyTime = timestamp;
+		}
+	}
+
+	// If it's been a long time since the last flush, force a flush so the user sees *something*
+	if (timestamp - lastReadyTime > MS2NT(5000)) {
+		// Signal that there are now events in the buffer available to read
+		tsOutputChannels.toothLogReady = true;
+		lastReadyTime = timestamp;
+	}
 }
 
 void LogTriggerTooth(trigger_event_e tooth, efitick_t timestamp DECLARE_ENGINE_PARAMETER_SUFFIX) {
@@ -202,14 +207,11 @@ void LogTriggerInjectorState(efitick_t timestamp, bool state DECLARE_ENGINE_PARA
 }
 
 void EnableToothLogger() {
-	// Clear the buffer
-	memset(buffer, 0, sizeof(buffer));
-
 	// Reset the last edge to now - this prevents the first edge logged from being bogus
 	lastEdgeTimestamp = getTimeNowUs();
 
 	// Reset write index
-	NextIdx = 0;
+	nextIdx = 0;
 
 	// Enable logging of edges as they come
 	ToothLoggerEnabled = true;
@@ -237,18 +239,19 @@ void DisableToothLogger() {
 }
 
 ToothLoggerBuffer GetToothLoggerBuffer() {
-	if (firstBuffer) {
-#if EFI_TUNER_STUDIO		
-		tsOutputChannels.toothLogReady = false;
-#endif		
-		return { reinterpret_cast<uint8_t*>(ptr_buffer_second), (sizeof(buffer)/2) };
-	} else {
-#if EFI_TUNER_STUDIO		
-		tsOutputChannels.toothLogReady = false;
-#endif		
-		return { reinterpret_cast<uint8_t*>(ptr_buffer_first), (sizeof(buffer)/2) };
-	}
-}
+	// swap buffers under lock...
+	chibios_rt::CriticalSectionLocker csl;
 
+	auto temp = frontBuffer;
+	frontBuffer = backBuffer;
+	backBuffer = temp;
+
+	auto writtenCount = nextIdx;
+	nextIdx = 0;
+
+	tsOutputChannels.toothLogReady = false;
+
+	return { reinterpret_cast<const uint8_t*>(backBuffer), writtenCount };
+}
 
 #endif /* EFI_TOOTH_LOGGER */
