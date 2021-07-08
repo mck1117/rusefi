@@ -82,6 +82,21 @@ int copyCompositeEvents(CompositeEvent *events) {
 
 static efitick_t lastReadyTime = 0;
 
+static void queueDataForRead(efitick_t timestamp) {
+	// Signal that there are now events in the buffer available to read
+	tsOutputChannels.toothLogReady = true;
+	lastReadyTime = timestamp;
+
+	// Swap to the back buffer
+	auto temp = frontBuffer;
+	frontBuffer = backBuffer;
+	backBuffer = temp;
+	backSize = nextIdx;
+
+	// Reset front buffer
+	nextIdx = 0;
+}
+
 static void SetNextCompositeEntry(efitick_t timestamp DECLARE_ENGINE_PARAMETER_SUFFIX) {
 	uint32_t nowUs = NT2US(timestamp);
 
@@ -105,17 +120,13 @@ static void SetNextCompositeEntry(efitick_t timestamp DECLARE_ENGINE_PARAMETER_S
 		entry.injector = currentInjectorState;
 
 		if (nextIdx >= BUFFER_SIZE) {
-			// Signal that there are now events in the buffer available to read
-			tsOutputChannels.toothLogReady = true;
-			lastReadyTime = timestamp;
+			queueDataForRead(timestamp);
 		}
 	}
 
 	// If it's been a long time since the last flush, force a flush so the user sees *something*
 	if (timestamp - lastReadyTime > MS2NT(5000)) {
-		// Signal that there are now events in the buffer available to read
-		tsOutputChannels.toothLogReady = true;
-		lastReadyTime = timestamp;
+		queueDataForRead(timestamp);
 	}
 }
 
@@ -242,14 +253,22 @@ ToothLoggerBuffer GetToothLoggerBuffer() {
 	// swap buffers under lock...
 	chibios_rt::CriticalSectionLocker csl;
 
-	auto temp = frontBuffer;
-	frontBuffer = backBuffer;
-	backBuffer = temp;
+	size_t writtenCount;
 
-	auto writtenCount = nextIdx;
-	nextIdx = 0;
+	if (backSize > 0) {
+		writtenCount = backSize;
+		backSize = 0;
+	} else {
+		// back buffer is empty, swap buffers and return the front buffer
+		auto temp = frontBuffer;
+		frontBuffer = backBuffer;
+		backBuffer = temp;
 
-	tsOutputChannels.toothLogReady = false;
+		auto writtenCount = nextIdx;
+		nextIdx = 0;
+
+		tsOutputChannels.toothLogReady = false;
+	}
 
 	return { reinterpret_cast<const uint8_t*>(backBuffer), writtenCount };
 }
