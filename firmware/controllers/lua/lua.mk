@@ -1,6 +1,8 @@
 LUA_DIR=$(CONTROLLERS_DIR)/lua
 LUA_EXT=$(PROJECT_DIR)/ext/lua
 
+ASMSRC += $(LUA_DIR)/builtin/lua_inc.s
+
 ALLCPPSRC += $(LUA_DIR)/lua.cpp \
 			 $(LUA_DIR)/lua_hooks.cpp \
 

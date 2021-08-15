@@ -194,3 +194,4 @@ endif
 
 include $(UNIT_TESTS_DIR)/rules.mk
 include $(PROJECT_DIR)/rusefi_pch.mk
+include $(PROJECT_DIR)/rusefi_lua.mk

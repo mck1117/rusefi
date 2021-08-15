@@ -382,3 +382,4 @@ include $(RULESFILE)
 
 # Enable precompiled header
 include rusefi_pch.mk
+include rusefi_lua.mk
