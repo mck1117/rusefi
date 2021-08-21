@@ -41,8 +41,8 @@ function makeFan(fanIndex)
 			self.state = false
 		end
 
-		-- save result
-		setpin(self.fanIndex, self.state)
+		-- return result
+		return self.state
 	end
 
 	return retval

@@ -7,4 +7,5 @@ fan2 = makeFan(1)
 function periodicSlowCallback()
 	fan1:update()
 	fan2:update()
+	doPump();
 end
