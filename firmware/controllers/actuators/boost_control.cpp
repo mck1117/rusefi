@@ -11,6 +11,7 @@
 #include "boost_control.h"
 #include "pid_auto_tune.h"
 #include "electronic_throttle.h"
+#include "table_switcher.h"
 
 #define NO_PIN_PERIOD 500
 
@@ -18,9 +19,11 @@
 #error "Unexpected OS ACCESS HERE"
 #endif
 
-static boostOpenLoop_Map3D_t boostMapOpen;
+static boostOpenLoop_Map3D_t boostMapOpenDefault;
 static boostOpenLoop_Map3D_t boostMapClosed;
 static SimplePwm boostPwmControl("boost");
+
+static TableSwitcher boostMapOpen(boostMapOpenDefault, TableSwitch::BoostOpenLoop);
 
 void BoostController::init(IPwm* pwm, const ValueProvider3D* openLoopMap, const ValueProvider3D* closedLoopTargetMap, pid_s* pidParams) {
 	m_pwm = pwm;
@@ -218,7 +221,7 @@ void initBoostCtrl(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	}
 
 	// Set up open & closed loop tables
-	boostMapOpen.init(config->boostTableOpenLoop, config->boostTpsBins, config->boostRpmBins);
+	boostMapOpenDefault.init(config->boostTableOpenLoop, config->boostTpsBins, config->boostRpmBins);
 	boostMapClosed.init(config->boostTableClosedLoop, config->boostTpsBins, config->boostRpmBins);
 
 	// Set up boost controller instance
