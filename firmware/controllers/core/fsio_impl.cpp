@@ -72,20 +72,14 @@ static LENameOrdinalPair leFuelRate(LE_METHOD_FUEL_FLOW_RATE, "fuel_flow");
 
 #include "fsio_names.def"
 
-#define LE_EVAL_POOL_SIZE 32
-
-static LECalculator evalCalc;
-static LEElement evalPoolElements[LE_EVAL_POOL_SIZE];
-static LEElementPool evalPool(evalPoolElements, LE_EVAL_POOL_SIZE);
-
-#define SYS_ELEMENT_POOL_SIZE 128
-#define UD_ELEMENT_POOL_SIZE 128
+#define SYS_ELEMENT_POOL_SIZE 24
+#define UD_ELEMENT_POOL_SIZE 64
 
 static LEElement sysElements[SYS_ELEMENT_POOL_SIZE] CCM_OPTIONAL;
-LEElementPool sysPool(sysElements, SYS_ELEMENT_POOL_SIZE);
+CCM_OPTIONAL LEElementPool sysPool(sysElements, SYS_ELEMENT_POOL_SIZE);
 
 static LEElement userElements[UD_ELEMENT_POOL_SIZE] CCM_OPTIONAL;
-LEElementPool userPool(userElements, UD_ELEMENT_POOL_SIZE);
+CCM_OPTIONAL LEElementPool userPool(userElements, UD_ELEMENT_POOL_SIZE);
 
 class FsioPointers {
 public:
@@ -175,7 +169,7 @@ FsioResult getEngineValue(le_action_e action DECLARE_ENGINE_PARAMETER_SUFFIX) {
 static void setFsioAnalogInputPin(const char *indexStr, const char *pinName) {
 // todo: reduce code duplication between all "set pin methods"
 	int index = atoi(indexStr) - 1;
-	if (index < 0 || index >= FSIO_ANALOG_INPUT_COUNT) {
+	if (index < 0 || index >= AUX_ANALOG_INPUT_COUNT) {
 		efiPrintf("invalid FSIO index: %d", index);
 		return;
 	}
@@ -283,7 +277,7 @@ void onConfigurationChangeFsioCallback(engine_configuration_s *previousConfigura
 #endif
 }
 
-static LECalculator calc;
+static LECalculator calc CCM_OPTIONAL;
 
 static SimplePwm fsioPwm[FSIO_COMMAND_COUNT] CCM_OPTIONAL;
 
@@ -496,10 +490,6 @@ void runFsio(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 		}
 	}
 #endif /* EFI_ENABLE_CRITICAL_ENGINE_STOP */
-
-	if (engineConfiguration->useFSIO6ForRevLimiter) {
-		updateValueOrWarning(6, "rpm limit", &ENGINE(fsioState.fsioRpmHardLimit) PASS_ENGINE_PARAMETER_SUFFIX);
-	}
 }
 
 
@@ -602,21 +592,6 @@ void applyFsioExpression(const char *indexStr, const char *quotedLine DECLARE_EN
 	showFsioInfo();
 }
 
-static void rpnEval(char *line) {
-#if EFI_PROD_CODE || EFI_SIMULATOR
-	line = unquote(line);
-	efiPrintf("Parsing [%s]", line);
-	evalPool.reset();
-	LEElement * e = evalPool.parseExpression(line);
-	if (e == NULL) {
-		efiPrintf("parsing failed");
-	} else {
-		float result = evalCalc.evaluate("eval", 0, e PASS_ENGINE_PARAMETER_SUFFIX);
-		efiPrintf("Evaluate result: %.2f", result);
-	}
-#endif
-}
-
 ValueProvider3D *getFSIOTable(int index) {
 	switch (index) {
 	default:
@@ -683,7 +658,6 @@ void initFsioImpl(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	addConsoleActionSS("set_rpn_expression", applyFsioExpression);
 	addConsoleActionFF("set_fsio_setting", setFsioSetting);
 	addConsoleAction("fsioinfo", showFsioInfo);
-	addConsoleActionS("rpn_eval", (VoidCharPtr) rpnEval);
 #endif /* EFI_PROD_CODE || EFI_SIMULATOR */
 
 	fsioTable1.init(config->fsioTable1, config->fsioTable1LoadBins,

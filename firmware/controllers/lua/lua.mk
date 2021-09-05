@@ -7,7 +7,7 @@ ALLCPPSRC += $(LUA_DIR)/lua.cpp \
 			 $(LUA_DIR)/lua_builtin.cpp \
 			 $(LUA_DIR)/lua_hooks.cpp \
 
-ALLINC += $(LUA_DIR) $(LUA_EXT)
+ALLINC += $(LUA_DIR) $(LUA_DIR)/luaaa $(LUA_EXT)
 ALLCSRC += \
 	$(LUA_EXT)/lapi.c \
 	$(LUA_EXT)/lcode.c \

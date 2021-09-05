@@ -753,23 +753,23 @@ enable2ndByteCanID = false
 	curve = cltIdleRPMCurve, "Idle Target RPM"
       columnLabel = "Coolant", "RPM"
       xAxis       = -40, 120, 9
-      yAxis       =  0, 8000, 10
+      yAxis       = 0, 2400, 13
       xBins       = cltIdleRpmBins, coolant
       yBins       = cltIdleRpm, RPMValue
       gauge       = CLTGauge
 
 	curve = idleAdvanceCurve, "Idle Advance Angle"
       columnLabel = "RPM", "degrees"
-      xAxis       = 0, 8000, 10
-      yAxis       = -100, 100, 10
+      xAxis       = 0, 2400, 13
+      yAxis       = -100, 100, 11
       xBins       = idleAdvanceBins, RPMValue
       yBins       = idleAdvance
       gauge       = RPMGauge
 
 	curve = idleVeCurve, "Idle VE"
       columnLabel = "RPM", "%"
-      xAxis       = 0, 8000, 10
-      yAxis       = 0, 250, 10
+      xAxis       = 0, 2400, 13
+      yAxis       = 0, 250, 11
       xBins       = idleVeBins, RPMValue
       yBins       = idleVe
 #if LAMBDA
@@ -780,8 +780,8 @@ enable2ndByteCanID = false
     
 	curve = crankingAdvanceCurve, "Cranking Advance Angle"
       columnLabel = "RPM", "degrees"
-      xAxis       = 0, 8000, 10
-      yAxis       = -100, 100, 10
+      xAxis       = 0, 2400, 13
+      yAxis       = -100, 100, 11
       xBins       = crankingAdvanceBins, RPMValue
       yBins       = crankingAdvance
       gauge       = RPMGauge
@@ -994,11 +994,11 @@ gaugeCategory = Sensors - Extra 2
    fuelTankLevelGauge   = fuelTankLevel,"Fuel level",           "%",        0,      100,      10,     20,     100,   100,   1,   1
    speedToRpmRatioGauge = speedToRpmRatio, "speed2rpm", "",     0,   100,     0,    0,    100,  100,   4,   4
    wastegatePosGauge = wastegatePositionSensor, @@GAUGE_NAME_WG_POSITION@@,  "%",        0,    100,       0,      0,     100,   100,   1,   1
-   idlePosSensGauge  = idlePositionSensor,      "Idle position sensor",       "%",        0,    100,       0,      0,     100,   100,   1,   1
+   idlePosSensGauge  = idlePositionSensor,      @@GAUGE_NAME_IDLE_POSITION@@,       "%",        0,    100,       0,      0,     100,   100,   1,   1
 
 gaugeCategory = ECU Status
-   warningCounterGauge = warningCounter, "Warning count", "",     0,   100,     0,    0,    100,  100,   0,   0
-   lastErrorCodeGauge = lastErrorCode, "Last error", "",     0,  18000,     0,    0,   18000, 18000,   0,   0
+   warningCounterGauge = warningCounter, @@GAUGE_NAME_WARNING_COUNT@@, "",     0,   100,     0,    0,    100,  100,   0,   0
+   lastErrorCodeGauge = lastErrorCode, @@GAUGE_NAME_LAST_ERROR@@, "",     0,  18000,     0,    0,   18000, 18000,   0,   0
    triggerErrorsCounterGauge = totalTriggerErrorCounter, "Trigger error count", "count",     0,   15000,     0,    0,    6000,  6000,   0,   0
    recentErrorCode0Gauge = recentErrorCode0, "Error#1", "",     0,  18000,     0,    0,   18000, 18000,   0,   0
    recentErrorCode1Gauge = recentErrorCode1, "Error#2", "",     0,  18000,     0,    0,   18000, 18000,   0,   0
@@ -1008,9 +1008,9 @@ gaugeCategory = ECU Status
    recentErrorCode5Gauge = recentErrorCode5, "Error#6", "",     0,  18000,     0,    0,   18000, 18000,   0,   0
    recentErrorCode6Gauge = recentErrorCode6, "Error#7", "",     0,  18000,     0,    0,   18000, 18000,   0,   0
    recentErrorCode7Gauge = recentErrorCode7, "Error#8", "",     0,  18000,     0,    0,   18000, 18000,   0,   0
-   firmwareVersionGauge  = firmwareVersion , "ECU Software Version", "%",     0,   100,     0,    0,    100,  100,   0,   0
-   timeSecondsGauge     =   seconds, "Uptime", "sec",     0,   100,     0,    0,    100,  100,   0,   0
-   tuneCrc16Gauge = tuneCrc16, "tune CRC16", "",     0,  64000,     0,    0,   64000, 64000,   0,   0
+   firmwareVersionGauge  = firmwareVersion , @@GAUGE_NAME_FW_VERSION@@, "%",     0,   100,     0,    0,    100,  100,   0,   0
+   timeSecondsGauge     =   seconds, @@GAUGE_NAME_UPTIME@@, "sec",     0,   100,     0,    0,    100,  100,   0,   0
+   tuneCrc16Gauge = tuneCrc16, @@GAUGE_NAME_TUNE_CRC16@@, "",     0,  64000,     0,    0,   64000, 64000,   0,   0
 
 
 gaugeCategory = Debug  
@@ -1254,6 +1254,7 @@ gaugeCategory = DynoView
 [Datalog]
    ;       Channel          Label          Type    Format
    entry = time,            @@GAUGE_NAME_TIME@@,        float,  "%.3f"
+   entry = seconds,         @@GAUGE_NAME_UPTIME@@,      float,  "%.3f"
    entry = RPMValue,        @@GAUGE_NAME_RPM@@,         int,    "%d"
    entry = firmwareVersion, @@GAUGE_NAME_VERSION@@,     int,    "%d"
    entry = coolant,         @@GAUGE_NAME_CLT@@,         float,  "%.2f"
@@ -1540,7 +1541,7 @@ menuDialog = main
 		subMenu = fsioCurve4,			    "FSIO Curve #4"
 
 		subMenu = std_separator
-		subMenu = luaOutputs,			"Lua PWM Outputs"
+		subMenu = luaOutputs,			    "Lua PWM Outputs"
 
 		subMenu = std_separator
 		subMenu = tcuControls,			"Transmission Settings"
@@ -3303,10 +3304,7 @@ cmd_set_engine_type_default					= "@@TS_IO_TEST_COMMAND_char@@\x00\x31\x00\x00"
 		field = "use FSIO #5 for critical engine stop", useFSIO5ForCriticalIssueEngineStop
 		field = "#5",									fsioFormulas5
 
-		field = "use FSIO #6 for rev limiter", useFSIO6ForRevLimiter
 		field = "#6",									fsioFormulas6
-		field = "#7",									fsioFormulas7
-		field = "#8",									fsioFormulas8
 
 	dialog = fsioInputsDialog, "FSIO inputs"
 		field = "ADC #1",								fsioAdc1
@@ -3372,6 +3370,7 @@ cmd_set_engine_type_default					= "@@TS_IO_TEST_COMMAND_char@@\x00\x31\x00\x00"
 ;Boost Closed Loop
 
          dialog = boostPidleft, ""
+		 	field = "Enable closed loop above",			minimumBoostClosedLoopMap, { isBoostControlEnabled && boostType == 1 }
             field = "P Gain", 	                         boostPid_pFactor, { isBoostControlEnabled && boostType == 1 }
 	        field = "I Gain",                            boostPid_iFactor, { isBoostControlEnabled && boostType == 1 }
 	        field = "D Gain",                            boostPid_dFactor, { isBoostControlEnabled && boostType == 1 }

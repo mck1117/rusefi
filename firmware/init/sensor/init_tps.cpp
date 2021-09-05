@@ -55,7 +55,7 @@ static bool configureTps(LinearFunc& func, adc_channel_e channel, float closed, 
 
 	// If the voltage for closed vs. open is very near, something is wrong with your calibration
 	if (split < 0.5f) {
-		firmwareError(OBD_Throttle_Position_Sensor_Circuit_Malfunction, "\"%s\" problem: open %.2f/closed %.2f cal values are too close together. Check your wiring!", msg,
+		firmwareError(OBD_Throttle_Position_Sensor_Circuit_Malfunction, "\"%s\" problem: open %.2f/closed %.2f cal values are too close together. Check your calibration and wiring!", msg,
 				open,
 				closed);
 		return false;
@@ -128,18 +128,16 @@ void initTps(DECLARE_CONFIG_PARAMETER_SIGNATURE) {
 	driverIntent.Register();
 }
 
-void reconfigureTps(DECLARE_CONFIG_PARAMETER_SIGNATURE) {
-	float min = CONFIG(tpsErrorDetectionTooLow);
-	float max = CONFIG(tpsErrorDetectionTooHigh);
+void deinitTps() {
+	AdcSubscription::UnsubscribeSensor(tpsSens1p);
+	AdcSubscription::UnsubscribeSensor(tpsSens1s);
 
-	configureTps(tpsFunc1p, CONFIG(tps1_1AdcChannel), CONFIG(tpsMin), CONFIG(tpsMax), min, max, tpsSens1p.getSensorName());
-	configureTps(tpsFunc1s, CONFIG(tps1_2AdcChannel), CONFIG(tps1SecondaryMin), CONFIG(tps1SecondaryMax), min, max, tpsSens1s.getSensorName());
-	configureTps(tpsFunc2p, CONFIG(tps2_1AdcChannel), CONFIG(tps2Min), CONFIG(tps2Max), min, max, tpsSens2p.getSensorName());
-	configureTps(tpsFunc2s, CONFIG(tps2_2AdcChannel), CONFIG(tps2SecondaryMin), CONFIG(tps2SecondaryMax), min, max, tpsSens2s.getSensorName());
+	AdcSubscription::UnsubscribeSensor(tpsSens2p);
+	AdcSubscription::UnsubscribeSensor(tpsSens2s);
 
-	configureTps(pedalFuncPrimary, CONFIG(throttlePedalPositionAdcChannel), CONFIG(throttlePedalUpVoltage), CONFIG(throttlePedalWOTVoltage), min, max, pedalSensorPrimary.getSensorName());
-	configureTps(pedalFuncSecondary, CONFIG(throttlePedalPositionSecondAdcChannel), CONFIG(throttlePedalSecondaryUpVoltage), CONFIG(throttlePedalSecondaryWOTVoltage), min, max, pedalSensorSecondary.getSensorName());
+	AdcSubscription::UnsubscribeSensor(pedalSensorPrimary);
+	AdcSubscription::UnsubscribeSensor(pedalSensorSecondary);
 
-	configureTps(wastegateFunc, CONFIG(wastegatePositionSensor), CONFIG(wastegatePositionMin), CONFIG(wastegatePositionMax), min, max, wastegateSens.getSensorName());
-	configureTps(idlePosFunc, CONFIG(idlePositionSensor), CONFIG(idlePositionMin), CONFIG(idlePositionMax), min, max, idlePosSens.getSensorName());
+	AdcSubscription::UnsubscribeSensor(wastegateSens);
+	AdcSubscription::UnsubscribeSensor(idlePosSens);
 }

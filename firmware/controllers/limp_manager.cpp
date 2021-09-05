@@ -7,7 +7,7 @@ void LimpManager::updateState(int rpm, efitick_t nowNt) {
 	Clearable allowSpark = CONFIG(isIgnitionEnabled);
 
 	// User-configured hard RPM limit
-	if (rpm > engine->getRpmHardLimit(PASS_ENGINE_PARAMETER_SIGNATURE)) {
+	if (rpm > CONFIG(rpmHardLimit)) {
 		if (CONFIG(cutFuelOnHardLimit)) {
 			allowFuel.clear();
 		}
@@ -57,6 +57,10 @@ void LimpManager::updateState(int rpm, efitick_t nowNt) {
 	} else {
 		// reset state in case of stalled engine
 		m_hadOilPressureAfterStart = false;
+	}
+
+	if (engine->needToStopEngine(nowNt)) {
+		allowFuel.clear();
 	}
 
 	m_transientAllowInjection = allowFuel;

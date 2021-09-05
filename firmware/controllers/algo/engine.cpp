@@ -649,13 +649,6 @@ operation_mode_e Engine::getOperationMode(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	return doesTriggerImplyOperationMode(engineConfiguration->trigger.type) ? triggerCentral.triggerShape.getOperationMode() : engineConfiguration->ambiguousOperationMode;
 }
 
-int Engine::getRpmHardLimit(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
-	if (engineConfiguration->useFSIO6ForRevLimiter) {
-		return fsioState.fsioRpmHardLimit;
-	}
-	return CONFIG(rpmHardLimit);
-}
-
 /**
  * The idea of this method is to execute all heavy calculations in a lower-priority thread,
  * so that trigger event handler/IO scheduler tasks are faster.
@@ -676,8 +669,6 @@ void doScheduleStopEngine(DECLARE_ENGINE_PARAMETER_SIGNATURE) {
 	efiPrintf("Starting doScheduleStopEngine");
 	engine->stopEngineRequestTimeNt = getTimeNowNt();
 	engine->ignitionOnTimeNt = 0;
-	// let's close injectors or else if these happen to be open right now
-	enginePins.stopPins();
 	// todo: initiate stepper motor parking
 	// make sure we have stored all the info
 #if EFI_PROD_CODE

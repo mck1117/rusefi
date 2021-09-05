@@ -64,7 +64,7 @@ const MFSConfig mfsd_nor_config = {
 	.bank1_sectors	= 128U
 };
 
-#define EFI_MSF_SETTINGS_RECORD_ID		1
+#define EFI_MFS_SETTINGS_RECORD_ID		1
 
 #endif
 
@@ -101,7 +101,7 @@ void setNeedToWriteConfiguration(void) {
 	needToWriteConfiguration = true;
 
 #if EFI_FLASH_WRITE_THREAD
-	if (allowFlashWhileRunning()) {
+	if (allowFlashWhileRunning() || (EFI_STORAGE_EXT_SNOR == TRUE)) {
 		// Signal the flash writer thread to wake up and write at its leisure
 		flashWriteSemaphore.signal();
 	}
@@ -116,9 +116,13 @@ void writeToFlashIfPending() {
 	// with a flash write thread, the schedule happens directly from
 	// setNeedToWriteConfiguration, so there's nothing to do here
 	if (allowFlashWhileRunning() || !getNeedToWriteConfiguration()) {
+		// Allow sensor timeouts again now that we're done (and a little time has passed)
+		Sensor::inhibitTimeouts(false);
 		return;
 	}
 
+	// Prevent sensor timeouts while flashing
+	Sensor::inhibitTimeouts(true);
 	writeToFlashNow();
 }
 
@@ -167,7 +171,7 @@ void writeToFlashNow(void) {
 	 * do we need to have two copies?
 	 * do we need to protect it with CRC? */
 
-	err = mfsWriteRecord(&mfsd, EFI_MSF_SETTINGS_RECORD_ID,
+	err = mfsWriteRecord(&mfsd, EFI_MFS_SETTINGS_RECORD_ID,
 						 sizeof(persistentState), (uint8_t *)&persistentState);
 
 	if (err == MFS_NO_ERROR)
@@ -245,7 +249,7 @@ static persisted_configuration_state_e readConfiguration() {
 #if EFI_STORAGE_EXT_SNOR == TRUE
 	mfs_error_t err;
 	size_t settings_size = sizeof(persistentState);
-	err = mfsReadRecord(&mfsd, EFI_MSF_SETTINGS_RECORD_ID,
+	err = mfsReadRecord(&mfsd, EFI_MFS_SETTINGS_RECORD_ID,
 						&settings_size, (uint8_t *)&persistentState);
 
 	if ((err == MFS_NO_ERROR) && (sizeof(persistentState) == settings_size))
@@ -329,6 +333,10 @@ static void writeConfigCommand() {
 void initFlash() {
 #if EFI_STORAGE_EXT_SNOR == TRUE
 	mfs_error_t err;
+
+#if SNOR_SHARED_BUS == FALSE
+	wspiStart(&WSPID1, &WSPIcfg1);
+#endif
 
 	/* Initializing and starting snor1 driver.*/
 	snorObjectInit(&snor1);

@@ -106,12 +106,6 @@ public:
 
 	GearControllerBase *gearController;
 
-
-	float mockVehicleSpeed = DEFAULT_MOCK_SPEED; // in kilometers per hour
-
-	efitick_t vssLastSignalTimeNt = 0;
-	efitick_t vssDiff = 0;
-
 	efitick_t mostRecentSparkEvent;
 	efitick_t mostRecentTimeBetweenSparkEvents;
 	efitick_t mostRecentIgnitionEvent;
@@ -292,8 +286,6 @@ public:
 	efitimeus_t acSwitchLastChangeTime = 0;
 
 	bool isRunningPwmTest = false;
-
-	int getRpmHardLimit(DECLARE_ENGINE_PARAMETER_SIGNATURE);
 
 	FsioState fsioState;
 

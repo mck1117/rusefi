@@ -67,7 +67,7 @@ static FastInterpolation densoToyota(3.7 - 2 /* volts */, 33.322271 /* kPa */, 3
 /**
  * Open question how to get this Miata NB2 sensor read MAP
  */
-static FastInterpolation mazda1bar(0 /* volts */, 15 /* kPa */, 5 /* volts */ , 115 /* kPa */);
+static FastInterpolation mazda1bar(0 /* volts */, 2.5 /* kPa */, 5 /* volts */ , 117 /* kPa */);
 
 /**
  * Bosch 2.5 Bar TMap Map Sensor with IAT
@@ -244,7 +244,7 @@ static void printMAPInfo(void) {
 #endif // EFI_MAP_AVERAGING
 
 		adc_channel_e mapAdc = engineConfiguration->map.sensor.hwChannel;
-		static char pinNameBuffer[16];
+		char pinNameBuffer[16];
 
 		efiPrintf("MAP %.2fv @%s", getVoltage("mapinfo", mapAdc PASS_ENGINE_PARAMETER_SUFFIX),
 				getPinNameByAdcChannel("map", mapAdc, pinNameBuffer));
