@@ -90,10 +90,16 @@ pins:
     function: Manifold Pressure Sensor
 
   - pin: K32
+# IN_AUX1 AIN23 PB0
+    id: EFI_ADC_8
+    class: analog_inputs
     ts_name: TPS 2
     function: TPS 2 sensor input
 
   - pin: K33
+# IN_CLT AIN11
+    id: EFI_ADC_12
+    class: analog_inputs
     ts_name: CLT
     function: CLT
 
@@ -101,6 +107,9 @@ pins:
     function: Analog Ground
 
   - pin: K36
+# IN_AUX2 AIN21 PC4
+    id: EFI_ADC_14
+    class: analog_inputs
     ts_name: PPS 2
     function: PPS 2 sensor input
 
@@ -113,6 +122,13 @@ pins:
   - pin: K44
     function: Analog Ground
 
+  - pin: K53
+    # IN_IAT AIN14 PC3
+    id: EFI_ADC_13
+    class: analog_inputs
+    ts_name: IAT
+    function: IAT
+
   - pin: K57
     function: Analog Ground
 
@@ -121,6 +137,30 @@ pins:
 
   - pin: K61
     function: Analog Ground
+
+  - pin: K64
+# H144_OUT_IO3
+    id: GPIOG_14
+    class: outputs
+    ts_name: Main Relay K64
+    function: Main relay control
+    type: ls
+
+  - pin: K70
+# H144_OUT_IO9
+    id: GPIOG_13
+    class: outputs
+    ts_name: Fuel Pump K70
+    function: Fuel Pump Relay
+    type: ls
+
+  - pin: K71
+    ts_name: ETB w1
+    function: DC Motor w1
+
+  - pin: K72
+    ts_name: ETB w2
+    function: DC Motor w2
 
   - pin: K77
     function: CAN bus high
@@ -134,6 +174,8 @@ pins:
     function: Analog Ground
 
   - pin: K80
+# IN_TPS AIN17 PA4
+    class: analog_inputs
     ts_name: TPS 1
     function: TPS 1 sensor input
 
@@ -148,7 +190,15 @@ pins:
     ts_name: Tacho
     function: Tachometer
 
+  - pin: K88
+    # H144_OUT_IO8
+    id: GPIOG_4
+    ts_name: Fan Relay HI
+    function: Fan relay high
+
   - pin: K92
+    # H144_OUT_PWM8
+    id: GPIOD_12
     ts_name: MIL
     function: Check Engine Light
 

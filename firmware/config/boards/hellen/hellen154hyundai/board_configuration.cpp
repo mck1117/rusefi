@@ -13,22 +13,21 @@
 #include "pch.h"
 #include "fsio_impl.h"
 #include "custom_engine.h"
+#include "../hellen_meta.h"
 
 static void hellenWbo() {
 	engineConfiguration->enableAemXSeries = true;
 }
 
 static void setInjectorPins() {
-	engineConfiguration->injectionPins[0] = GPIOG_7;
-	engineConfiguration->injectionPins[1] = GPIOG_8;
-	engineConfiguration->injectionPins[2] = GPIOD_11;
-	engineConfiguration->injectionPins[3] = GPIOD_10;
-	engineConfiguration->injectionPins[4] = GPIOD_9;
-	engineConfiguration->injectionPins[5] = GPIOF_12;
+	engineConfiguration->injectionPins[0] = H144_LS_1;
+	engineConfiguration->injectionPins[1] = H144_LS_2;
+	engineConfiguration->injectionPins[2] = H144_LS_3;
+	engineConfiguration->injectionPins[3] = H144_LS_4;
 
 
 	// Disable remainder
-	for (int i = 6; i < MAX_CYLINDER_COUNT;i++) {
+	for (int i = 4; i < MAX_CYLINDER_COUNT;i++) {
 		engineConfiguration->injectionPins[i] = GPIO_UNASSIGNED;
 	}
 
@@ -40,11 +39,9 @@ static void setIgnitionPins() {
 	engineConfiguration->ignitionPins[1] = GPIOE_5;
 	engineConfiguration->ignitionPins[2] = GPIOE_4;
 	engineConfiguration->ignitionPins[3] = GPIOE_3;
-	engineConfiguration->ignitionPins[4] = GPIOE_2;
-	engineConfiguration->ignitionPins[5] = GPIOB_8;
 	
 	// disable remainder
-	for (int i = 6; i < MAX_CYLINDER_COUNT; i++) {
+	for (int i = 4; i < MAX_CYLINDER_COUNT; i++) {
 		engineConfiguration->ignitionPins[i] = GPIO_UNASSIGNED;
 	}
 
@@ -74,8 +71,8 @@ static void setupDefaultSensorInputs() {
 	engineConfiguration->camInputs[0] = GPIOA_6;
 	engineConfiguration->camInputs[1 * CAMS_PER_BANK] = GPIOA_7;
 
-	engineConfiguration->tps1_1AdcChannel = EFI_ADC_4;
-	engineConfiguration->tps1_2AdcChannel = EFI_ADC_8;
+	engineConfiguration->tps1_1AdcChannel = H144_IN_TPS;
+	engineConfiguration->tps1_2AdcChannel = H144_IN_AUX1;
 
 	engineConfiguration->throttlePedalPositionAdcChannel = EFI_ADC_3;
 	engineConfiguration->throttlePedalPositionSecondAdcChannel = EFI_ADC_14;
@@ -84,9 +81,9 @@ static void setupDefaultSensorInputs() {
 
 	engineConfiguration->afr.hwChannel = EFI_ADC_1;
 
-	engineConfiguration->clt.adcChannel = EFI_ADC_12;
+	engineConfiguration->clt.adcChannel = H144_IN_CLT;
 
-	engineConfiguration->iat.adcChannel = EFI_ADC_13;
+	engineConfiguration->iat.adcChannel = H144_IN_IAT;
 
 	engineConfiguration->auxTempSensor1.adcChannel = EFI_ADC_NONE;
 	engineConfiguration->auxTempSensor2.adcChannel = EFI_ADC_NONE;
@@ -130,21 +127,29 @@ void setBoardDefaultConfiguration(void) {
 	CONFIG(enableSoftwareKnock) = true;
 	CONFIG(canNbcType) = CAN_BUS_NISSAN_VQ;
 
-	engineConfiguration->canTxPin = GPIOD_1;
-	engineConfiguration->canRxPin = GPIOD_0;
+	engineConfiguration->canTxPin = H176_CAN_TX;
+	engineConfiguration->canRxPin = H176_CAN_RX;
 
 //	engineConfiguration->fuelPumpPin = GPIOG_2;	// OUT_IO9
 //	engineConfiguration->idle.solenoidPin = GPIOD_14;	// OUT_PWM5
 //	engineConfiguration->fanPin = GPIOD_12;	// OUT_PWM8
 	engineConfiguration->mainRelayPin = GPIOG_14;	// pin: 111a, OUT_IO3
+	engineConfiguration->malfunctionIndicatorPin = H144_OUT_PWM8;
 
 	// "required" hardware is done - set some reasonable defaults
 	setupDefaultSensorInputs();
 
-	engineConfiguration->etbIo[0].directionPin1 = GPIOD_15; // out_pwm7
-	engineConfiguration->etbIo[0].directionPin2 = GPIOD_14; // out_pwm6
-	engineConfiguration->etbIo[0].controlPin = GPIOD_13; // ETB_EN out_pwm1
+	engineConfiguration->etbIo[0].directionPin1 = H144_OUT_PWM2;
+	engineConfiguration->etbIo[0].directionPin2 = H144_OUT_PWM3;
+	engineConfiguration->etbIo[0].controlPin = H144_OUT_IO12;
 	CONFIG(etb_use_two_wires) = true;
+
+	// wastegate DC motor
+	engineConfiguration->etbIo[1].directionPin1 = H144_OUT_PWM4;
+	engineConfiguration->etbIo[1].directionPin2 = H144_OUT_PWM5;
+	engineConfiguration->etbIo[1].controlPin = H144_OUT_IO13;
+	CONFIG(etb_use_two_wires) = true;
+	CONFIG(etbFunctions)[1] = ETB_Wastegate;
 
 	// Some sensible defaults for other options
 	setOperationMode(engineConfiguration, FOUR_STROKE_CRANK_SENSOR);
@@ -154,14 +159,24 @@ void setBoardDefaultConfiguration(void) {
 	setAlgorithm(LM_SPEED_DENSITY PASS_CONFIG_PARAMETER_SUFFIX);
 
 
-	// Bosch VQ40 VR56 VK56 0280158007
-	engineConfiguration->injector.flow = 296.2;
+	// 2010-2012 315cc at 43.5psi
+	// fuel system is fixed pressure 55psi
+	// 2013+ 450cc at 43.5
+	// fuel system is fixed pressure 85psi
+	// flow rate P2 = flow rate P1 * sqrt(P2/P1)
+	engineConfiguration->injector.flow = 354.19; // https://www.google.com/search?q=315*sqrt%2855%2F43.5%29
+	engineConfiguration->fuelReferencePressure = PSI2KPA(55);
+	// todo: split engine generations
+	engineConfiguration->injector.flow = 629.03; // https://www.google.com/search?q=450*sqrt%2885%2F43.5%29
+	engineConfiguration->fuelReferencePressure = PSI2KPA(85);
 
-	engineConfiguration->specs.cylindersCount = 6;
-	engineConfiguration->specs.firingOrder = FO_1_2_3_4_5_6;
-	engineConfiguration->specs.displacement = 4;
-	strcpy(CONFIG(engineMake), ENGINE_MAKE_NISSAN);
-	strcpy(CONFIG(engineCode), "VQ");
+	engineConfiguration->injectorCompensationMode = ICM_FixedRailPressure;
+
+	engineConfiguration->specs.cylindersCount = 4;
+	engineConfiguration->specs.firingOrder = FO_1_3_4_2;
+	engineConfiguration->specs.displacement = 1.998;
+	strcpy(CONFIG(engineMake), ENGINE_MAKE_Hyundai);
+	strcpy(CONFIG(engineCode), "Theta II");
 
 	engineConfiguration->ignitionMode = IM_INDIVIDUAL_COILS; // IM_WASTED_SPARK
 	engineConfiguration->crankingInjectionMode = IM_SIMULTANEOUS;

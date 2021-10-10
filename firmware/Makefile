@@ -22,12 +22,14 @@ CHIBIOS_CONTRIB = ChibiOS-Contrib
 
 include rusefi.mk
 
+LWIP = yes
+
 # by default EXTRA_PARAMS is empty and we create 'debug' version of the firmware with additional assertions and statistics
 # for 'release' options see 'clean_compile_two_versions.bat' file
 
 ifeq ($(DEBUG_LEVEL_OPT),)
   # Default to a release build - but leave in debug info.  It doesn't change the hex/bin output.
-  DEBUG_LEVEL_OPT = -O2 -ggdb -g
+  DEBUG_LEVEL_OPT = -O0 -ggdb -g
   # Comment the above and uncomment the line below if you want to debug the firmware (it's difficult-to-impossible
   # to debug firmware with optimization enabled).
   # DEBUG_LEVEL_OPT = -O0 -ggdb -g
@@ -166,7 +168,11 @@ include $(CHIBIOS)/os/ex/devices/ST/lis302dl.mk
 endif
 include $(CHIBIOS)/os/hal/lib/streams/streams.mk
 include $(CHIBIOS)/os/various/cpp_wrappers/chcpp.mk
-include $(CHIBIOS)/os/various/lwip_bindings/lwip.mk
+
+ifeq ($(LWIP),yes)
+	include $(CHIBIOS)/os/various/lwip_bindings/lwip.mk
+endif
+
 include $(CHIBIOS)/os/hal/lib/complex/mfs/hal_mfs.mk
 
 ifeq ($(USE_FATFS),yes)

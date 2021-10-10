@@ -405,6 +405,7 @@
 #define ENGINE_MAKE_BMW "BMW"
 #define ENGINE_MAKE_GM "GM"
 #define ENGINE_MAKE_HONDA "Honda"
+#define ENGINE_MAKE_Hyundai "Hyundai"
 #define ENGINE_MAKE_LADA "Lada"
 #define ENGINE_MAKE_MAZDA "Mazda"
 #define ENGINE_MAKE_MERCEDES "Mercedes"
@@ -455,6 +456,8 @@
 #define ET_HELLEN_128_MERCEDES_8_CYL 89
 #define ET_HELLEN_134_BMW 75
 #define ET_HELLEN_154_HYUNDAI 82
+#define ET_HELLEN_154_HYUNDAI_COUPE_BK1 82
+#define ET_HELLEN_154_HYUNDAI_COUPE_BK2 95
 #define ET_HELLEN_154_VAG 76
 #define ET_HELLEN_55_BMW 73
 #define ET_HELLEN_88_BMW 74
@@ -1310,8 +1313,8 @@
 #define showHumanReadableWarning_offset 976
 #define showSdCardWarning_offset 76
 #define SIGNATURE_BOARD hellen_cypress
-#define SIGNATURE_DATE 2021.10.06
-#define SIGNATURE_HASH 3604170161
+#define SIGNATURE_DATE 2021.10.10
+#define SIGNATURE_HASH 1410846609
 #define silentTriggerError_offset 1464
 #define slowAdcAlpha_offset 2088
 #define sparkDwellRpmBins_offset 332
@@ -1673,7 +1676,7 @@
 #define ts_show_spi true
 #define ts_show_trigger_comparator false
 #define ts_show_tunerstudio_port true
-#define TS_SIGNATURE "rusEFI 2021.10.06.hellen_cypress.3604170161"
+#define TS_SIGNATURE "rusEFI 2021.10.10.hellen_cypress.1410846609"
 #define TS_SINGLE_WRITE_COMMAND 'W'
 #define TS_SINGLE_WRITE_COMMAND_char W
 #define TS_TEST_COMMAND 't'
