@@ -60,6 +60,9 @@ struct EthernetThread : public TunerstudioThread {
 	TsChannelBase* setupChannel() override {
 		lwipInit(nullptr);
 
+		void startDhcpd();
+		startDhcpd();
+
 		sockaddr_in address;
 		address.sin_family = AF_INET;
 		address.sin_port = htons(29000);
