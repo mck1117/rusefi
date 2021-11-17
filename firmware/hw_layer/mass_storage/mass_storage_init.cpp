@@ -4,6 +4,7 @@
 #include "mass_storage_device.h"
 #include "null_device.h"
 
+
 #if HAL_USE_USB_MSD
 
 #if EFI_EMBED_INI_MSD
