@@ -161,4 +161,3 @@ jobs:
       with:
         name: rusefi_bundle_${{matrix.build-target}}_autoupdate.zip
         path: ./artifacts/rusefi_bundle_${{matrix.build-target}}_autoupdate.zip
-
