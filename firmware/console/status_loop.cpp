@@ -176,7 +176,7 @@ static systime_t timeOfPreviousPrintVersion = 0;
 #if EFI_PROD_CODE
 static void printOutPin(const char *pinName, brain_pin_e hwPin) {
 	if (isBrainPinValid(hwPin)) {
-		logger.appendPrintf("%s%s%s@%s%s", PROTOCOL_OUTPIN, DELIMETER, pinName, hwPortname(hwPin), DELIMETER);
+		logger.appendPrintf(PROTOCOL_OUTPIN LOG_DELIMITER "%s@%s" LOG_DELIMITER, pinName, hwPortname(hwPin));
 	}
 }
 #endif /* EFI_PROD_CODE */
@@ -761,7 +761,7 @@ void updateTunerStudioState(TunerStudioOutputChannels *tsOutputChannels) {
 
 #if EFI_MAX_31855
 	for (int i = 0; i < EGT_CHANNEL_COUNT; i++)
-		tsOutputChannels->egtValues.values[i] = getEgtValue(i);
+		tsOutputChannels->egtValues[i] = getEgtValue(i);
 #endif /* EFI_MAX_31855 */
 
 #if EFI_IDLE_CONTROL

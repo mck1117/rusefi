@@ -8,6 +8,7 @@
 #pragma once
 
 #include "globalaccess.h"
+#include "engine_module.h"
 #include "engine_state.h"
 #include "rpm_calculator.h"
 #include "event_registry.h"
@@ -18,6 +19,7 @@
 #include "local_version_holder.h"
 #include "buttonshift.h"
 #include "gear_controller.h"
+#include "high_pressure_fuel_pump.h"
 #include "limp_manager.h"
 #include "pin_repository.h"
 #include "ac_control.h"
@@ -26,6 +28,8 @@
 #include "idle_thread.h"
 #include "injector_model.h"
 #include "launch_control.h"
+#include "trigger_scheduler.h"
+#include "fuel_pump.h"
 #include "type_list.h"
 
 #ifndef EFI_UNIT_TEST
@@ -111,9 +115,6 @@ public:
 	// used by HW CI
 	bool isPwmEnabled = true;
 
-	// todo: remove this once all usages are using 'm_lastEventTimer'
-	int triggerActivityMs = -99 * 1000;
-
 	const char *prevOutputName = nullptr;
 
 	PinRepository pinRepository;
@@ -127,9 +128,23 @@ public:
 		Mockable<InjectorModel>,
 #if EFI_IDLE_CONTROL
 		IdleController,
-#endif
+#endif // EFI_IDLE_CONTROL
+		TriggerScheduler,
+#if EFI_HPFP && EFI_ENGINE_CONTROL
+		HpfpController,
+#endif // EFI_HPFP && EFI_ENGINE_CONTROL
+
+		FuelPumpController,
 		EngineModule // dummy placeholder so the previous entries can all have commas
 		> engineModules;
+
+	/**
+	 * Slightly shorter helper function to keep the code looking clean.
+	 */
+	template<typename get_t>
+	auto & module() {
+		return engineModules.get<get_t>();
+	}
 
 	cyclic_buffer<int> triggerErrorDetection;
 
@@ -200,17 +215,10 @@ public:
 	FuelSchedule injectionEvents;
 	IgnitionEventList ignitionEvents;
 	scheduling_s tdcScheduler[2];
-
 #endif /* EFI_ENGINE_CONTROL */
 
 	bool needToStopEngine(efitick_t nowNt) const;
 	bool etbAutoTune = false;
-	/**
-	 * That's the linked list of pending events scheduled in relation to trigger
-	 * At the moment we iterate over the whole list while looking for events for specific trigger index
-	 * We can make it an array of lists per trigger index, but that would take some RAM and probably not needed yet.
-	 */
-	AngleBasedEvent *angleBasedEventsHead = nullptr;
 	/**
 	 * this is based on isEngineChartEnabled and engineSnifferRpmThreshold settings
 	 */

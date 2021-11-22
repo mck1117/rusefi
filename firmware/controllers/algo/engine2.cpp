@@ -9,6 +9,7 @@
 
 #include "pch.h"
 
+#include "os_access.h"
 #include "speed_density.h"
 #include "fuel_math.h"
 #include "advance_map.h"
@@ -40,6 +41,9 @@ void WarningCodeState::addWarningCode(obd_code_e code) {
 	warningCounter++;
 	lastErrorCode = code;
 	if (!recentWarnings.contains(code)) {
+		chibios_rt::CriticalSectionLocker csl;
+
+		// We don't bother double checking
 		recentWarnings.add((int)code);
 	}
 }
@@ -155,7 +159,7 @@ void EngineState::periodicFastCallback() {
 	}
 
 	// Store the pre-wall wetting injection duration for scheduling purposes only, not the actual injection duration
-	engine->injectionDuration = engine->engineModules.get<InjectorModel>().getInjectionDuration(injectionMass);
+	engine->injectionDuration = engine->module<InjectorModel>()->getInjectionDuration(injectionMass);
 
 	float fuelLoad = getFuelingLoad();
 	injectionOffset = getInjectionOffset(rpm, fuelLoad);
@@ -241,12 +245,11 @@ void StartupFuelPumping::update() {
 
 void printCurrentState(Logging *logging, int seconds, const char *engineTypeName, const char *firmwareBuildId) {
 	// VersionChecker in rusEFI console is parsing these version string, please follow the expected format
-	logging->appendPrintf("%s%s%d@%s %s %s %d%s", PROTOCOL_VERSION_TAG, DELIMETER,
+	logging->appendPrintf(PROTOCOL_VERSION_TAG LOG_DELIMITER "%d@%s %s %s %d" LOG_DELIMITER,
 			getRusEfiVersion(), VCS_VERSION,
 			firmwareBuildId,
 			engineTypeName,
-			seconds,
-			DELIMETER);
+			seconds);
 }
 
 void TriggerConfiguration::update() {

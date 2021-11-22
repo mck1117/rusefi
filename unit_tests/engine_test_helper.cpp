@@ -305,27 +305,12 @@ scheduling_s * EngineTestHelper::assertEvent5(const char *msg, int index, void *
 	return event;
 }
 
-// todo: reduce code duplication with another 'getElementAtIndexForUnitText'
-static AngleBasedEvent * getElementAtIndexForUnitText(int index, Engine *engine) {
-	AngleBasedEvent * current;
-
-	LL_FOREACH2(engine->angleBasedEventsHead, current, nextToothEvent)
-	{
-		if (index == 0)
-			return current;
-		index--;
-	}
-#if EFI_UNIT_TEST
-	firmwareError(OBD_PCM_Processor_Fault, "getElementAtIndexForUnitText: null");
-#endif /* EFI_UNIT_TEST */
-	return nullptr;
-}
-
 AngleBasedEvent * EngineTestHelper::assertTriggerEvent(const char *msg,
 		int index, AngleBasedEvent *expected,
 		void *callback,
 		int triggerEventIndex, angle_t angleOffsetFromTriggerEvent) {
-	AngleBasedEvent * event = getElementAtIndexForUnitText(index, &engine);
+	AngleBasedEvent * event =
+		engine.module<TriggerScheduler>()->getElementAtIndexForUnitTest(index);
 
 	assertEqualsM4(msg, " callback up/down", (void*)event->action.getCallback() == (void*) callback, 1);
 
@@ -344,7 +329,7 @@ void EngineTestHelper::assertEvent(const char *msg, int index, void *callback, e
 
 	InjectionEvent *actualEvent = (InjectionEvent *)event->action.getArgument();
 
-	assertEqualsLM(msg, (long)expectedEvent->outputs[0], (long)actualEvent->outputs[0]);
+	assertEqualsLM(msg, (uintptr_t)expectedEvent->outputs[0], (uintptr_t)actualEvent->outputs[0]);
 // but this would not work	assertEqualsLM(msg, expectedPair, (long)eventPair);
 }
 

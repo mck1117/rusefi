@@ -280,58 +280,6 @@ void turnSparkPinHigh(IgnitionEvent *event) {
 	}
 }
 
-static bool assertNotInIgnitionList(AngleBasedEvent *head, AngleBasedEvent *element) {
-	assertNotInListMethodBody(AngleBasedEvent, head, element, nextToothEvent)
-}
-
-/**
- * @return true if event corresponds to current tooth and was time-based scheduler
- *         false if event was put into queue for scheduling at a later tooth
- */
-bool scheduleOrQueue(AngleBasedEvent *event,
-		uint32_t trgEventIndex,
-		efitick_t edgeTimestamp,
-		angle_t angle,
-		action_s action) {
-	event->position.setAngle(angle);
-
-	/**
-	 * Here's the status as of Jan 2020:
-	 * Once we hit the last trigger tooth prior to needed event, schedule it by time.  We use as much trigger position angle as possible
-	 * and only use less precise RPM-based time calculation for the last portion of the angle, the one between two teeth closest to the
-	 * desired angle moment.
-	 */
-	if (trgEventIndex != TRIGGER_EVENT_UNDEFINED && event->position.triggerEventIndex == trgEventIndex) {
-		/**
-		 * Spark should be fired before the next trigger event - time-based delay is best precision possible
-		 */
-		scheduling_s * sDown = &event->scheduling;
-
-		scheduleByAngle(
-			sDown,
-			edgeTimestamp,
-			event->position.angleOffsetFromTriggerEvent,
-			action
-		);
-
-		return true;
-	} else {
-		event->action = action;
-		/**
-		 * Spark should be scheduled in relation to some future trigger event, this way we get better firing precision
-		 */
-		bool isPending = assertNotInIgnitionList(engine->angleBasedEventsHead, event);
-		if (isPending) {
-#if SPARK_EXTREME_LOGGING
-			efiPrintf("isPending thus not adding to queue index=%d rev=%d now=%d", trgEventIndex, getRevolutionCounter(), (int)getTimeNowUs());
-#endif /* SPARK_EXTREME_LOGGING */
-		} else {
-			LL_APPEND2(engine->angleBasedEventsHead, event, nextToothEvent);
-		}
-		return false;
-	}
-}
-
 static void scheduleSparkEvent(bool limitedSpark, uint32_t trgEventIndex, IgnitionEvent *event,
 		int rpm, efitick_t edgeTimestamp) {
 
@@ -390,7 +338,9 @@ static void scheduleSparkEvent(bool limitedSpark, uint32_t trgEventIndex, Igniti
 	efiAssertVoid(CUSTOM_ERR_6591, !cisnan(sparkAngle), "findAngle#4");
 	assertAngleRange(sparkAngle, "findAngle#a5", CUSTOM_ERR_6549);
 
-	bool scheduled = scheduleOrQueue(&event->sparkEvent, trgEventIndex, edgeTimestamp, sparkAngle, { fireSparkAndPrepareNextSchedule, event });
+	bool scheduled = engine->module<TriggerScheduler>()->scheduleOrQueue(
+		&event->sparkEvent, trgEventIndex, edgeTimestamp, sparkAngle,
+		{ fireSparkAndPrepareNextSchedule, event });
 
 	if (scheduled) {
 #if SPARK_EXTREME_LOGGING
@@ -465,34 +415,6 @@ static void prepareIgnitionSchedule() {
 	initializeIgnitionActions();
 }
 
-static void scheduleAllSparkEventsUntilNextTriggerTooth(uint32_t trgEventIndex, efitick_t edgeTimestamp) {
-	AngleBasedEvent *current, *tmp;
-
-	LL_FOREACH_SAFE2(engine->angleBasedEventsHead, current, tmp, nextToothEvent)
-	{
-		if (current->position.triggerEventIndex == trgEventIndex) {
-			// time to fire a spark which was scheduled previously
-			LL_DELETE2(engine->angleBasedEventsHead, current, nextToothEvent);
-
-			scheduling_s * sDown = &current->scheduling;
-
-#if SPARK_EXTREME_LOGGING
-	efiPrintf("time to invoke ind=%d %d %d", trgEventIndex, getRevolutionCounter(), (int)getTimeNowUs());
-#endif /* SPARK_EXTREME_LOGGING */
-
-			// In case this event was scheduled by overdwell protection, cancel it so we can re-schedule at the correct time
-			engine->executor.cancel(sDown);
-
-			scheduleByAngle(
-				sDown,
-				edgeTimestamp,
-				current->position.angleOffsetFromTriggerEvent,
-				current->action
-			);
-		}
-	}
-}
-
 void onTriggerEventSparkLogic(bool limitedSpark, uint32_t trgEventIndex, int rpm, efitick_t edgeTimestamp
 		) {
 
@@ -512,7 +434,6 @@ void onTriggerEventSparkLogic(bool limitedSpark, uint32_t trgEventIndex, int rpm
 	 * Ignition schedule is defined once per revolution
 	 * See initializeIgnitionActions()
 	 */
-	scheduleAllSparkEventsUntilNextTriggerTooth(trgEventIndex, edgeTimestamp);
 
 
 //	scheduleSimpleMsg(&logger, "eventId spark ", eventIndex);

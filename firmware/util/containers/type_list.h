@@ -46,9 +46,13 @@ struct type_list {
 	}
 
 	/*
-	 * Return the object representing the type get_t.  May return a mocked get_t::interface_t instead.
+	 * Return the container object for type get_t.
 	 *
 	 * get_t should not be Mockable, it should be the actual type.
+	 * The return object will have the methods unmock(), operator->, operator*, and if
+	 * Mockable, set().
+	 *
+	 * The return type is type_list<get_t> or type_list<Mockable<get_t>>
 	 */
 	template<typename get_t>
 	auto get() -> std::enable_if_t<decltype(first)::template has<get_t>(),
@@ -61,39 +65,6 @@ struct type_list {
 				       decltype(others.template get<get_t>())> {
 		return others.template get<get_t>();
 	}
-
-	/*
-	 * Return the regular, unmocked object unmock_t.
-	 *
-	 * unmock_t should not be Mockable, it should be the actual type.
-	 */
-	template<typename unmock_t>
-	auto unmock() -> std::enable_if_t<decltype(first)::template has<unmock_t>(), unmock_t &> {
-		return first.template unmock<unmock_t>();
-	}
-
-	template<typename unmock_t>
-	auto unmock() -> std::enable_if_t<!decltype(first)::template has<unmock_t>(), unmock_t &> {
-		return others.template unmock<unmock_t>();
-	}
-
-#if EFI_UNIT_TEST
-	/*
-	 * Change the object returned by get<set_t>().
-	 *
-	 * param_t should be a pointer or nullptr.  If you pass nullptr, it will be reset to the
-	 * unmock version.
-	 */
-	template<typename set_t, typename param_t>
-	auto set(param_t ptr) -> std::enable_if_t<decltype(first)::template has<set_t>()> {
-		first.template set<set_t>(ptr);
-	}
-
-	template<typename set_t, typename param_t>
-	auto set(param_t ptr) -> std::enable_if_t<!decltype(first)::template has<set_t>()> {
-		others.template set<set_t>(ptr);
-	}
-#endif // EFI_UNIT_TEST
 
 	/*
 	 * Returns whether has_t exists in the type list
@@ -128,17 +99,23 @@ public:
 
 	template<typename get_t, typename = std::enable_if_t<has<get_t>()>>
 	auto & get() {
-		return me;
+		return *this;
 	}
 
-	template<typename unmock_t, typename = std::enable_if_t<has<unmock_t>()>>
 	auto & unmock() {
 		return me;
 	}
 
+	base_t * operator->() {
+		return &me;
+	}
+
+	base_t & operator*() {
+		return me;
+	}
 };
 
-#if !EFI_UNIT_TEST
+#if EFI_PROD_CODE
 
 /*
  * Production specialization of type_list for a single Mockable<base_t>.
@@ -149,21 +126,24 @@ template<typename base_t>
 struct type_list<Mockable<base_t>> : public type_list<base_t> {
 };
 
-#else // if EFI_UNIT_TEST:
+#else // if not EFI_PROD_CODE:
+
+#include <memory>
 
 /*
- * Unit test specialization of type_list for a single Mockable<base_t>.
+ * Unit test/simulator specialization of type_list for a single Mockable<base_t>.
  */
 template<typename base_t>
 struct type_list<Mockable<base_t>> {
 private:
-	base_t me;
-	typename base_t::interface_t * cur = &me;
+	// Dynamically allocate so that ASAN can detect overflows for us
+	std::unique_ptr<base_t> me = std::make_unique<base_t>();
+	typename base_t::interface_t * cur = me.get();
 
 public:
 	template<typename func_t>
 	void apply_all(func_t const & f) {
-		f(me);
+		f(*me);
 	}
 
 	template<typename has_t>
@@ -173,22 +153,29 @@ public:
 
 	template<typename get_t, typename = std::enable_if_t<has<get_t>()>>
 	auto & get() {
-		return *cur;
+		return *this;
 	}
 
-	template<typename unmock_t, typename = std::enable_if_t<has<unmock_t>()>>
 	auto & unmock() {
-		return me;
+		return *me;
 	}
 
-	template<typename set_t, typename param_t>
-	auto set(param_t ptr) -> std::enable_if_t<has<set_t>()> {
+	void set(typename base_t::interface_t * ptr) {
 		if (ptr) {
 			cur = ptr;
 		} else {
-			cur = &me;
+			cur = me.get();
 		}
 	}
+
+	auto * operator->() {
+		return cur;
+	}
+
+	auto & operator*() {
+		return *cur;
+	}
+
 };
 
 #endif // EFI_UNIT_TEST
