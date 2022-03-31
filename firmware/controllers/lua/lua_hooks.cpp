@@ -256,6 +256,8 @@ static int lua_startPwm(lua_State* l) {
 	return 0;
 }
 
+void luaDeInitPdmPins();
+
 void luaDeInitPins() {
 	// Simply de-init all pins - when the script runs again, they will be re-init'd
 	for (size_t i = 0; i < efi::size(pins); i++) {
