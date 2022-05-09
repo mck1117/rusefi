@@ -670,8 +670,20 @@ void TriggerState::decodeTriggerEvent(
 #endif /* EFI_UNIT_TEST */
 
 		if (isSynchronizationPoint) {
+			// We can check if things are fine by comparing the number of events in a cycle with the expected number of event.
+			bool isDecodingError = validateEventCounters(triggerShape);
+
+			// 'triggerStateListener is not null' means we are running a real engine and now just preparing trigger shape
+			// that's a bit of a hack, a sweet OOP solution would be a real callback or at least 'needDecodingErrorLogic' method?
 			if (triggerStateListener) {
-				triggerStateListener->OnTriggerSyncronization(wasSynchronized);
+				triggerStateListener->OnTriggerSyncronization(wasSynchronized, isDecodingError);
+
+				if (wasSynchronized && isDecodingError) {
+					// We've lost sync!
+					m_hasSynchronizedPhase = false;
+
+					// TODO: call Engine::OnTriggerStateDecodingError() from here
+				}
 			}
 
 			setShaftSynchronized(true);

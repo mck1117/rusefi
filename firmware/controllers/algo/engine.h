@@ -203,7 +203,7 @@ public:
 		return engineModules.get<get_t>();
 	}
 
-	cyclic_buffer<int> triggerErrorDetection;
+	cyclic_buffer<int, 10> triggerErrorDetection;
 
 #if EFI_TCU
 	GearControllerBase *gearController;
@@ -241,7 +241,7 @@ public:
 #if EFI_SHAFT_POSITION_INPUT
 	void OnTriggerStateDecodingError();
 	void OnTriggerStateProperState(efitick_t nowNt) override;
-	void OnTriggerSyncronization(bool wasSynchronized) override;
+	void OnTriggerSyncronization(bool wasSynchronized, bool isDecodingError) override;
 	void OnTriggerInvalidIndex(int currentIndex) override;
 	void OnTriggerSynchronizationLost() override;
 #endif

@@ -18,7 +18,7 @@ class TriggerState;
 struct TriggerStateListener {
 #if EFI_SHAFT_POSITION_INPUT
 	virtual void OnTriggerStateProperState(efitick_t nowNt) = 0;
-	virtual void OnTriggerSyncronization(bool wasSynchronized) = 0;
+	virtual void OnTriggerSyncronization(bool wasSynchronized, bool isDecodingError) = 0;
 	virtual void OnTriggerInvalidIndex(int currentIndex) = 0;
 	virtual void OnTriggerSynchronizationLost() = 0;
 #endif // EFI_SHAFT_POSITION_INPUT

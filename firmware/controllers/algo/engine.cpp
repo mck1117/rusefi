@@ -431,19 +431,12 @@ void Engine::OnTriggerInvalidIndex(int currentIndex) {
 	}
 }
 
-void Engine::OnTriggerSyncronization(bool wasSynchronized) {
+void Engine::OnTriggerSyncronization(bool wasSynchronized, bool isDecodingError) {
 	// We only care about trigger shape once we have synchronized trigger. Anything could happen
 	// during first revolution and it's fine
 	if (wasSynchronized) {
-		/**
-	 	 * We can check if things are fine by comparing the number of events in a cycle with the expected number of event.
-	 	 */
-		bool isDecodingError = triggerCentral.triggerState.validateEventCounters(triggerCentral.triggerShape);
-
 		enginePins.triggerDecoderErrorPin.setValue(isDecodingError);
 
-		// 'triggerStateListener is not null' means we are running a real engine and now just preparing trigger shape
-		// that's a bit of a hack, a sweet OOP solution would be a real callback or at least 'needDecodingErrorLogic' method?
 		if (isDecodingError) {
 			OnTriggerStateDecodingError();
 		}
@@ -460,7 +453,6 @@ void Engine::OnTriggerSyncronization(bool wasSynchronized) {
 					triggerCentral.triggerState.currentCycle.eventCount[2]);
 		}
 	}
-
 }
 #endif
 
