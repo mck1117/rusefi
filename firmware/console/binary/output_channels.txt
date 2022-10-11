@@ -122,7 +122,10 @@ uint16_t autoscale rpmAcceleration;dRPM;"RPM/s",1, 0, 0, 5, 2
 	uint16_t autoscale veTableYAxis;;"%",{1/100}, 0, 0, 0, 0
 	uint16_t autoscale afrTableYAxis;;"%",{1/100}, 0, 0, 0, 0
 
-	float autoscale knockLevel;@@GAUGE_NAME_KNOCK_LEVEL@@;"Volts", 1, 0, 0, 0, 0
+	uint8_t autoscale totalTriggerErrorCounter;@@GAUGE_NAME_TRG_ERR@@;"counter",1, 0, 0, 0, 0
+	uint8_t autoscale orderingErrorCounter;;"",1, 0, 0, 0, 0
+
+	int16_t autoscale knockLevel;@@GAUGE_NAME_KNOCK_LEVEL@@;"dBv", 0.1, 0, -60, 20, 1
 
 ! integration magic: TS requires exact 'seconds' name
 	uint32_t autoscale seconds;@@GAUGE_NAME_UPTIME@@;"sec", 1, 0, 0, 0, 0
@@ -152,14 +155,14 @@ uint16_t autoscale rpmAcceleration;dRPM;"RPM/s",1, 0, 0, 5, 2
 	uint8_t autoscale idleTargetPosition;;"", 1, 0, 0, 0, 0
 
 ! Errors
-	uint32_t autoscale totalTriggerErrorCounter;@@GAUGE_NAME_TRG_ERR@@;"counter",1, 0, 0, 0, 0
-	uint32_t autoscale orderingErrorCounter;;"",1, 0, 0, 0, 0
-
 	uint16_t autoscale warningCounter;@@GAUGE_NAME_WARNING_COUNTER@@;"count",1, 0, 0, 0, 0
 	uint16_t autoscale lastErrorCode;@@GAUGE_NAME_WARNING_LAST@@;"error",1, 0, 0, 0, 0
 
 ! todo: re-implement enableLogErrorList
 	uint16_t[8 iterate] recentErrorCode;;"error", 1, 0, 0, 0, 0
+
+	uint8_t tpsAccelFrom;;"%", 1, 0, 0, 100, 0
+	uint8_t tpsAccelTo;;"%", 1, 0, 0, 100, 0
 
 ! todo: re-implement enableLogDebugChannels
 	float autoscale debugFloatField1;;"val", 1, 0, 0, 0, 3
@@ -263,9 +266,6 @@ uint16_t autoscale rpmAcceleration;dRPM;"RPM/s",1, 0, 0, 5, 2
 	uint16_t autoscale rawMap;;"V",{1/@@PACK_MULT_VOLTAGE@@}, 0, 0, 5, 3
 	uint16_t autoscale rawAfr;;"V",{1/@@PACK_MULT_VOLTAGE@@}, 0, 0, 5, 3
 
-	uint8_t tpsAccelFrom;;"%", 1, 0, 0, 100, 0
-	uint8_t tpsAccelTo;;"%", 1, 0, 0, 100, 0
-
 	float autoscale calibrationValue2;;"", 1, 0, 0, 0, 0
     bit isMainRelayOn;
     bit isUsbConnected;Original reason for this is to check if USB is connected from Lua
@@ -295,25 +295,26 @@ uint16_t autoscale rpmAcceleration;dRPM;"RPM/s",1, 0, 0, 5, 2
 
 	uint8_t detectedGear;@@GAUGE_NAME_DETECTED_GEAR@@;"", 1, 0, 0, @@GEARS_COUNT@@, 0
 
+	uint8_t extiOverflowCount;;"", 1, 0, 0, 255, 0
+
 	uint16_t autoscale instantMAPValue;Instant MAP;"kPa",{1/@@PACK_MULT_PRESSURE@@}, 0, 0, 655, 2
 
     uint16_t maxLockedDuration;;"us", 1, 0, 0, 65535, 0
     uint8_t maxTriggerReentrant;;"", 1, 0, 0, 100, 0
+	uint8_t multiSparkCounter;;"", 1, 0, 0, 255, 0
 
-    uint16_t canWriteOk;;"", 1, 0, -10000, 10000, 3
-    uint16_t canWriteNotOk;;"", 1, 0, -10000, 10000, 3
+    uint16_t canWriteOk;;"", 1, 0, 0, 65535, 0
+    uint16_t canWriteNotOk;;"", 1, 0, 0, 65535, 0
 
-    int triggerPrimaryFall;;"", 1, 0, -10000, 10000, 3
-    int triggerPrimaryRise;;"", 1, 0, -10000, 10000, 3
-    int triggerSecondaryFall;;"", 1, 0, -10000, 10000, 3
-    int triggerSecondaryRise;;"", 1, 0, -10000, 10000, 3
-    int triggerVvtFall;;"", 1, 0, -10000, 10000, 3
-    int triggerVvtRise;;"", 1, 0, -10000, 10000, 3
+    uint8_t triggerPrimaryFall;;"", 1, 0, 0, 255, 0
+    uint8_t triggerPrimaryRise;;"", 1, 0, 0, 255, 0
+    uint8_t triggerSecondaryFall;;"", 1, 0, 0, 255, 0
+    uint8_t triggerSecondaryRise;;"", 1, 0, 0, 255, 0
+    uint8_t triggerVvtFall;;"", 1, 0, 0, 255, 0
+    uint8_t triggerVvtRise;;"", 1, 0, 0, 255, 0
 
-
-    uint8_t starterState;;"", 1, 0, -10000, 10000, 3
-    uint8_t starterRelayDisable;;"", 1, 0, -10000, 10000, 3
-    uint8_t multiSparkCounter;;"", 1, 0, -10000, 10000, 3
+    uint8_t starterState;;"", 1, 0, 0, 255, 0
+    uint8_t starterRelayDisable;;"", 1, 0, 0, 255, 0
 
 	pid_status_s alternatorStatus
 	pid_status_s idleStatus
@@ -332,37 +333,34 @@ uint16_t autoscale rpmAcceleration;dRPM;"RPM/s",1, 0, 0, 5, 2
 
 	int16_t autoscale rawBattery;;"V",{1/@@PACK_MULT_VOLTAGE@@}, 0, 0, 5, 3
 
-	uint8_t extiOverflowCount;;"", 1, 0, 0, 255, 0
-
 	uint8_t[IGN_BLEND_COUNT iterate] autoscale ignBlendBias;;"%", 0.5, 0, 0, 100, 1
 	uint16_t[IGN_BLEND_COUNT iterate] autoscale ignBlendOutput;;"deg", 0.01, 0, -300, 300, 2
 
-bit coilState1
-bit coilState2
-bit coilState3
-bit coilState4
-bit coilState5
-bit coilState6
-bit coilState7
-bit coilState8
-bit coilState9
-bit coilState10
-bit coilState11
-bit coilState12
-bit injectorState1
-bit injectorState2
-bit injectorState3
-bit injectorState4
-bit injectorState5
-bit injectorState6
-bit injectorState7
-bit injectorState8
-bit injectorState9
-bit injectorState10
-bit injectorState11
-bit injectorState12
+	bit coilState1
+	bit coilState2
+	bit coilState3
+	bit coilState4
+	bit coilState5
+	bit coilState6
+	bit coilState7
+	bit coilState8
+	bit coilState9
+	bit coilState10
+	bit coilState11
+	bit coilState12
+	bit injectorState1
+	bit injectorState2
+	bit injectorState3
+	bit injectorState4
+	bit injectorState5
+	bit injectorState6
+	bit injectorState7
+	bit injectorState8
+	bit injectorState9
+	bit injectorState10
+	bit injectorState11
+	bit injectorState12
 
-int outputRequestPeriod
-float mapFast
-	uint8_t[150 iterate] unusedAtTheEnd;;"",1, 0, 0, 0, 0
+	int outputRequestPeriod
+	float mapFast
 end_struct
