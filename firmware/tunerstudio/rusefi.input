@@ -4138,6 +4138,7 @@ dialog = tcuControls, "Transmission Settings"
 		field = auxFrequencyFilter,							auxFrequencyFilter
 		field = useBiQuadOnAuxSpeedSensors,				useBiQuadOnAuxSpeedSensors
 		field = "TODO KS mode 4569",						kickStartCranking
+		field = "Relaxed throttle redundancy",			relaxedThrottleRedundancy
 		panel = allTriggerDebug
 		panel = torqueTableTbl
 

@@ -104,7 +104,7 @@ public:
 			bool tooCloseClosed = absF(primary.closed - secondary.closed) < 0.2f;
 			bool tooCloseOpen = absF(primary.open - secondary.open) < 0.2f;
 
-			if (hasBothSensors && tooCloseClosed && tooCloseOpen) {
+			if (hasBothSensors && tooCloseClosed && tooCloseOpen && !engineConfiguration->relaxedThrottleRedundancy) {
 				firmwareError(OBD_TPS_Configuration, "Configuration for redundant pair %s/%s are too similar - did you wire one sensor to both inputs...?", m_pri.name(), m_sec.name());
 				return;
 			}
