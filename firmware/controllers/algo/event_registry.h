@@ -14,6 +14,7 @@
 #include "trigger_structure.h"
 
 struct AngleBasedEventOld;
+struct AngleBasedEventNew;
 
 struct AngleBasedEventBase {
 	scheduling_s scheduling;
@@ -29,6 +30,7 @@ struct AngleBasedEventBase {
 	virtual float getAngleFromNow(float currentPhase) const = 0;
 
 	virtual AngleBasedEventOld* asOld() { return nullptr; }
+	virtual AngleBasedEventNew* asNew() { return nullptr; }
 };
 
 /**
@@ -60,6 +62,8 @@ struct AngleBasedEventNew : public AngleBasedEventBase {
 	bool shouldSchedule(uint32_t trgEventIndex, float currentPhase, float nextPhase) const override;
 	bool shouldSchedule(float currentPhase, float nextPhase) const;
 	float getAngleFromNow(float currentPhase) const override;
+
+	AngleBasedEventNew* asNew() override { return this; }
 };
 
 #define MAX_OUTPUTS_FOR_IGNITION 2
