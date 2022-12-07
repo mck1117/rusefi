@@ -119,8 +119,8 @@ public:
 	int valveIndex;
 	angle_t extra;
 
-	AngleBasedEventOld open;
-	AngleBasedEventOld close;
+	AngleBasedEventNew open;
+	AngleBasedEventNew close;
 };
 
 
