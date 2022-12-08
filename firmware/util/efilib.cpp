@@ -81,8 +81,8 @@ int indexOf(const char *string, char ch) {
 }
 
 // string to integer
-int atoi(const char *string) {
-	// todo: use stdlib '#include <stdlib.h> '
+int atoi(char const * const string) {
+	// todo: use stdlib '#include <stdlib.h>'
 	int len = strlen(string);
 	if (len == 0) {
 		return -ATOI_ERROR_CODE;
