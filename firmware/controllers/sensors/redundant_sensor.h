@@ -34,4 +34,7 @@ private:
 
 	// If not zero, how much to scale the second sensor to proportion to the first? (partial redundancy)
 	float m_partialSecondMaximum = 0;
+
+	// Persist a portion of the redundancy delta at switch-over to compensate the first sensor in the non-redundant region
+	float m_partialThresholdBias = 0;
 };

@@ -58,15 +58,24 @@ SensorResult RedundantSensor::get() const {
 		if (scaledSecond <= threshold) {
 			float delta = sensor1.Value - scaledSecond;
 			if (absF(delta) <= m_maxDifference) {
+				// Store delta to tolerate imprecise m_partialSecondMaximum, avoiding stepwise transition
+				const_cast<RedundantSensor *>(this)->m_partialThresholdBias = -delta / 2;
+
 				// All is well: sensors are valid and values check out, return the average value
 				return (sensor1.Value + scaledSecond) / 2;
 			}
 		} else {
-			// Check first sensor is at or above partial redundancy switch-over threshold
-			if (sensor1.Value >= m_partialSecondMaximum - m_maxDifference) {
-				return sensor1.Value;
+			// Check first sensor is at or above partial redundancy switch-over threshold, after compensating
+			// for redundancy discrepancy.
+			// The compensation avoids stepwise transition over the threshold, scaling linearly to zero at 100%
+			float compensatedFirst = sensor1.Value + m_partialThresholdBias * (100 - sensor1.Value) / (100 - threshold);
+			if (compensatedFirst >= m_partialSecondMaximum - m_maxDifference) {
+				return compensatedFirst;
 			}
 		}
+
+		// Reset compensation when the partial redundancy checks fail
+		const_cast<RedundantSensor *>(this)->m_partialThresholdBias = 0;
 	}
 
 	// Fall-through and any other condition indicates an unexpected discrepancy, return inconsistency error
