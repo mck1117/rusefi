@@ -38,8 +38,6 @@
 static NO_CACHE adcsample_t slowAdcSamples[SLOW_ADC_CHANNEL_COUNT];
 static NO_CACHE adcsample_t fastAdcSampleBuf[ADC_BUF_DEPTH_FAST * ADC_MAX_CHANNELS_COUNT];
 
-static adc_channel_mode_e adcHwChannelEnabled[HW_MAX_ADC_INDEX];
-
 // Board voltage, with divider coefficient accounted for
 float getVoltageDivided(const char *msg, adc_channel_e hwChannel) {
 	return getVoltage(msg, hwChannel) * engineConfiguration->analogInputDividerCoefficient;
@@ -47,7 +45,7 @@ float getVoltageDivided(const char *msg, adc_channel_e hwChannel) {
 
 // voltage in MCU universe, from zero to VDD
 float getVoltage(const char *msg, adc_channel_e hwChannel) {
-	return adcToVolts(getAdcValue(msg, hwChannel));
+	return adcToVolts(getAdcValueSlow(msg, hwChannel));
 }
 
 #if EFI_USE_FAST_ADC
@@ -181,7 +179,7 @@ float getMCUInternalTemperature() {
 	return mcuTemperature;
 }
 
-int getInternalAdcValue(const char *msg, adc_channel_e hwChannel) {
+int getSlowAdcValue(const char *msg, adc_channel_e hwChannel) {
 	if (!isAdcChannelValid(hwChannel)) {
 		warning(CUSTOM_OBD_ANALOG_INPUT_NOT_CONFIGURED, "ADC: %s input is not configured", msg);
 		return -1;
@@ -194,17 +192,19 @@ int getInternalAdcValue(const char *msg, adc_channel_e hwChannel) {
 	}
 #endif // USE_ADC3_VBATT_HACK
 
+	return slowAdcSamples[hwChannel - EFI_ADC_0];
+}
+
+int getFastAdcValue(const char *msg, adc_channel_e hwChannel) {
 #if EFI_USE_FAST_ADC
-	if (adcHwChannelEnabled[hwChannel] == ADC_FAST) {
-		int internalIndex = fastAdc.internalAdcIndexByHardwareIndex[hwChannel];
+	int internalIndex = fastAdc.internalAdcIndexByHardwareIndex[hwChannel];
 // todo if ADC_BUF_DEPTH_FAST EQ 1
 //		return fastAdc.samples[internalIndex];
-		int value = getAvgAdcValue(internalIndex, fastAdc.samples, ADC_BUF_DEPTH_FAST, fastAdc.size());
-		return value;
-	}
+	int value = getAvgAdcValue(internalIndex, fastAdc.samples, ADC_BUF_DEPTH_FAST, fastAdc.size());
+	return value;
+#else
+	return 0;
 #endif // EFI_USE_FAST_ADC
-
-	return slowAdcSamples[hwChannel - EFI_ADC_0];
 }
 
 #if EFI_USE_FAST_ADC
@@ -294,7 +294,7 @@ adc_channel_e AdcDevice::getAdcHardwareIndexByInternalIndex(int index) const {
 #endif // EFI_USE_FAST_ADC
 
 static void printAdcValue(int channel) {
-	int value = getAdcValue("print", (adc_channel_e)channel);
+	int value = getAdcValueSlow("print", (adc_channel_e)channel);
 	float volts = adcToVoltsDivided(value);
 	efiPrintf("adc voltage : %.2f", volts);
 }
@@ -399,8 +399,6 @@ void addChannel(const char *name, adc_channel_e setting, adc_channel_mode_e mode
 		return;
 	}
 
-	adcHwChannelEnabled[setting] = mode;
-
 #if EFI_USE_FAST_ADC
 	if (mode == ADC_FAST) {
 		fastAdc.enableChannel(setting);
@@ -411,20 +409,10 @@ void addChannel(const char *name, adc_channel_e setting, adc_channel_mode_e mode
 	// Nothing to do for slow channels, input is mapped to analog in init_sensors.cpp
 }
 
-void removeChannel(const char *name, adc_channel_e setting) {
-	(void)name;
-	if (!isAdcChannelValid(setting)) {
-		return;
-	}
-	adcHwChannelEnabled[setting] = ADC_OFF;
-}
-
 // Weak link a stub so that every board doesn't have to implement this function
 __attribute__((weak)) void setAdcChannelOverrides() { }
 
 static void configureInputs() {
-	memset(adcHwChannelEnabled, 0, sizeof(adcHwChannelEnabled));
-
 	/**
 	 * order of analog channels here is totally random and has no meaning
 	 * we also have some weird implementation with internal indices - that all has no meaning, it's just a random implementation
